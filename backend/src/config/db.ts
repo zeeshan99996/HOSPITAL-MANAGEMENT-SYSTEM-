@@ -9,7 +9,10 @@ const isSqlite = process.env.DB_DIALECT === 'sqlite' || !process.env.DB_HOST;
 let sequelize: Sequelize;
 
 if (isSqlite) {
-  const dbPath = path.resolve(__dirname, '../../hms.db');
+  const dbPath = process.env.VERCEL || process.env.TMPDIR
+    ? path.join('/tmp', 'hms.db')
+    : path.resolve(__dirname, '../../hms.db');
+
   console.log(`[Database] Initializing Sequelize with SQLite: ${dbPath}`);
   sequelize = new Sequelize({
     dialect: 'sqlite',

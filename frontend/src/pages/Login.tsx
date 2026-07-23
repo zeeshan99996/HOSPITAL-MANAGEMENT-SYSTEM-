@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Input, Button, Card } from '../components/UI';
-import { HeartPulse, Lock, Mail } from 'lucide-react';
+import { HeartPulse, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -11,6 +11,7 @@ export const Login: React.FC = () => {
   // Login form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,14 +72,22 @@ export const Login: React.FC = () => {
             <div className="relative">
               <Input
                 label="Password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="pl-10"
+                className="pl-10 pr-10"
               />
               <Lock className="absolute left-3.5 top-[38px] h-4 w-4 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-[38px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
 
             <div className="flex items-center justify-between text-xs mt-2">

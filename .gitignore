@@ -29,3 +29,4 @@ yarn-error.log*
 # 6. System Files (Mac/Windows ki fuzool files)
 .DS_Store
 Thumbs.db
+.vercel

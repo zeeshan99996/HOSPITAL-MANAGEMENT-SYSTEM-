@@ -53,6 +53,7 @@ app.use((req, res, next) => {
 
 // Mount Routes
 app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // Health check
 app.get('/health', (req, res) => {
