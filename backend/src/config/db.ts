@@ -1,4 +1,5 @@
 import { Sequelize } from 'sequelize';
+import sqlite3 from 'sqlite3';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -16,6 +17,7 @@ if (isSqlite) {
   console.log(`[Database] Initializing Sequelize with SQLite: ${dbPath}`);
   sequelize = new Sequelize({
     dialect: 'sqlite',
+    dialectModule: sqlite3,
     storage: dbPath,
     logging: false, // Set to console.log for SQL debug
   });
