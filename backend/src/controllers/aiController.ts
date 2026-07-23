@@ -1534,11 +1534,11 @@ ${rows}`;
       if (!Array.isArray(items) || items.length === 0) {
         lowStockAlertStr = '✅ **All medicine stocks are healthy.** No low stock items detected.\n\n';
       } else {
-        const rows = items.map(m => `| ${m.name} | ${m.category} | ${m.stockLevel} | ${m.lowStockThreshold} | ${m.unit} | ⚠️ **Low Stock** |`).join('\n');
+        const rows = items.map((m: any) => `| ${m.name} | ${m.category} | ${m.stockLevel} | ${m.lowStockThreshold} | ${m.unit} | ⚠️ **Low Stock** |`).join('\n');
         lowStockAlertStr = `### ⚠️ Low Stock Medicine Alerts\n\n| Medicine Name | Category | Current Stock | Threshold | Unit | Status |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${rows}\n\n`;
       }
       
-      const allRows = allMeds.map(m => `| ${m.id} | ${m.name} | ${m.category} | ${m.stockLevel} | Rs. ${m.price} | ${m.batchNumber} | ${m.expiryDate} |`).join('\n');
+      const allRows = allMeds.map((m: any) => `| ${m.id} | ${m.name} | ${m.category} | ${m.stockLevel} | Rs. ${m.price} | ${m.batchNumber} | ${m.expiryDate} |`).join('\n');
       const allMedsStr = `### 📦 Complete Pharmacy Dispensary Catalog\n\n| ID | Name / Formula | Category | Stock Level | Preconfigured Unit Rate | Batch Number | Expiry Date |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n${allRows}`;
       
       return `${lowStockAlertStr}${allMedsStr}`;
@@ -1724,7 +1724,7 @@ ${rows}`;
         if (records.length === 0) {
           return `${title}\n${subtitle}\n\n*No collection records found in this date range.*`;
         }
-        const rows = records.map(r => `| ${r.date} | ${r.invoice} | ${r.patient} | Rs. ${r.amount.toFixed(2)} | ${r.method} | ${r.status.toUpperCase()} |`).join('\n');
+        const rows = records.map((r: any) => `| ${r.date} | ${r.invoice} | ${r.patient} | Rs. ${r.amount.toFixed(2)} | ${r.method} | ${r.status.toUpperCase()} |`).join('\n');
         return `${title}\n${subtitle}\n\n| Date | Invoice ID | Patient | Amount | Method | Status |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${rows}`;
       } else if (category === 'registrations') {
         const title = `### 👥 Operational Report: Daily Patient Intake Log`;
@@ -1732,7 +1732,7 @@ ${rows}`;
         if (records.length === 0) {
           return `${title}\n${subtitle}\n\n*No patient intake records logged in this date range.*`;
         }
-        const rows = records.map(r => `| ${r.date} | ${r.mrn} | ${r.patient} | ${r.gender.toUpperCase()} | ${r.phone} | ${r.registrar} |`).join('\n');
+        const rows = records.map((r: any) => `| ${r.date} | ${r.mrn} | ${r.patient} | ${r.gender.toUpperCase()} | ${r.phone} | ${r.registrar} |`).join('\n');
         return `${title}\n${subtitle}\n\n| Date | MRN Number | Patient Name | Gender | Contact Phone | Registrar |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${rows}`;
       } else if (category === 'appointments') {
         const title = `### 📅 Operational Report: Daily Booking & Appointment Log`;
@@ -1740,7 +1740,7 @@ ${rows}`;
         if (records.length === 0) {
           return `${title}\n${subtitle}\n\n*No appointment booking records found in this date range.*`;
         }
-        const rows = records.map(r => `| ${r.date} | ${r.patient} | Dr. ${r.doctor} | ${r.department} | ${r.time} | ${r.status.toUpperCase()} |`).join('\n');
+        const rows = records.map((r: any) => `| ${r.date} | ${r.patient} | Dr. ${r.doctor} | ${r.department} | ${r.time} | ${r.status.toUpperCase()} |`).join('\n');
         return `${title}\n${subtitle}\n\n| Date | Patient Name | Doctor Name | Department | Time | Status |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${rows}`;
       }
       return JSON.stringify(result);

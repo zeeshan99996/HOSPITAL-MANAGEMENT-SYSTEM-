@@ -176,12 +176,12 @@ export const Staff: React.FC = () => {
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Register New Employee Credentials">
         <form onSubmit={handleCreateStaff} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <Input label="Full Name" required value={name} onChange={e => setName(e.target.value)} placeholder="Dr. Mark Spencer" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Email Address" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="mspencer@lifeflow.com" />
             <Input label="Login Password" type="password" required value={password} onChange={e => setPassword(e.target.value)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">System Role</label>
               <select
@@ -217,7 +217,7 @@ export const Staff: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Clinical Specialization" required value={specialization} onChange={e => setSpecialization(e.target.value)} placeholder="Cardiology" className="!py-1.5 text-xs" />
                 <Input label="Consultation Fee ($)" type="number" required value={consultationFee} onChange={e => setConsultationFee(Number(e.target.value))} className="!py-1.5 text-xs" />
               </div>

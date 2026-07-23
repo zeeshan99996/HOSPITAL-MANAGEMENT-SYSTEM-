@@ -19,6 +19,7 @@ import { TokenQueue } from './pages/TokenQueue';
 import { DoctorsSchedule } from './pages/DoctorsSchedule';
 import { Reports } from './pages/Reports';
 import { Profile } from './pages/Profile';
+import { SecurityManagement } from './pages/SecurityManagement';
 import { AIChatbotWidget } from './components/AIChatbotWidget';
 
 
@@ -69,6 +70,7 @@ const App: React.FC = () => {
             <Route path="/billing" element={<Billing />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/security" element={<SecurityManagement />} />
             <Route path="/staff" element={<Staff />} />
             <Route path="/logs" element={<Logs />} />
             <Route path="/settings" element={<Settings />} />

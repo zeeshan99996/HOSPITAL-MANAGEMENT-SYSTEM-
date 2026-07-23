@@ -103,6 +103,7 @@ export class Doctor extends Model {
   declare consultationFee: number;
   declare status: 'active' | 'inactive';
   declare biography: string;
+  declare user?: User;
 }
 Doctor.init(
   {
@@ -155,6 +156,7 @@ export class Patient extends Model {
   declare insuranceProvider: string;
   declare insurancePolicyNum: string;
   declare mrNumber: string;
+  declare createdAt: Date;
 }
 Patient.init(
   {
@@ -263,6 +265,9 @@ export class Admission extends Model {
   declare baselineCost: number;
   declare advancePaid: number;
   declare discount: number;
+  declare patient?: Patient;
+  declare doctor?: Doctor;
+  declare bed?: Bed;
 }
 Admission.init(
   {
@@ -295,6 +300,8 @@ export class Appointment extends Model {
   declare type: 'online' | 'walk-in';
   declare symptoms: string;
   declare notes: string;
+  declare patient?: Patient;
+  declare doctor?: Doctor;
 }
 Appointment.init(
   {
@@ -435,6 +442,8 @@ export class LabRequest extends Model {
   declare sampleStatus: 'collected' | 'sent_to_lab' | 'processing' | 'completed';
   declare specimenCollectedAt: Date | null;
   declare sentToLabAt: Date | null;
+  declare patient?: Patient;
+  declare doctor?: Doctor;
 }
 LabRequest.init(
   {
@@ -469,6 +478,9 @@ export class Invoice extends Model {
   declare status: 'unpaid' | 'partially_paid' | 'paid';
   declare insuranceClaimed: boolean;
   declare paymentMethod: 'cash' | 'card' | 'online' | 'pending';
+  declare patient?: Patient;
+  declare invoice_items?: any[];
+  declare createdAt: Date;
 }
 Invoice.init(
   {
@@ -648,6 +660,8 @@ export class ActivityLog extends Model {
   declare action: string;
   declare details: string;
   declare ipAddress: string;
+  declare user?: User;
+  declare createdAt: Date;
 }
 ActivityLog.init(
   {
@@ -672,6 +686,8 @@ export class TokenQueue extends Model {
   declare status: 'waiting' | 'processing' | 'completed' | 'skipped';
   declare waitingTime: number;
   declare detail: string;
+  declare patient?: Patient;
+  declare doctor?: Doctor;
 }
 TokenQueue.init(
   {

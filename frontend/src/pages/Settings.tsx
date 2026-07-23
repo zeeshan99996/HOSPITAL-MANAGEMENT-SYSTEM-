@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { useAuth } from '../context/AuthContext';
 import { Settings as SettingsIcon, Shield, Server, BellRing, User } from 'lucide-react';
@@ -30,9 +31,9 @@ export const Settings: React.FC = () => {
           <button className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold bg-brand-500 text-white shadow-sm">
             <SettingsIcon className="h-4.5 w-4.5" /> Core Parameters
           </button>
-          <button onClick={() => alert('Security configuration is managed via Environment Variables.')} className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-950">
-            <Shield className="h-4.5 w-4.5" /> Security & RBAC
-          </button>
+          <Link to="/security" className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-950">
+            <Shield className="h-4.5 w-4.5 text-brand-500" /> Security & Access Control
+          </Link>
           <button onClick={() => alert('Diagnostic metrics: System is running on Sequelize/Express stack.')} className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-950">
             <Server className="h-4.5 w-4.5" /> Node Host Diagnostics
           </button>

@@ -284,7 +284,7 @@ export const Appointments: React.FC = () => {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Appointment Date & Time" type="datetime-local" required value={apptDate} onChange={e => setApptDate(e.target.value)} />
             <div>
               <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Consultation Type</label>
@@ -338,7 +338,7 @@ export const Appointments: React.FC = () => {
                     </button>
                   )}
                   <Input label="Medicine Name" required value={med.name} onChange={e => handleMedChange(index, 'name', e.target.value)} placeholder="e.g. Amoxicillin 500mg" />
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <Input label="Dosage" required value={med.dosage} onChange={e => handleMedChange(index, 'dosage', e.target.value)} placeholder="1 tab" />
                     <Input label="Frequency" required value={med.frequency} onChange={e => handleMedChange(index, 'frequency', e.target.value)} placeholder="TDS (3x/day)" />
                     <Input label="Duration" required value={med.duration} onChange={e => handleMedChange(index, 'duration', e.target.value)} placeholder="7 days" />

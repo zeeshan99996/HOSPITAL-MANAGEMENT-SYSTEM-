@@ -166,7 +166,7 @@ export const AIChatbotWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end font-sans">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end font-sans">
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -176,7 +176,7 @@ export const AIChatbotWidget: React.FC = () => {
             transition={{ duration: 0.2 }}
             className={`flex flex-col border border-slate-200/60 dark:border-slate-800/80 bg-white dark:bg-dark-900 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200 ${
               isMinimized
-                ? 'w-80 h-14'
+                ? 'w-80 max-w-[calc(100vw-32px)] h-14'
                 : 'w-[420px] max-w-[calc(100vw-32px)] h-[580px] max-h-[calc(100vh-120px)]'
             }`}
           >

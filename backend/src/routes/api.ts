@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticateToken, requireRoles } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rateLimiter';
 import {
   validatePatient,
   validateAppointment,
@@ -66,18 +67,23 @@ import {
   updateStaffStatus,
   getDepartments,
   createDepartment,
-  getActivityLogs
+  getActivityLogs,
+  getAllUsersAdmin,
+  updateUserCredentials
 } from '../controllers/dashboardController';
 
 const router = Router();
+
+// Apply general API rate limiter (150 requests per minute)
+router.use(rateLimiter(150, 60000));
 
 // ==========================================
 // PUBLIC & AUTHENTICATION ROUTES
 // ==========================================
 router.post('/auth/register', registerPatient);
-router.post('/auth/login', login);
+router.post('/auth/login', rateLimiter(5, 900000), login);
 router.get('/auth/profile', authenticateToken, getProfile);
-router.post('/ai/chat', authenticateToken, aiChat);
+router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 
 // ==========================================
 // PATIENT MANAGEMENT
@@ -192,6 +198,8 @@ router.get('/admin/stats', authenticateToken, requireRoles(['admin', 'doctor', '
 router.get('/admin/staff', authenticateToken, requireRoles(['admin']), getAllStaff);
 router.post('/admin/staff', authenticateToken, requireRoles(['admin']), createStaff);
 router.put('/admin/staff/:id/status', authenticateToken, requireRoles(['admin']), updateStaffStatus);
+router.get('/admin/users', authenticateToken, requireRoles(['admin']), getAllUsersAdmin);
+router.put('/admin/users/:id/credentials', authenticateToken, requireRoles(['admin']), updateUserCredentials);
 router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
 router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivityLogs);

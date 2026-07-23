@@ -99,19 +99,6 @@ export const Login: React.FC = () => {
               Access System Account
             </Button>
           </form>
-
-          {/* Quick Login credentials display helper for local testing */}
-          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-500 block mb-2">Seeded Logins (Password: Password123)</span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] text-slate-505 dark:text-slate-450">
-              <div>Admin: <strong className="select-all text-slate-700 dark:text-slate-350 font-mono">admin@lifeflow.com</strong></div>
-              <div>Doctor: <strong className="select-all text-slate-700 dark:text-slate-355 font-mono">doctor@lifeflow.com</strong></div>
-              <div>Reception: <strong className="select-all text-slate-700 dark:text-slate-355 font-mono">receptionist@lifeflow.com</strong></div>
-              <div>Pharmacist: <strong className="select-all text-slate-700 dark:text-slate-355 font-mono">pharmacist@lifeflow.com</strong></div>
-              <div>Lab Tech: <strong className="select-all text-slate-700 dark:text-slate-355 font-mono">lab@lifeflow.com</strong></div>
-              <div>Accountant: <strong className="select-all text-slate-700 dark:text-slate-355 font-mono">accountant@lifeflow.com</strong></div>
-            </div>
-          </div>
         </Card>
       </div>
     </div>

@@ -19,7 +19,8 @@ import {
   Ticket,
   Stethoscope,
   FileText,
-  User
+  User,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -111,6 +112,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Staff Registry',
       path: '/staff',
       icon: UsersRound,
+      roles: ['admin'],
+    },
+    {
+      name: 'Security & Access',
+      path: '/security',
+      icon: ShieldCheck,
       roles: ['admin'],
     },
     {

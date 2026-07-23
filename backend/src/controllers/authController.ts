@@ -28,11 +28,23 @@ export const login = async (req: Request, res: Response) => {
   try {
     const user = await User.findOne({ where: { email } });
     if (!user || user.status === 'inactive') {
+      await ActivityLog.create({
+        userId: user ? user.id : null,
+        action: 'Login Failed',
+        details: `Failed sign-in attempt for email: ${email}. Account status: ${user ? user.status : 'non-existent'}.`,
+        ipAddress: req.ip
+      });
       return res.status(401).json({ message: 'Invalid credentials or account is suspended.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      await ActivityLog.create({
+        userId: user.id,
+        action: 'Login Failed',
+        details: `Failed sign-in attempt for email: ${email}. Incorrect password entered.`,
+        ipAddress: req.ip
+      });
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 

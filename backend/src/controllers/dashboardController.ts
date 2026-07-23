@@ -219,3 +219,67 @@ export const getActivityLogs = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error retrieving activity logs.', error: error.message });
   }
 };
+
+// ==========================================
+// SECURITY & USER CREDENTIALS MANAGEMENT (ADMIN)
+// ==========================================
+export const getAllUsersAdmin = async (req: Request, res: Response) => {
+  try {
+    const users = await User.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']],
+    });
+    return res.status(200).json(users);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error retrieving user accounts.', error: error.message });
+  }
+};
+
+export const updateUserCredentials = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, email, password, role, status } = req.body;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User account not found.' });
+    }
+
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ where: { email } });
+      if (existing && existing.id !== user.id) {
+        return res.status(400).json({ message: 'Email address is already in use by another account.' });
+      }
+    }
+
+    const updates: any = {};
+    if (name) updates.name = name;
+    if (email) updates.email = email;
+    if (role) updates.role = role;
+    if (status) updates.status = status;
+
+    if (password && password.trim() !== '') {
+      updates.password = await bcrypt.hash(password.trim(), 10);
+    }
+
+    await user.update(updates);
+
+    // Track security activity audit log
+    const adminUser = (req as any).user;
+    await ActivityLog.create({
+      userId: adminUser?.id || user.id,
+      action: 'Security Credentials Update',
+      details: `Account [${user.email}] updated by Admin. Modified fields: ${Object.keys(updates).join(', ')}.`,
+      ipAddress: req.ip,
+    });
+
+    const updatedUser = await User.findByPk(id, { attributes: { exclude: ['password'] } });
+    return res.status(200).json({
+      message: `User credentials for ${user.email} updated successfully.`,
+      user: updatedUser,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error updating user credentials.', error: error.message });
+  }
+};
+
