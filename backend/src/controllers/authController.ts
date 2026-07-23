@@ -27,24 +27,34 @@ export const login = async (req: Request, res: Response) => {
 
   try {
     const user = await User.findOne({ where: { email } });
+    const ipStr = String(req.headers['x-forwarded-for'] || req.ip || '127.0.0.1');
+
     if (!user || user.status === 'inactive') {
-      await ActivityLog.create({
-        userId: user ? user.id : null,
-        action: 'Login Failed',
-        details: `Failed sign-in attempt for email: ${email}. Account status: ${user ? user.status : 'non-existent'}.`,
-        ipAddress: req.ip
-      });
+      try {
+        await ActivityLog.create({
+          userId: user ? user.id : null,
+          action: 'Login Failed',
+          details: `Failed sign-in attempt for email: ${email}. Account status: ${user ? user.status : 'non-existent'}.`,
+          ipAddress: ipStr,
+        });
+      } catch (lErr) {
+        console.error('[AuditLog Error]:', lErr);
+      }
       return res.status(401).json({ message: 'Invalid credentials or account is suspended.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      await ActivityLog.create({
-        userId: user.id,
-        action: 'Login Failed',
-        details: `Failed sign-in attempt for email: ${email}. Incorrect password entered.`,
-        ipAddress: req.ip
-      });
+      try {
+        await ActivityLog.create({
+          userId: user.id,
+          action: 'Login Failed',
+          details: `Failed sign-in attempt for email: ${email}. Incorrect password entered.`,
+          ipAddress: ipStr,
+        });
+      } catch (lErr) {
+        console.error('[AuditLog Error]:', lErr);
+      }
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
@@ -62,12 +72,16 @@ export const login = async (req: Request, res: Response) => {
     );
 
     // Track activity audit
-    await ActivityLog.create({
-      userId: user.id,
-      action: 'Login',
-      details: `Successful sign-in. Session token generated for role: ${user.role}.`,
-      ipAddress: req.ip
-    });
+    try {
+      await ActivityLog.create({
+        userId: user.id,
+        action: 'Login',
+        details: `Successful sign-in. Session token generated for role: ${user.role}.`,
+        ipAddress: ipStr,
+      });
+    } catch (lErr) {
+      console.error('[AuditLog Error]:', lErr);
+    }
 
     return res.status(200).json({
       message: 'Authentication successful.',
@@ -81,6 +95,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    console.error('[Login Controller Error]:', error);
     return res.status(500).json({ message: 'Authentication error.', error: error.message });
   }
 };

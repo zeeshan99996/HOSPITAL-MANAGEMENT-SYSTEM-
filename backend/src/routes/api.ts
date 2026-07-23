@@ -81,7 +81,7 @@ router.use(rateLimiter(150, 60000));
 // PUBLIC & AUTHENTICATION ROUTES
 // ==========================================
 router.post('/auth/register', registerPatient);
-router.post('/auth/login', rateLimiter(5, 900000), login);
+router.post('/auth/login', login);
 router.get('/auth/profile', authenticateToken, getProfile);
 router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 
