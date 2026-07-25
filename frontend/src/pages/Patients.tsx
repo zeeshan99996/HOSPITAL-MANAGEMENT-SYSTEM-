@@ -88,12 +88,11 @@ export const Patients: React.FC = () => {
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiClient.post('/patients', {
+      const payload: any = {
         name,
         email,
         phone,
         gender,
-        dob,
         address,
         bloodGroup,
         allergies,
@@ -102,9 +101,13 @@ export const Patients: React.FC = () => {
         insuranceProvider,
         insurancePolicyNum,
         mrNumber,
-      });
+      };
+      if (dob && dob.trim() !== '') {
+        payload.dob = dob;
+      }
+      await apiClient.post('/patients', payload);
       setIsAddOpen(false);
-      fetchPatients();
+      await fetchPatients();
       // Reset form
       setName('');
       setEmail('');
@@ -117,8 +120,8 @@ export const Patients: React.FC = () => {
       setInsuranceProvider('');
       setInsurancePolicyNum('');
       setMrNumber('');
-    } catch (err) {
-      alert('Error creating patient profile.');
+    } catch (err: any) {
+      alert(err.message || 'Error creating patient profile.');
     }
   };
 

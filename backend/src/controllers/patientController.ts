@@ -10,6 +10,11 @@ export const createPatient = async (req: Request, res: Response) => {
       mrNumber: req.body.mrNumber || tempUuid
     };
 
+    // Remove empty string dob to prevent PostgreSQL DATE parse error
+    if (!patientData.dob || patientData.dob.trim() === '') {
+      delete patientData.dob;
+    }
+
     const patient = await Patient.create(patientData);
 
     if (patientData.mrNumber === tempUuid) {
@@ -20,6 +25,7 @@ export const createPatient = async (req: Request, res: Response) => {
 
     return res.status(201).json({ message: 'Patient registered successfully.', patient });
   } catch (error: any) {
+    console.error('[patientController] Error creating patient:', error);
     return res.status(500).json({ message: 'Error creating patient.', error: error.message });
   }
 };
@@ -28,12 +34,15 @@ export const getAllPatients = async (req: Request, res: Response) => {
   const { search } = req.query;
   const whereClause: any = {};
 
+  const isPostgres = process.env.DB_DIALECT === 'postgres' || !!process.env.DATABASE_URL;
+  const likeOp = isPostgres ? Op.iLike : Op.like;
+
   if (search) {
     whereClause[Op.or] = [
-      { name: { [Op.like]: `%${search}%` } },
-      { phone: { [Op.like]: `%${search}%` } },
-      { email: { [Op.like]: `%${search}%` } },
-      { mrNumber: { [Op.like]: `%${search}%` } },
+      { name: { [likeOp]: `%${search}%` } },
+      { phone: { [likeOp]: `%${search}%` } },
+      { email: { [likeOp]: `%${search}%` } },
+      { mrNumber: { [likeOp]: `%${search}%` } },
     ];
   }
 

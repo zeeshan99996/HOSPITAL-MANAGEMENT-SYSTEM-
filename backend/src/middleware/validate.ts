@@ -39,23 +39,26 @@ const isValidDate      = (v: any) => isNonEmptyString(v) && !isNaN(Date.parse(v)
 // ---------------------------------------------------------------------------
 export const validatePatient = (req: Request, res: Response, next: NextFunction) => {
   const errors: FieldError[] = [];
-  const { name, phone, gender, dob, address } = req.body;
+  const { name, phone, gender, dob } = req.body;
 
   if (!isNonEmptyString(name))
     errors.push({ field: 'name', message: 'Patient full name is required.' });
 
-  if (!isNonEmptyString(phone))
-    errors.push({ field: 'phone', message: 'Contact phone number is required.' });
-  else if (!/^\+?[\d\s\-().]{7,20}$/.test(phone.trim()))
+  if (phone && isNonEmptyString(phone) && !/^\+?[\d\s\-().]{7,20}$/.test(phone.trim())) {
     errors.push({ field: 'phone', message: 'Phone number format is invalid.' });
+  }
 
-  if (!['male', 'female', 'other'].includes(gender))
-    errors.push({ field: 'gender', message: "Gender must be 'male', 'female', or 'other'." });
+  if (gender && !['male', 'female', 'other'].includes(gender)) {
+    req.body.gender = 'male'; // Fallback default
+  }
 
-  if (!isValidDate(dob))
-    errors.push({ field: 'dob', message: 'A valid date of birth is required.' });
-  else if (new Date(dob) >= new Date())
-    errors.push({ field: 'dob', message: 'Date of birth cannot be in the future.' });
+  if (dob && isNonEmptyString(dob)) {
+    if (!isValidDate(dob)) {
+      errors.push({ field: 'dob', message: 'Date of birth format is invalid.' });
+    } else if (new Date(dob) >= new Date()) {
+      errors.push({ field: 'dob', message: 'Date of birth cannot be in the future.' });
+    }
+  }
 
   if (errors.length) return fail(res, errors);
   next();
