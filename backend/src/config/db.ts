@@ -1,5 +1,6 @@
 import { Sequelize } from 'sequelize';
 import sqlite3 from 'sqlite3';
+import pg from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -16,6 +17,7 @@ if (databaseUrl || dbDialect === 'postgres' || dbDialect === 'supabase') {
     console.log('[Database] Initializing Sequelize with PostgreSQL URL');
     sequelize = new Sequelize(databaseUrl, {
       dialect: 'postgres',
+      dialectModule: pg,
       logging: false,
       dialectOptions: {
         ssl: {
@@ -42,6 +44,7 @@ if (databaseUrl || dbDialect === 'postgres' || dbDialect === 'supabase') {
       host,
       port,
       dialect: 'postgres',
+      dialectModule: pg,
       logging: false,
       dialectOptions: {
         ssl: {
