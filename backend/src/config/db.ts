@@ -6,7 +6,8 @@ import path from 'path';
 dotenv.config();
 
 const dbDialect = (process.env.DB_DIALECT || '').toLowerCase();
-const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+const DEFAULT_SUPABASE_URL = 'postgresql://postgres.cboevanmnhphawnmfpjg:Pak%40pass.3499@aws-1-ap-south-1.pooler.supabase.com:6543/postgres';
+const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || DEFAULT_SUPABASE_URL;
 
 let sequelize: Sequelize;
 
