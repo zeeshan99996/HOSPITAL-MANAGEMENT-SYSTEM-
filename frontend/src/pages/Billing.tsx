@@ -332,16 +332,9 @@ export const Billing: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Billing & Accounting</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Digitize manual registers: consultations, local diagnostic tests, IPD advances, petty cash logs, and payroll.</p>
-        </div>
-        {user?.role !== 'patient' && user?.role !== 'nurse' && user?.role !== 'doctor' && (
-          <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 self-start sm:self-center">
-            <Plus className="h-4 w-4" /> Create Custom Invoice
-          </Button>
-        )}
+      <div>
+        <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Billing & Accounting</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Digitize manual registers: consultations, local diagnostic tests, IPD advances, petty cash logs, and payroll.</p>
       </div>
 
       {/* Tabs list (RBAC controlled) */}
