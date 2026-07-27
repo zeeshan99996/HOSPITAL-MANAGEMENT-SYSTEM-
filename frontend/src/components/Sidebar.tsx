@@ -17,7 +17,6 @@ import {
   HeartPulse,
   UserPlus,
   Ticket,
-  Stethoscope,
   FileText,
   User,
   ShieldCheck
@@ -65,12 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       path: '/token-queue',
       icon: Ticket,
       roles: ['admin', 'receptionist'],
-    },
-    {
-      name: 'Doctors Schedule',
-      path: '/doctors-schedule',
-      icon: Stethoscope,
-      roles: ['admin', 'doctor', 'receptionist'],
     },
     {
       name: 'Bed Admissions',
