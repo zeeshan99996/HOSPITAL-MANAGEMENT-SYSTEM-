@@ -68,6 +68,7 @@ export const Dashboard: React.FC = () => {
 
   const COLORS = ['#0ea0ea', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
   const isReceptionist = user?.role === 'receptionist';
+  const isAdmin = user?.role === 'admin';
 
   // Staff/Clinical Administrator View
   return (
@@ -252,50 +253,52 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Activity Logs Row */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">System Activity Stream</h3>
-            <span className="p-1 px-2.5 bg-slate-100 dark:bg-dark-950 text-slate-550 dark:text-slate-400 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-slate-850 flex items-center gap-1.5">
-              <Activity className="h-3 w-3 text-brand-500 animate-pulse" /> Live Monitoring
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-450 uppercase tracking-wider text-[10px]">
-                  <th className="py-2.5">User</th>
-                  <th className="py-2.5">Action</th>
-                  <th className="py-2.5">Details</th>
-                  <th className="py-2.5">Origin IP</th>
-                  <th className="py-2.5 text-right">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                {stats.recentActivity.map((log: any) => (
-                  <tr key={log.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
-                    <td className="py-3">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{log.user?.name || 'Guest User'}</span>
-                      <span className="block text-[10px] text-slate-500 uppercase mt-0.5">{log.user?.role || 'Guest'}</span>
-                    </td>
-                    <td className="py-3">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                        log.action === 'Login' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-brand-500/10 text-brand-600 dark:text-brand-400'
-                      }`}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="py-3 max-w-xs truncate">{log.details}</td>
-                    <td className="py-3 font-mono text-slate-500">{log.ipAddress || '127.0.0.1'}</td>
-                    <td className="py-3 text-right text-slate-450">{new Date(log.createdAt).toLocaleTimeString()}</td>
+      {/* Activity Logs Row - Only visible to Admin */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">System Activity Stream</h3>
+              <span className="p-1 px-2.5 bg-slate-100 dark:bg-dark-950 text-slate-550 dark:text-slate-400 text-[10px] font-bold rounded-lg border border-slate-200 dark:border-slate-850 flex items-center gap-1.5">
+                <Activity className="h-3 w-3 text-brand-500 animate-pulse" /> Live Monitoring
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-450 uppercase tracking-wider text-[10px]">
+                    <th className="py-2.5">User</th>
+                    <th className="py-2.5">Action</th>
+                    <th className="py-2.5">Details</th>
+                    <th className="py-2.5">Origin IP</th>
+                    <th className="py-2.5 text-right">Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
+                  {stats.recentActivity?.map((log: any) => (
+                    <tr key={log.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
+                      <td className="py-3">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{log.user?.name || 'Guest User'}</span>
+                        <span className="block text-[10px] text-slate-500 uppercase mt-0.5">{log.user?.role || 'Guest'}</span>
+                      </td>
+                      <td className="py-3">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          log.action === 'Login' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-brand-500/10 text-brand-600 dark:text-brand-400'
+                        }`}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-3 max-w-xs truncate">{log.details}</td>
+                      <td className="py-3 font-mono text-slate-500">{log.ipAddress || '127.0.0.1'}</td>
+                      <td className="py-3 text-right text-slate-450">{new Date(log.createdAt).toLocaleTimeString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
