@@ -8,7 +8,6 @@ import {
   Calendar,
   BedDouble,
   Beaker,
-  Pill,
   Receipt,
   UsersRound,
   FileCode2,
@@ -76,12 +75,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       path: '/laboratory',
       icon: Beaker,
       roles: ['admin', 'doctor', 'lab_technician'],
-    },
-    {
-      name: 'Pharmacy & Stock',
-      path: '/pharmacy',
-      icon: Pill,
-      roles: ['admin', 'pharmacist', 'accountant'],
     },
     {
       name: 'Billing & Invoices',
