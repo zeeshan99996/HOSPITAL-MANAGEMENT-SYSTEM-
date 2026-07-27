@@ -471,7 +471,7 @@ export const Patients: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Email Address (Optional)" type="email" maxLength={50} placeholder="Optional" value={email} onChange={e => setEmail(e.target.value.slice(0, 50))} />
-            <Input label="Phone Number" required maxLength={15} value={phone} onChange={e => setPhone(e.target.value.slice(0, 15))} />
+            <Input label="Phone Number" required maxLength={11} placeholder="e.g. 03116353044" value={phone} onChange={e => setPhone(e.target.value.slice(0, 11))} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

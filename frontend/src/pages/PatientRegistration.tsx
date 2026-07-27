@@ -49,7 +49,7 @@ export const PatientRegistration: React.FC = () => {
 
   const handleInputChange = (key: string, value: string) => {
     let val = value;
-    if (key === 'phone') val = value.slice(0, 15);
+    if (key === 'phone') val = value.slice(0, 11);
     if (key === 'cnic') val = value.slice(0, 20);
     if (key === 'email') val = value.slice(0, 50);
     setFormData({ ...formData, [key]: val });
@@ -90,8 +90,8 @@ export const PatientRegistration: React.FC = () => {
       return;
     }
 
-    if (formData.phone.replace(/[^0-9]/g, '').length < 7) {
-      setErrorMsg('Please enter a valid Phone Number (minimum 7 digits, max 15).');
+    if (formData.phone.replace(/[^0-9]/g, '').length !== 11) {
+      setErrorMsg('Please enter a valid 11-digit Mobile Phone Number (e.g. 03116353044).');
       setLoading(false);
       return;
     }
@@ -248,8 +248,8 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="Mobile Phone Number"
               required
-              maxLength={15}
-              placeholder="e.g. 0300-1234567"
+              maxLength={11}
+              placeholder="e.g. 03116353044"
               value={formData.phone}
               onChange={e => handleInputChange('phone', e.target.value)}
             />
