@@ -267,20 +267,12 @@ export const TokenQueue: React.FC = () => {
                           </button>
                         )}
                         {t.status === 'processing' && (
-                          <>
-                            <button
-                              onClick={() => handleStatusChange(t.id, 'completed')}
-                              className="p-1 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[10px] font-bold"
-                            >
-                              Complete
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(t.id, 'skipped')}
-                              className="p-1 px-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 border border-rose-200 dark:border-rose-900/50 rounded text-[10px] font-bold"
-                            >
-                              Skip
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleStatusChange(t.id, 'completed')}
+                            className="p-1 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[10px] font-bold"
+                          >
+                            Complete
+                          </button>
                         )}
                         {t.status === 'skipped' && (
                           <button
