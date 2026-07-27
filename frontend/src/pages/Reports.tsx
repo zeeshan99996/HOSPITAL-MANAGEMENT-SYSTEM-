@@ -148,7 +148,6 @@ export const Reports: React.FC = () => {
                     <th className="px-5 py-3">Patient Name</th>
                     <th className="px-5 py-3">Gender</th>
                     <th className="px-5 py-3">Phone</th>
-                    <th className="px-5 py-3">Registrar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -159,7 +158,6 @@ export const Reports: React.FC = () => {
                       <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-100">{r.patient}</td>
                       <td className="px-5 py-3.5">{r.gender}</td>
                       <td className="px-5 py-3.5">{r.phone}</td>
-                      <td className="px-5 py-3.5 text-slate-450">{r.registrar}</td>
                     </tr>
                   ))}
                 </tbody>
