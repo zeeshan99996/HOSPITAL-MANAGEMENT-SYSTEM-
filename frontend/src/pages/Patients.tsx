@@ -178,22 +178,10 @@ export const Patients: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Title & Add Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Patient Database</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Register new patients, view history records, log vital stats, and generate queue tickets.</p>
-        </div>
-        {user?.role !== 'accountant' && (
-          <Button
-            onClick={() => setIsAddOpen(true)}
-            variant="primary"
-            className="flex items-center gap-2 self-start sm:self-center"
-          >
-            <UserPlus className="h-4 w-4" />
-            Register Patient
-          </Button>
-        )}
+      {/* Title */}
+      <div>
+        <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Patient Database</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">View patient history records, log vital stats, and generate queue tickets.</p>
       </div>
 
       {/* Filter panel */}
