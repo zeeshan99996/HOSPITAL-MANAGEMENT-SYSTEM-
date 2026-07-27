@@ -13,7 +13,6 @@ import {
   Clock,
   BriefcaseMedical,
   Inbox,
-  LayoutGrid,
   UserPlus,
   Ticket,
   Receipt
@@ -88,7 +87,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Widgets Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isReceptionist ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5`}>
         <Card className="flex items-center gap-4">
           <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl">
             <Users className="h-6 w-6" />
@@ -119,17 +118,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </Card>
 
-        {isReceptionist ? (
-          <Card className="flex items-center gap-4">
-            <div className="p-3 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 rounded-xl">
-              <LayoutGrid className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-550 dark:text-slate-400 uppercase tracking-wider">Check-in Terminal</p>
-              <h3 className="text-xs font-bold mt-1.5 text-brand-600 dark:text-brand-400 uppercase">Vitals & Tokens Active</h3>
-            </div>
-          </Card>
-        ) : (
+        {!isReceptionist && (
           <Card className="flex items-center gap-4">
             <div className="p-3 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 rounded-xl">
               <DollarSign className="h-6 w-6" />
