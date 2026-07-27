@@ -829,10 +829,12 @@ export const Billing: React.FC = () => {
                 <span>Subtotal amount:</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-250">Rs. {Number(selectedInvoice.totalAmount).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-rose-500">
-                <span>Discount applied:</span>
-                <span className="font-semibold">-Rs. {Number(selectedInvoice.discount).toLocaleString()}</span>
-              </div>
+              {Number(selectedInvoice.discount) > 0 && (
+                <div className="flex justify-between text-rose-500">
+                  <span>Discount applied:</span>
+                  <span className="font-semibold">-Rs. {Number(selectedInvoice.discount).toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Taxes (8%):</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-250">Rs. {Number(selectedInvoice.tax).toLocaleString()}</span>
