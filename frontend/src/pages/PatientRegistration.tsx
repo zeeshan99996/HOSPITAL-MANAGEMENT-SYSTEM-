@@ -48,7 +48,11 @@ export const PatientRegistration: React.FC = () => {
   };
 
   const handleInputChange = (key: string, value: string) => {
-    setFormData({ ...formData, [key]: value });
+    let val = value;
+    if (key === 'phone') val = value.slice(0, 15);
+    if (key === 'cnic') val = value.slice(0, 20);
+    if (key === 'email') val = value.slice(0, 50);
+    setFormData({ ...formData, [key]: val });
   };
 
   const handleReset = () => {
@@ -82,6 +86,18 @@ export const PatientRegistration: React.FC = () => {
     // Quick validation
     if (!formData.name || !formData.phone) {
       setErrorMsg('Full Name and Phone Number are required fields.');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.phone.replace(/[^0-9]/g, '').length < 7) {
+      setErrorMsg('Please enter a valid Phone Number (minimum 7 digits, max 15).');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setErrorMsg('Please enter a valid Email Address (e.g. name@domain.com).');
       setLoading(false);
       return;
     }
@@ -224,6 +240,7 @@ export const PatientRegistration: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="CNIC / Passport Number (Optional)"
+              maxLength={20}
               placeholder="e.g. 35202-xxxxxxx-x"
               value={formData.cnic}
               onChange={e => handleInputChange('cnic', e.target.value)}
@@ -231,7 +248,8 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="Mobile Phone Number"
               required
-              placeholder="e.g. 555-0199"
+              maxLength={15}
+              placeholder="e.g. 0300-1234567"
               value={formData.phone}
               onChange={e => handleInputChange('phone', e.target.value)}
             />
@@ -241,6 +259,7 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="Email Address (Optional)"
               type="email"
+              maxLength={50}
               placeholder="e.g. name@domain.com"
               value={formData.email}
               onChange={e => handleInputChange('email', e.target.value)}

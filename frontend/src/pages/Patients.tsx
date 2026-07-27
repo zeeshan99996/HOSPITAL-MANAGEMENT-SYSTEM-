@@ -470,8 +470,8 @@ export const Patients: React.FC = () => {
             <Input label="Custom MR Number (Optional)" placeholder="Leave blank to auto-generate" value={mrNumber} onChange={e => setMrNumber(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Email Address (Optional)" type="email" placeholder="Optional" value={email} onChange={e => setEmail(e.target.value)} />
-            <Input label="Phone Number" required value={phone} onChange={e => setPhone(e.target.value)} />
+            <Input label="Email Address (Optional)" type="email" maxLength={50} placeholder="Optional" value={email} onChange={e => setEmail(e.target.value.slice(0, 50))} />
+            <Input label="Phone Number" required maxLength={15} value={phone} onChange={e => setPhone(e.target.value.slice(0, 15))} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
