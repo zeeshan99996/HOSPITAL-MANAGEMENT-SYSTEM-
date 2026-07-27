@@ -160,11 +160,6 @@ export const Laboratory: React.FC = () => {
                 </Badge>
 
                 {/* Operations Actions */}
-                {user?.role === 'lab_technician' && req.status === 'pending' && (
-                  <Button onClick={() => handleCollectSample(req.id)} variant="secondary" size="sm" className="flex items-center gap-1.5">
-                    Collect Specimen <ArrowRight className="h-3 w-3" />
-                  </Button>
-                )}
                 {user?.role === 'lab_technician' && req.status === 'processing' && (
                   <Button onClick={() => handleResultClick(req)} variant="primary" size="sm" className="flex items-center gap-1.5">
                     Record Findings <ClipboardCheck className="h-4 w-4" />
