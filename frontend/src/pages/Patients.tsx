@@ -219,7 +219,7 @@ export const Patients: React.FC = () => {
                 <th className="px-6 py-3.5">MR Number / Name</th>
                 <th className="px-6 py-3.5">Contact Details</th>
                 <th className="px-6 py-3.5">Biological Info</th>
-                <th className="px-6 py-3.5">Registered Date</th>
+                <th className="px-6 py-3.5">Registered Date & Time</th>
                 <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
               </tr>
             </thead>
@@ -239,7 +239,7 @@ export const Patients: React.FC = () => {
                     <span className="font-bold">Blood Group: {p.bloodGroup || 'N/A'}</span>
                     <span className="block text-[10px] text-rose-500 max-w-[150px] truncate mt-0.5" title={p.allergies}>Allergies: {p.allergies || 'None'}</span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500">{new Date(p.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-slate-500 font-mono text-[11px]">{new Date(p.createdAt).toLocaleString()}</td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => handlePatientClick(p.id)}
@@ -327,6 +327,12 @@ export const Patients: React.FC = () => {
                 <div className="col-span-2">
                   <span className="text-[10px] text-slate-450 dark:text-slate-500 block"><MapPin className="inline h-3 w-3 mr-0.5" /> Address</span>
                   <span className="font-semibold text-slate-850 dark:text-slate-200 leading-relaxed">{selectedPatient.address}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Registered Date & Time</span>
+                  <span className="font-semibold text-slate-850 dark:text-slate-200 font-mono text-[11px]">
+                    {selectedPatient.createdAt ? new Date(selectedPatient.createdAt).toLocaleString() : 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
