@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { Calendar, User, UserCheck, Stethoscope, FileText, CheckCircle, Plus, Trash } from 'lucide-react';
+import { Calendar, User, UserCheck, Stethoscope, FileText, CheckCircle, Plus, Trash, Printer } from 'lucide-react';
 
 export const Appointments: React.FC = () => {
   const { user } = useAuth();
@@ -14,7 +14,9 @@ export const Appointments: React.FC = () => {
   // Modals & Forms controls
   const [isBookOpen, setIsBookOpen] = useState(false);
   const [isPrescribeOpen, setIsPrescribeOpen] = useState(false);
+  const [isRxModalOpen, setIsRxModalOpen] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<any>(null);
+  const [selectedRxAppt, setSelectedRxAppt] = useState<any>(null);
 
   // Booking Form State
   const [patientId, setPatientId] = useState('');
@@ -151,8 +153,13 @@ export const Appointments: React.FC = () => {
       setIsPrescribeOpen(false);
       fetchAppointments();
     } catch (err) {
-      alert('Failed to submit prescription.');
+      alert('Error recording prescription details.');
     }
+  };
+
+  const handleViewRx = (appt: any) => {
+    setSelectedRxAppt(appt);
+    setIsRxModalOpen(true);
   };
 
   const handleCancelAppointment = async (id: number) => {
@@ -247,7 +254,7 @@ export const Appointments: React.FC = () => {
                 )}
                 {appt.status === 'completed' && appt.prescription && (
                   <Button
-                    onClick={() => alert(`Prescription Summary:\nDiagnosis: ${appt.prescription.diagnosis}\nNotes: ${appt.prescription.notes}`)}
+                    onClick={() => handleViewRx(appt)}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1"
@@ -370,6 +377,87 @@ export const Appointments: React.FC = () => {
           </form>
         )}
       </Drawer>
+
+      {/* Official Prescription Details Modal */}
+      <Modal isOpen={isRxModalOpen} onClose={() => setIsRxModalOpen(false)} title="Official Medical Prescription (Rx)">
+        {selectedRxAppt?.prescription && (
+          <div className="space-y-5 text-slate-800 dark:text-slate-200">
+            {/* Header Letterhead */}
+            <div className="p-4 bg-slate-900 text-white rounded-xl border border-slate-800 flex justify-between items-center shadow-md">
+              <div>
+                <h3 className="text-base font-extrabold tracking-wide text-brand-400">OUTPATIENT MEDICAL PRESCRIPTION</h3>
+                <p className="text-[10px] text-slate-355 mt-0.5">Clinical Consultation Summary & Medication Plan</p>
+              </div>
+              <Badge type="info">CONFIRMED RX</Badge>
+            </div>
+
+            {/* Metadata Block */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-dark-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-850">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">Patient File</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{selectedRxAppt.patient?.name || 'Patient Record'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">Attending Physician</span>
+                <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedRxAppt.doctor?.user?.name ? (selectedRxAppt.doctor.user.name.startsWith('Dr.') ? selectedRxAppt.doctor.user.name : `Dr. ${selectedRxAppt.doctor.user.name}`) : 'Consultant Physician'}</span>
+              </div>
+              <div className="col-span-1 sm:col-span-2">
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">Clinical Diagnosis</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{selectedRxAppt.prescription.diagnosis || 'General OPD Consultation'}</span>
+              </div>
+            </div>
+
+            {/* Prescribed Medications Table */}
+            {selectedRxAppt.prescription.medications && selectedRxAppt.prescription.medications.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Prescribed Dosage & Regimen</span>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-850">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-dark-950 text-slate-500 uppercase text-[10px]">
+                        <th className="px-3.5 py-2">Medicine</th>
+                        <th className="px-3.5 py-2">Dosage</th>
+                        <th className="px-3.5 py-2">Frequency</th>
+                        <th className="px-3.5 py-2">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+                      {selectedRxAppt.prescription.medications.map((m: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
+                          <td className="px-3.5 py-2 font-bold text-slate-900 dark:text-slate-100">{m.name}</td>
+                          <td className="px-3.5 py-2">{m.dosage}</td>
+                          <td className="px-3.5 py-2">{m.frequency}</td>
+                          <td className="px-3.5 py-2">{m.duration}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Clinical & Dietary Advice Notes */}
+            {selectedRxAppt.prescription.notes && (
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Dietary & Lifestyle Instructions</span>
+                <div className="p-3 bg-white dark:bg-dark-900 border border-slate-250 dark:border-slate-800 rounded-xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">
+                  {selectedRxAppt.prescription.notes}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+              <Button type="button" variant="secondary" onClick={() => setIsRxModalOpen(false)}>
+                Close
+              </Button>
+              <Button type="button" onClick={() => window.print()} className="flex items-center gap-1.5">
+                <Printer className="h-4 w-4" /> Print Prescription Slip
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

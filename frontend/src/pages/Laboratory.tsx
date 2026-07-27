@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { Beaker, ClipboardCheck, ArrowRight, CheckCircle, Plus } from 'lucide-react';
+import { Beaker, ClipboardCheck, ArrowRight, CheckCircle, Plus, Printer, FileText } from 'lucide-react';
 
 export const Laboratory: React.FC = () => {
   const { user } = useAuth();
@@ -13,7 +13,9 @@ export const Laboratory: React.FC = () => {
   // Modals controls
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [isResultOpen, setIsResultOpen] = useState(false);
+  const [isViewReportOpen, setIsViewReportOpen] = useState(false);
   const [selectedReq, setSelectedReq] = useState<any>(null);
+  const [viewReportData, setViewReportData] = useState<any>(null);
 
   // Request Form state
   const [patientId, setPatientId] = useState('');
@@ -95,6 +97,11 @@ export const Laboratory: React.FC = () => {
     }
   };
 
+  const handleViewReport = (req: any) => {
+    setViewReportData(req);
+    setIsViewReportOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -166,11 +173,12 @@ export const Laboratory: React.FC = () => {
 
                 {req.status === 'completed' && (
                   <Button
-                    onClick={() => alert(`Laboratory Findings Report:\nTest: ${req.testName}\nResults: ${req.resultDetails}\nReleased: ${new Date(req.processedDate).toLocaleString()}`)}
+                    onClick={() => handleViewReport(req)}
                     variant="outline"
                     size="sm"
+                    className="flex items-center gap-1"
                   >
-                    View Report
+                    <FileText className="h-3.5 w-3.5" /> View Report
                   </Button>
                 )}
               </div>
@@ -248,6 +256,64 @@ export const Laboratory: React.FC = () => {
             <Button type="submit" className="flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Sign off and Release Findings</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Official Diagnostic Lab Findings Report Modal */}
+      <Modal isOpen={isViewReportOpen} onClose={() => setIsViewReportOpen(false)} title="Official Laboratory Diagnostic Report">
+        {viewReportData && (
+          <div className="space-y-5 text-slate-800 dark:text-slate-200">
+            {/* Header / Letterhead */}
+            <div className="p-4 bg-slate-900 text-white rounded-xl border border-slate-800 flex justify-between items-center shadow-md">
+              <div>
+                <h3 className="text-base font-extrabold tracking-wide text-brand-400">PATHOLOGY & DIAGNOSTIC LABORATORY</h3>
+                <p className="text-[10px] text-slate-350 mt-0.5">Clinical Pathology & Diagnostic Testing Division</p>
+              </div>
+              <Badge type="success">RELEASED</Badge>
+            </div>
+
+            {/* Patient & Requisition Metadata */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-dark-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-850">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">Patient Name</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{viewReportData.patient?.name || 'Registered Patient'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">MR Number</span>
+                <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{viewReportData.patient?.mrNumber || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">Test Requested</span>
+                <span className="font-bold text-slate-850 dark:text-slate-200">{viewReportData.testName}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-450 block">Test Category</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{viewReportData.category || 'General Diagnostic'}</span>
+              </div>
+              <div className="col-span-1 sm:col-span-2 pt-2 border-t border-slate-200/50 dark:border-slate-850 flex flex-col sm:flex-row justify-between text-[11px] text-slate-500 gap-1">
+                <span>Ordering Physician: <strong>{viewReportData.doctor?.user?.name ? (viewReportData.doctor.user.name.startsWith('Dr.') ? viewReportData.doctor.user.name : `Dr. ${viewReportData.doctor.user.name}`) : 'Attending Physician'}</strong></span>
+                <span>Released: <strong>{viewReportData.processedDate ? new Date(viewReportData.processedDate).toLocaleString() : new Date().toLocaleString()}</strong></span>
+              </div>
+            </div>
+
+            {/* Findings & Diagnostic Results Box */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Clinical Diagnostic Findings & Lab Results</label>
+              <div className="p-4 bg-white dark:bg-dark-900 border border-slate-250 dark:border-slate-800 rounded-xl text-xs leading-relaxed font-mono whitespace-pre-wrap text-slate-800 dark:text-slate-200 shadow-inner">
+                {viewReportData.resultDetails || 'No clinical finding details recorded.'}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-2 justify-end pt-2 border-t border-slate-200 dark:border-slate-800">
+              <Button type="button" variant="secondary" onClick={() => setIsViewReportOpen(false)}>
+                Close
+              </Button>
+              <Button type="button" onClick={() => window.print()} className="flex items-center gap-1.5">
+                <Printer className="h-4 w-4" /> Print Official Report
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
