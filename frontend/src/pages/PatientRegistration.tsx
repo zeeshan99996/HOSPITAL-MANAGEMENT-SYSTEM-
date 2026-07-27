@@ -341,11 +341,8 @@ export const PatientRegistration: React.FC = () => {
         </Card>
 
         <div className="flex flex-col sm:flex-row justify-end gap-3.5 pt-2">
-          <Button type="button" onClick={e => handleSubmit(e, true)} isLoading={loading} className="flex items-center gap-1.5 justify-center bg-indigo-650 hover:bg-indigo-700 text-white">
-            <Save className="h-4 w-4" /> Save & Book Visit
-          </Button>
           <Button type="submit" isLoading={loading} className="flex items-center gap-1.5 justify-center">
-            <Save className="h-4 w-4" /> Save Intake Profile
+            <Save className="h-4 w-4" /> Save
           </Button>
         </div>
       </form>
