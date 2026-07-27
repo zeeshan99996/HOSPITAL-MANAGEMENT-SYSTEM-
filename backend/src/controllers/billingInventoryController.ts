@@ -43,8 +43,8 @@ export const createInvoice = async (req: Request, res: Response) => {
 
     const discAmt = Number(discount) || 0;
     const taxableAmount = Math.max(0, total - discAmt);
-    const taxAmt = Number((taxableAmount * 0.08).toFixed(2)); // 8% standard tax
-    const grandTotal = taxableAmount + taxAmt;
+    const taxAmt = 0;
+    const grandTotal = taxableAmount;
 
     const invoice = await Invoice.create({
       patientId,
@@ -280,8 +280,8 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
     // Apply discount correctly before computing tax
     const discAmt = Math.min(Number(discount) || 0, subtotal); // clamp discount to subtotal
     const taxable = Math.max(0, subtotal - discAmt);
-    const tax = Number((taxable * 0.08).toFixed(2));
-    const grandTotal = taxable + tax;
+    const tax = 0;
+    const grandTotal = taxable;
 
     // Create Invoice
     const invoice = await Invoice.create({
@@ -388,8 +388,8 @@ export const administerMedicine = async (req: Request, res: Response) => {
     const newTotal = allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0);
     const disc = Number(invoice.discount);
     const taxable = Math.max(0, newTotal - disc);
-    const newTax = Number((taxable * 0.08).toFixed(2));
-    const newGrandTotal = taxable + newTax;
+    const newTax = 0;
+    const newGrandTotal = taxable;
 
     await invoice.update({
       totalAmount: newTotal,
