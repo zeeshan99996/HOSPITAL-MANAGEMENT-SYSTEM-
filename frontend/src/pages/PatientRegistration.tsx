@@ -13,7 +13,7 @@ export const PatientRegistration: React.FC = () => {
     cnic: '',
     phone: '',
     email: '',
-    bloodGroup: 'O+',
+    bloodGroup: '',
     address: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
@@ -61,7 +61,7 @@ export const PatientRegistration: React.FC = () => {
       cnic: '',
       phone: '',
       email: '',
-      bloodGroup: 'O+',
+      bloodGroup: '',
       address: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
@@ -223,7 +223,7 @@ export const PatientRegistration: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="CNIC / Passport Number"
+              label="CNIC / Passport Number (Optional)"
               placeholder="e.g. 35202-xxxxxxx-x"
               value={formData.cnic}
               onChange={e => handleInputChange('cnic', e.target.value)}
@@ -239,19 +239,20 @@ export const PatientRegistration: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Email Address"
+              label="Email Address (Optional)"
               type="email"
               placeholder="e.g. name@domain.com"
               value={formData.email}
               onChange={e => handleInputChange('email', e.target.value)}
             />
             <div>
-              <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Blood Group</label>
+              <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Blood Group (Optional)</label>
               <select
                 value={formData.bloodGroup}
                 onChange={e => handleInputChange('bloodGroup', e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
               >
+                <option value="">Select Blood Group (Optional)</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
                 <option value="B+">B+</option>

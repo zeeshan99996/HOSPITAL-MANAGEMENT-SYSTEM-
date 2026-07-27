@@ -470,7 +470,7 @@ export const Patients: React.FC = () => {
             <Input label="Custom MR Number (Optional)" placeholder="Leave blank to auto-generate" value={mrNumber} onChange={e => setMrNumber(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Email Address" type="email" placeholder="Optional" value={email} onChange={e => setEmail(e.target.value)} />
+            <Input label="Email Address (Optional)" type="email" placeholder="Optional" value={email} onChange={e => setEmail(e.target.value)} />
             <Input label="Phone Number" required value={phone} onChange={e => setPhone(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -492,12 +492,13 @@ export const Patients: React.FC = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Blood Group</label>
+              <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Blood Group (Optional)</label>
               <select
                 value={bloodGroup}
                 onChange={e => setBloodGroup(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
               >
+                <option value="">Select Blood Group (Optional)</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
                 <option value="B+">B+</option>
