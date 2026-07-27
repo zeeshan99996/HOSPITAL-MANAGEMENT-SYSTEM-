@@ -45,10 +45,8 @@ export const Pharmacy: React.FC = () => {
       const medList = await apiClient.get('/medicines');
       setMedicines(medList);
 
-      if (user?.role === 'pharmacist' || user?.role === 'admin' || user?.role === 'accountant') {
-        const patientList = await apiClient.get('/patients');
-        setPatients(patientList);
-      }
+      const patientList = await apiClient.get('/patients');
+      setPatients(Array.isArray(patientList) ? patientList : (patientList?.patients || []));
     } catch (err) {
       console.error('Error fetching pharmacy records', err);
     } finally {

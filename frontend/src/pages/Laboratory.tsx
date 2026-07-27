@@ -35,10 +35,8 @@ export const Laboratory: React.FC = () => {
       const data = await apiClient.get(`/lab/requests${query}`);
       setRequests(data);
 
-      if (user?.role === 'doctor' || user?.role === 'admin') {
-        const patientList = await apiClient.get('/patients');
-        setPatients(patientList);
-      }
+      const patientList = await apiClient.get('/patients');
+      setPatients(Array.isArray(patientList) ? patientList : (patientList?.patients || []));
     } catch (err) {
       console.error('Error fetching laboratory logs', err);
     } finally {

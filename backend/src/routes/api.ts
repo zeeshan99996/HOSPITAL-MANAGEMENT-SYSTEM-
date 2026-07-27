@@ -89,7 +89,7 @@ router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 // PATIENT MANAGEMENT
 // ==========================================
 router.post('/patients', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), validatePatient, createPatient);
-router.get('/patients', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse', 'accountant']), getAllPatients);
+router.get('/patients', authenticateToken, getAllPatients);
 router.get('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse', 'accountant', 'patient']), getPatientById);
 router.put('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), updatePatient);
 router.delete('/patients/:id', authenticateToken, requireRoles(['admin']), deletePatient);
