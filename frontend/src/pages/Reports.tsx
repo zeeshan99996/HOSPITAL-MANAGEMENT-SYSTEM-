@@ -62,11 +62,9 @@ export const Reports: React.FC = () => {
           <select
             value={reportType}
             onChange={e => setReportType(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="w-full px-3 py-2 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
           >
             <option value="billing">Daily Billing Collection Log</option>
-            <option value="registrations">Daily Patient Intake Log</option>
-            <option value="appointments">Daily Booking & Appointment Log</option>
           </select>
         </div>
 
