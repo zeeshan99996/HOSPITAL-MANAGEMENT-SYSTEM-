@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Input, Button } from '../components/UI';
-import { Printer, Save, RefreshCw, Calendar, UserPlus } from 'lucide-react';
+import { Printer, Save, Calendar, UserPlus } from 'lucide-react';
 import { apiClient } from '../services/api';
 
 export const PatientRegistration: React.FC = () => {
@@ -112,6 +112,25 @@ export const PatientRegistration: React.FC = () => {
       });
       setRegisteredPatient(response);
       setSuccessMsg(`Patient successfully registered! MRN: ${response.mrNumber}`);
+
+      // Automatically reset form fields on successful registration
+      setFormData({
+        name: '',
+        guardianName: '',
+        gender: 'male',
+        dob: '',
+        age: '',
+        cnic: '',
+        phone: '',
+        email: '',
+        bloodGroup: '',
+        address: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        insuranceProvider: '',
+        insurancePolicyNum: '',
+      });
+
       if (andBook) {
         window.location.href = `/appointments?prefillName=${encodeURIComponent(response.name)}&prefillPhone=${encodeURIComponent(response.phone)}&prefillId=${response.id}`;
       }
@@ -322,9 +341,6 @@ export const PatientRegistration: React.FC = () => {
         </Card>
 
         <div className="flex flex-col sm:flex-row justify-end gap-3.5 pt-2">
-          <Button type="button" variant="secondary" onClick={handleReset} className="flex items-center gap-1.5 justify-center">
-            <RefreshCw className="h-4 w-4" /> Reset Intake Form
-          </Button>
           <Button type="button" onClick={e => handleSubmit(e, true)} isLoading={loading} className="flex items-center gap-1.5 justify-center bg-indigo-650 hover:bg-indigo-700 text-white">
             <Save className="h-4 w-4" /> Save & Book Visit
           </Button>
