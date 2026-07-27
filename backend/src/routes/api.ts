@@ -235,6 +235,20 @@ router.put('/tokens/:id/status', authenticateToken, requireRoles(['admin', 'rece
   }
 });
 
+router.get('/doctors', authenticateToken, async (req, res) => {
+  try {
+    const doctors = await Doctor.findAll({
+      include: [
+        { model: User, attributes: ['id', 'name', 'email', 'phone'] },
+        { model: Department, attributes: ['id', 'name'] }
+      ]
+    });
+    return res.status(200).json(doctors);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error fetching doctors', error: err.message });
+  }
+});
+
 router.get('/doctors/schedule', authenticateToken, async (req, res) => {
   try {
     const doctors = await Doctor.findAll({

@@ -46,18 +46,30 @@ export const Admissions: React.FC = () => {
         const patientList = await apiClient.get('/patients');
         setPatients(patientList);
 
-        const depts = await apiClient.get('/admin/departments');
-        const docList: any[] = [];
-        depts.forEach((d: any) => {
-          if (d.doctors) {
-            d.doctors.forEach((doc: any) => {
-              docList.push({
-                id: doc.id,
-                name: doc.user?.name || `Dr. ${doc.specialization}`
-              });
-            });
+        let docList: any[] = [];
+        try {
+          const rawDocs = await apiClient.get('/doctors');
+          if (Array.isArray(rawDocs) && rawDocs.length > 0) {
+            docList = rawDocs.map((doc: any) => ({
+              id: doc.id,
+              name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`
+            }));
           }
-        });
+        } catch (e) {}
+
+        if (docList.length === 0) {
+          const depts = await apiClient.get('/admin/departments');
+          depts.forEach((d: any) => {
+            if (d.doctors) {
+              d.doctors.forEach((doc: any) => {
+                docList.push({
+                  id: doc.id,
+                  name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`
+                });
+              });
+            }
+          });
+        }
         setDoctors(docList);
 
         const medList = await apiClient.get('/medicines');

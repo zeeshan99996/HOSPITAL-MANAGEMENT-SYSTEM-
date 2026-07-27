@@ -50,20 +50,34 @@ export const Appointments: React.FC = () => {
 
   const fetchDoctorsAndPatients = async () => {
     try {
-      const depts = await apiClient.get('/admin/departments');
-      // Flatten doctors list from departments
-      const docList: any[] = [];
-      depts.forEach((d: any) => {
-        if (d.doctors) {
-          d.doctors.forEach((doc: any) => {
-            docList.push({
-              id: doc.id,
-              name: doc.user?.name || `Dr. Specialization: ${doc.specialization}`,
-              fee: doc.consultationFee
-            });
-          });
+      let docList: any[] = [];
+      try {
+        const rawDocs = await apiClient.get('/doctors');
+        if (Array.isArray(rawDocs) && rawDocs.length > 0) {
+          docList = rawDocs.map((doc: any) => ({
+            id: doc.id,
+            name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`,
+            specialization: doc.specialization || doc.department?.name || 'General Practitioner',
+            fee: doc.consultationFee || 50
+          }));
         }
-      });
+      } catch (e) {}
+
+      if (docList.length === 0) {
+        const depts = await apiClient.get('/admin/departments');
+        depts.forEach((d: any) => {
+          if (d.doctors) {
+            d.doctors.forEach((doc: any) => {
+              docList.push({
+                id: doc.id,
+                name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`,
+                specialization: doc.specialization || d.name || 'General Practitioner',
+                fee: doc.consultationFee || 50
+              });
+            });
+          }
+        });
+      }
       setDoctors(docList);
 
       if (user?.role !== 'patient') {
@@ -279,7 +293,7 @@ export const Appointments: React.FC = () => {
             >
               <option value="">-- Choose Doctor --</option>
               {doctors.map(d => (
-                <option key={d.id} value={d.id}>{d.name} (${d.fee} Fee)</option>
+                <option key={d.id} value={d.id}>{d.name} ({d.specialization}) - Rs. {d.fee} Fee</option>
               ))}
             </select>
           </div>

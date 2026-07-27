@@ -187,7 +187,11 @@ export const updateStaffStatus = async (req: Request, res: Response) => {
 export const getDepartments = async (req: Request, res: Response) => {
   try {
     const depts = await Department.findAll({
-      include: [{ model: Doctor, attributes: ['id'] }],
+      include: [{
+        model: Doctor,
+        attributes: ['id', 'specialization', 'consultationFee', 'status'],
+        include: [{ model: User, attributes: ['id', 'name', 'email', 'phone'] }]
+      }],
     });
     return res.status(200).json(depts);
   } catch (error: any) {
