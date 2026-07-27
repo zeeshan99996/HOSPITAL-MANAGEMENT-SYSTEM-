@@ -467,11 +467,11 @@ export const Patients: React.FC = () => {
         <form onSubmit={handleAddPatient} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Patient Full Name" required value={name} onChange={e => setName(e.target.value)} />
-            <Input label="Custom MR Number (Optional)" placeholder="Leave blank to auto-generate" value={mrNumber} onChange={e => setMrNumber(e.target.value)} />
+            <Input label="Custom MR Number (Optional)" value={mrNumber} onChange={e => setMrNumber(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Email Address (Optional)" type="email" maxLength={50} placeholder="Optional" value={email} onChange={e => setEmail(e.target.value.slice(0, 50))} />
-            <Input label="Phone Number" required maxLength={11} placeholder="e.g. 03116353044" value={phone} onChange={e => setPhone(e.target.value.slice(0, 11))} />
+            <Input label="Email Address (Optional)" type="email" maxLength={50} value={email} onChange={e => setEmail(e.target.value.slice(0, 50))} />
+            <Input label="Phone Number" required maxLength={11} value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

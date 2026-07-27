@@ -49,7 +49,9 @@ export const PatientRegistration: React.FC = () => {
 
   const handleInputChange = (key: string, value: string) => {
     let val = value;
-    if (key === 'phone') val = value.slice(0, 11);
+    if (key === 'phone' || key === 'emergencyContactPhone') {
+      val = value.replace(/\D/g, '').slice(0, 11);
+    }
     if (key === 'cnic') val = value.slice(0, 20);
     if (key === 'email') val = value.slice(0, 50);
     setFormData({ ...formData, [key]: val });
@@ -90,7 +92,7 @@ export const PatientRegistration: React.FC = () => {
       return;
     }
 
-    if (formData.phone.replace(/[^0-9]/g, '').length !== 11) {
+    if (formData.phone.length !== 11) {
       setErrorMsg('Please enter a valid 11-digit Mobile Phone Number (e.g. 03116353044).');
       setLoading(false);
       return;
@@ -194,13 +196,11 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="Full Patient Name"
               required
-              placeholder="e.g. Alice Brown"
               value={formData.name}
               onChange={e => handleInputChange('name', e.target.value)}
             />
             <Input
               label="Father / Husband Name"
-              placeholder="e.g. Robert Brown"
               value={formData.guardianName}
               onChange={e => handleInputChange('guardianName', e.target.value)}
             />
@@ -241,7 +241,6 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="CNIC / Passport Number (Optional)"
               maxLength={20}
-              placeholder="e.g. 35202-xxxxxxx-x"
               value={formData.cnic}
               onChange={e => handleInputChange('cnic', e.target.value)}
             />
@@ -249,7 +248,6 @@ export const PatientRegistration: React.FC = () => {
               label="Mobile Phone Number"
               required
               maxLength={11}
-              placeholder="e.g. 03116353044"
               value={formData.phone}
               onChange={e => handleInputChange('phone', e.target.value)}
             />
@@ -260,7 +258,6 @@ export const PatientRegistration: React.FC = () => {
               label="Email Address (Optional)"
               type="email"
               maxLength={50}
-              placeholder="e.g. name@domain.com"
               value={formData.email}
               onChange={e => handleInputChange('email', e.target.value)}
             />
@@ -286,7 +283,6 @@ export const PatientRegistration: React.FC = () => {
 
           <Input
             label="Residential Address"
-            placeholder="e.g. House 4-B, Lane 12, DHA"
             value={formData.address}
             onChange={e => handleInputChange('address', e.target.value)}
           />
@@ -300,13 +296,12 @@ export const PatientRegistration: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Emergency Contact Relative Name"
-              placeholder="e.g. John Doe"
               value={formData.emergencyContactName}
               onChange={e => handleInputChange('emergencyContactName', e.target.value)}
             />
             <Input
               label="Emergency Contact Phone"
-              placeholder="e.g. 555-9821"
+              maxLength={11}
               value={formData.emergencyContactPhone}
               onChange={e => handleInputChange('emergencyContactPhone', e.target.value)}
             />
@@ -315,13 +310,11 @@ export const PatientRegistration: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Insurance Provider Name (Optional)"
-              placeholder="e.g. BlueCross State Policy"
               value={formData.insuranceProvider}
               onChange={e => handleInputChange('insuranceProvider', e.target.value)}
             />
             <Input
               label="Insurance Card Policy Number (Optional)"
-              placeholder="e.g. PLY-998811"
               value={formData.insurancePolicyNum}
               onChange={e => handleInputChange('insurancePolicyNum', e.target.value)}
             />
