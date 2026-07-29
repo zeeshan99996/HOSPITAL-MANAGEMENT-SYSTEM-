@@ -12,7 +12,7 @@ import {
 } from '../middleware/validate';
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
-import { TokenQueue, Doctor, Department, Patient, User } from '../models';
+import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption } from '../models';
 
 import {
   createPatient,
@@ -303,6 +303,80 @@ router.put('/auth/profile', authenticateToken, async (req, res) => {
     });
   } catch (err: any) {
     return res.status(500).json({ message: 'Error updating profile', error: err.message });
+  }
+});
+
+// ==========================================
+// AREA / COLONY MANAGEMENT (ADMIN EDITABLE)
+// ==========================================
+router.get('/settings/areas', authenticateToken, async (_req, res) => {
+  try {
+    const areas = await Area.findAll({ order: [['name', 'ASC']] });
+    return res.status(200).json(areas);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error fetching areas', error: err.message });
+  }
+});
+
+router.post('/settings/areas', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Area name is required' });
+  }
+  try {
+    const area = await Area.create({ name: name.trim() });
+    return res.status(201).json(area);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error creating area', error: err.message });
+  }
+});
+
+router.delete('/settings/areas/:id', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const area = await Area.findByPk(id);
+    if (!area) return res.status(404).json({ message: 'Area not found' });
+    await area.destroy();
+    return res.status(200).json({ message: 'Area removed successfully' });
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error deleting area', error: err.message });
+  }
+});
+
+// ==========================================
+// REGISTRATION PAYMENT MODES (ADMIN EDITABLE)
+// ==========================================
+router.get('/settings/payment-modes', authenticateToken, async (_req, res) => {
+  try {
+    const options = await PaymentOption.findAll({ order: [['name', 'ASC']] });
+    return res.status(200).json(options);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error fetching payment options', error: err.message });
+  }
+});
+
+router.post('/settings/payment-modes', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Payment mode name is required' });
+  }
+  try {
+    const option = await PaymentOption.create({ name: name.trim() });
+    return res.status(201).json(option);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error creating payment option', error: err.message });
+  }
+});
+
+router.delete('/settings/payment-modes/:id', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const option = await PaymentOption.findByPk(id);
+    if (!option) return res.status(404).json({ message: 'Payment option not found' });
+    await option.destroy();
+    return res.status(200).json({ message: 'Payment option removed successfully' });
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error deleting payment option', error: err.message });
   }
 });
 

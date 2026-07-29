@@ -20,15 +20,41 @@ import {
   LabRequest,
   Admission,
   DailyExpense,
-  StaffPayroll
+  StaffPayroll,
+  Area,
+  PaymentOption
 } from '../models';
 
 export const seedDatabase = async () => {
   try {
     console.log('[Seed] Checking if database seeding is required...');
+
+    // Seed Areas & PaymentOptions if empty even if users exist
+    const areaCount = await Area.count();
+    if (areaCount === 0) {
+      await Area.bulkCreate([
+        { name: 'Central Colony' },
+        { name: 'North Town' },
+        { name: 'West Cantonment' },
+        { name: 'Civil Lines' },
+        { name: 'Garden Town' },
+      ]);
+    }
+
+    const payCount = await PaymentOption.count();
+    if (payCount === 0) {
+      await PaymentOption.bulkCreate([
+        { name: 'Cash' },
+        { name: 'Credit / Debit Card' },
+        { name: 'Online Transfer' },
+        { name: 'Insurance Claim' },
+        { name: 'Waived / Free' },
+      ]);
+    }
+
     const userCount = await User.count();
     if (userCount > 0) {
-      console.log('[Seed] Database already seeded. Skipping.');
+      console.log('[Seed] User Database already seeded. Skipping.');
       return;
     }
 

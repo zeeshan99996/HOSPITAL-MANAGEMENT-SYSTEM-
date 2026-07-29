@@ -39,10 +39,18 @@ const isValidDate      = (v: any) => isNonEmptyString(v) && !isNaN(Date.parse(v)
 // ---------------------------------------------------------------------------
 export const validatePatient = (req: Request, res: Response, next: NextFunction) => {
   const errors: FieldError[] = [];
-  const { name, phone, gender, dob } = req.body;
+  const { name, phone, gender, dob, age, paymentMethod } = req.body;
 
   if (!isNonEmptyString(name))
     errors.push({ field: 'name', message: 'Patient full name is required.' });
+
+  if (age === undefined || age === null || age === '' || isNaN(Number(age)) || Number(age) < 0) {
+    errors.push({ field: 'age', message: 'Patient age is required and must be a valid number.' });
+  }
+
+  if (!isNonEmptyString(paymentMethod)) {
+    errors.push({ field: 'paymentMethod', message: 'Payment method is compulsory.' });
+  }
 
   if (phone && isNonEmptyString(phone) && !/^\+?[\d\s\-().]{7,20}$/.test(phone.trim())) {
     errors.push({ field: 'phone', message: 'Phone number format is invalid.' });

@@ -148,7 +148,10 @@ export class Patient extends Model {
   declare phone: string;
   declare gender: 'male' | 'female' | 'other';
   declare dob: string;
+  declare age: number | string;
   declare address: string;
+  declare area: string;
+  declare paymentMethod: string;
   declare emergencyContactName: string;
   declare emergencyContactPhone: string;
   declare bloodGroup: string;
@@ -167,7 +170,10 @@ Patient.init(
     phone: { type: DataTypes.STRING, allowNull: true },
     gender: { type: DataTypes.STRING, allowNull: true, defaultValue: 'male' },
     dob: { type: DataTypes.DATEONLY, allowNull: true },
+    age: { type: DataTypes.STRING, allowNull: true },
     address: { type: DataTypes.TEXT, allowNull: true },
+    area: { type: DataTypes.STRING, allowNull: true },
+    paymentMethod: { type: DataTypes.STRING, allowNull: true },
     emergencyContactName: { type: DataTypes.STRING, allowNull: true },
     emergencyContactPhone: { type: DataTypes.STRING, allowNull: true },
     bloodGroup: { type: DataTypes.STRING, allowNull: true },
@@ -178,6 +184,34 @@ Patient.init(
   },
   { sequelize, modelName: 'patient', paranoid: true }
 );
+
+// ==========================================
+// 6B. AREA & PAYMENT OPTION CONFIG MODELS
+// ==========================================
+export class Area extends Model {
+  declare id: number;
+  declare name: string;
+}
+Area.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: false, unique: true },
+  },
+  { sequelize, modelName: 'area' }
+);
+
+export class PaymentOption extends Model {
+  declare id: number;
+  declare name: string;
+}
+PaymentOption.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: false, unique: true },
+  },
+  { sequelize, modelName: 'payment_option' }
+);
+
 
 // ==========================================
 // 7. PATIENT VITALS MODEL
