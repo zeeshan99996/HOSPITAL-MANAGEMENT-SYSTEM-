@@ -154,15 +154,38 @@ export const PatientRegistration: React.FC = () => {
         emergencyContactName: formData.emergencyContactName || 'N/A',
         emergencyContactPhone: formData.emergencyContactPhone || 'N/A'
       });
-      setRegisteredPatient(response.patient || response);
-      setSuccessMsg(`Patient successfully registered! MRN: ${(response.patient || response).mrNumber}`);
+      const savedPatient = response.patient || response;
+      setRegisteredPatient(savedPatient);
+      setSuccessMsg(`Patient successfully registered! MRN / Token: ${savedPatient.mrNumber}`);
 
-      // Automatically reset form fields on successful registration
-      handleReset();
+      // Auto-trigger print receipt window instantly upon saving
+      setTimeout(() => {
+        handlePrintSlip(savedPatient);
+      }, 200);
+
+      // Reset form input values for next patient intake
+      setFormData({
+        name: '',
+        guardianName: '',
+        gender: 'male',
+        dob: '',
+        age: '',
+        cnic: '',
+        phone: '',
+        email: '',
+        bloodGroup: '',
+        address: '',
+        area: '',
+        paymentMethod: 'Initial Payment',
+        paymentAmount: '1500',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        insuranceProvider: '',
+        insurancePolicyNum: '',
+      });
 
       if (andBook) {
-        const p = response.patient || response;
-        window.location.href = `/appointments?prefillName=${encodeURIComponent(p.name)}&prefillPhone=${encodeURIComponent(p.phone)}&prefillId=${p.id}`;
+        window.location.href = `/appointments?prefillName=${encodeURIComponent(savedPatient.name)}&prefillPhone=${encodeURIComponent(savedPatient.phone)}&prefillId=${savedPatient.id}`;
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error occurred while saving patient.');
@@ -171,38 +194,66 @@ export const PatientRegistration: React.FC = () => {
     }
   };
 
-  const handlePrintSlip = () => {
-    if (!registeredPatient) return;
-    const printWindow = window.open('', '_blank', 'width=350,height=500');
+  const handlePrintSlip = (patientObj?: any) => {
+    const target = patientObj || registeredPatient;
+    if (!target) return;
+
+    const printWindow = window.open('', '_blank', 'width=380,height=600');
     if (printWindow) {
       printWindow.document.write(`
         <html>
         <head>
+          <title>Receipt Ticket - \${target.mrNumber}</title>
           <style>
-            body { font-family: monospace; font-size: 11px; padding: 10px; width: 280px; }
+            body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 12px; width: 280px; margin: 0 auto; color: #000; }
             .text-center { text-align: center; }
             .bold { font-weight: bold; }
             .divider { border-top: 1px dashed #000; margin: 8px 0; }
-            .ticket-header { font-size: 13px; font-weight: bold; margin-bottom: 2px; }
+            .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 2px; }
+            .hospital-info { font-size: 10px; color: #222; line-height: 1.3; }
+            .token-box { border: 2px solid #000; padding: 8px; margin: 10px 0; text-align: center; background-color: #f8f9fa; }
+            .token-label { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+            .token-number { font-size: 24px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+            .info-label { font-weight: bold; }
+            .footer-text { font-size: 9px; text-align: center; margin-top: 12px; font-weight: bold; line-height: 1.3; }
           </style>
         </head>
         <body>
-          <div class="text-center ticket-header">LIFEFLOW MEDICAL CENTER</div>
-          <div class="text-center">RECEPTION REGISTRATION DESK</div>
+          <div class="text-center hospital-name">LIFEFLOW MEDICAL CENTER</div>
+          <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
+          <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
+          
           <div class="divider"></div>
-          <div><span class="bold">MRN Number:</span> \${registeredPatient.mrNumber}</div>
-          <div><span class="bold">Patient Name:</span> \${registeredPatient.name}</div>
-          <div><span class="bold">Guardian:</span> \${registeredPatient.guardianName || 'N/A'}</div>
-          <div><span class="bold">Age / Gender:</span> \${registeredPatient.age || 'N/A'} yrs / \${(registeredPatient.gender || 'male').toUpperCase()}</div>
-          <div><span class="bold">Phone:</span> \${registeredPatient.phone}</div>
-          <div><span class="bold">Area:</span> \${registeredPatient.area || 'N/A'}</div>
-          <div><span class="bold">Payment Mode:</span> \${registeredPatient.paymentMethod || 'Initial Payment'}</div>
-          <div><span class="bold">Amount Paid:</span> Rs. \${registeredPatient.paymentAmount || '0'}</div>
-          <div><span class="bold">Blood Group:</span> \${registeredPatient.bloodGroup || 'N/A'}</div>
-          <div><span class="bold">Registered At:</span> \${new Date().toLocaleString()}</div>
+
+          <div class="token-box">
+            <div class="token-label">TOKEN / MRN NUMBER</div>
+            <div class="token-number">\${target.mrNumber}</div>
+          </div>
+
           <div class="divider"></div>
-          <div class="text-center bold" style="font-size: 9px;">PLEASE RE-PRESENT THIS SLIP IN CASE OF ANY MODIFICATIONS</div>
-          <script>window.print(); window.close();</script>
+
+          <div class="info-row"><span class="info-label">Patient Name:</span> <span>\${target.name}</span></div>
+          <div class="info-row"><span class="info-label">Age / Gender:</span> <span>\${target.age || 'N/A'} Yrs / \${(target.gender || 'male').toUpperCase()}</span></div>
+          <div class="info-row"><span class="info-label">Phone:</span> <span>\${target.phone}</span></div>
+          <div class="info-row"><span class="info-label">Area / Colony:</span> <span>\${target.area || 'N/A'}</span></div>
+          <div class="info-row"><span class="info-label">Payment Mode:</span> <span>\${target.paymentMethod || 'Initial Payment'}</span></div>
+          <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. \${target.paymentAmount || '1500'}</span></div>
+          <div class="info-row"><span class="info-label">Date & Time:</span> <span>\${new Date().toLocaleString()}</span></div>
+
+          <div class="divider"></div>
+
+          <div class="footer-text">
+            THANK YOU FOR VISITING LIFEFLOW MEDICAL CENTER<br/>
+            PLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function(){ window.close(); }, 500);
+            };
+          </script>
         </body>
         </html>
       `);
