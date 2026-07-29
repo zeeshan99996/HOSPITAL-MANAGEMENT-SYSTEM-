@@ -49,6 +49,19 @@ function getApp(): express.Application {
         const { seedDatabase } = await import('../src/seeders/initialSeed');
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
+
+        // Ensure missing columns exist on live database tables
+        const colsToAlter = ['age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod'];
+        for (const col of colsToAlter) {
+          try {
+            await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
+          } catch (e) {
+            try {
+              await sequelize.query(`ALTER TABLE \`patients\` ADD \`${col}\` VARCHAR(255);`);
+            } catch (err) {}
+          }
+        }
+
         await seedDatabase();
         isDbInitialized = true;
         console.log('[Vercel Serverless] DB Sync & Seeding Complete.');

@@ -27,12 +27,34 @@ export const createPatient = async (req: Request, res: Response) => {
     try {
       patient = await Patient.create(patientData);
     } catch (dbErr: any) {
-      console.warn('[patientController] Primary Patient.create failed, trying fallback:', dbErr.message);
-      if (patientData.paymentAmount !== undefined) {
-        delete patientData.paymentAmount;
+      console.warn('[patientController] Primary Patient.create failed, dynamically altering missing columns & retrying:', dbErr.message);
+
+      // Auto alter table columns on live DB if missing
+      try {
+        const sequelize = (await import('../config/db')).default;
+        const columnsToEnsure = ['age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod'];
+        for (const col of columnsToEnsure) {
+          try {
+            await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
+          } catch (e) {
+            try {
+              await sequelize.query(`ALTER TABLE \`patients\` ADD \`${col}\` VARCHAR(255);`);
+            } catch (err) {}
+          }
+        }
+      } catch (alterErr) {
+        console.error('[patientController] Alter table error:', alterErr);
+      }
+
+      // Retry creating patient
+      try {
         patient = await Patient.create(patientData);
-      } else {
-        throw dbErr;
+      } catch (retryErr: any) {
+        console.warn('[patientController] Second attempt failed, applying column fallback:', retryErr.message);
+        const coreData = { ...patientData };
+        if (retryErr.message && retryErr.message.includes('age')) delete coreData.age;
+        if (retryErr.message && retryErr.message.includes('paymentAmount')) delete coreData.paymentAmount;
+        patient = await Patient.create(coreData);
       }
     }
 
