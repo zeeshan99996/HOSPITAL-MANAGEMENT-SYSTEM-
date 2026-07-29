@@ -16,7 +16,8 @@ export const PatientRegistration: React.FC = () => {
     bloodGroup: '',
     address: '',
     area: '',
-    paymentMethod: '',
+    paymentMethod: 'Initial Payment',
+    paymentAmount: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     insuranceProvider: '',
@@ -41,9 +42,13 @@ export const PatientRegistration: React.FC = () => {
         apiClient.get('/settings/payment-modes')
       ]);
       setAreas(areasRes || []);
-      setPaymentModes(paymentsRes || []);
-      if (paymentsRes && paymentsRes.length > 0) {
-        setFormData(prev => ({ ...prev, paymentMethod: prev.paymentMethod || paymentsRes[0].name }));
+      let modes = paymentsRes || [];
+      if (!modes.some((pm: any) => pm.name === 'Initial Payment')) {
+        modes = [{ id: 'init-default', name: 'Initial Payment' }, ...modes];
+      }
+      setPaymentModes(modes);
+      if (modes.length > 0) {
+        setFormData(prev => ({ ...prev, paymentMethod: prev.paymentMethod || 'Initial Payment' }));
       }
     } catch (err) {
       console.error('Failed to load area/payment settings options:', err);
@@ -94,7 +99,8 @@ export const PatientRegistration: React.FC = () => {
       bloodGroup: '',
       address: '',
       area: '',
-      paymentMethod: paymentModes.length > 0 ? paymentModes[0].name : '',
+      paymentMethod: 'Initial Payment',
+      paymentAmount: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
       insuranceProvider: '',
@@ -190,7 +196,8 @@ export const PatientRegistration: React.FC = () => {
           <div><span class="bold">Age / Gender:</span> \${registeredPatient.age || 'N/A'} yrs / \${(registeredPatient.gender || 'male').toUpperCase()}</div>
           <div><span class="bold">Phone:</span> \${registeredPatient.phone}</div>
           <div><span class="bold">Area:</span> \${registeredPatient.area || 'N/A'}</div>
-          <div><span class="bold">Payment Mode:</span> \${registeredPatient.paymentMethod || 'N/A'}</div>
+          <div><span class="bold">Payment Mode:</span> \${registeredPatient.paymentMethod || 'Initial Payment'}</div>
+          <div><span class="bold">Amount Paid:</span> Rs. \${registeredPatient.paymentAmount || '0'}</div>
           <div><span class="bold">Blood Group:</span> \${registeredPatient.bloodGroup || 'N/A'}</div>
           <div><span class="bold">Registered At:</span> \${new Date().toLocaleString()}</div>
           <div class="divider"></div>
@@ -361,7 +368,7 @@ export const PatientRegistration: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                Registration Payment Method <span className="text-rose-500">*</span>
+                Payment <span className="text-rose-500">*</span>
               </label>
               <select
                 required
@@ -369,12 +376,18 @@ export const PatientRegistration: React.FC = () => {
                 onChange={e => handleInputChange('paymentMethod', e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-brand-400 dark:border-brand-600 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 font-medium"
               >
-                <option value="">-- Select Payment Method (Compulsory) --</option>
                 {paymentModes.map((pm: any) => (
                   <option key={pm.id} value={pm.name}>{pm.name}</option>
                 ))}
               </select>
             </div>
+            <Input
+              label="Amount (Rs.)"
+              type="number"
+              placeholder="e.g. 500"
+              value={formData.paymentAmount}
+              onChange={e => handleInputChange('paymentAmount', e.target.value)}
+            />
           </div>
         </Card>
 

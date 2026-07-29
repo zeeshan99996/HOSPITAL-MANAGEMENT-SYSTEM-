@@ -152,6 +152,7 @@ export class Patient extends Model {
   declare address: string;
   declare area: string;
   declare paymentMethod: string;
+  declare paymentAmount: number | string;
   declare emergencyContactName: string;
   declare emergencyContactPhone: string;
   declare bloodGroup: string;
@@ -174,6 +175,7 @@ Patient.init(
     address: { type: DataTypes.TEXT, allowNull: true },
     area: { type: DataTypes.STRING, allowNull: true },
     paymentMethod: { type: DataTypes.STRING, allowNull: true },
+    paymentAmount: { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0.00 },
     emergencyContactName: { type: DataTypes.STRING, allowNull: true },
     emergencyContactPhone: { type: DataTypes.STRING, allowNull: true },
     bloodGroup: { type: DataTypes.STRING, allowNull: true },

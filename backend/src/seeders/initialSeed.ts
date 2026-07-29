@@ -44,6 +44,7 @@ export const seedDatabase = async () => {
     const payCount = await PaymentOption.count();
     if (payCount === 0) {
       await PaymentOption.bulkCreate([
+        { name: 'Initial Payment' },
         { name: 'Cash' },
         { name: 'Credit / Debit Card' },
         { name: 'Online Transfer' },
