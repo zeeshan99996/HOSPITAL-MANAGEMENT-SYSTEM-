@@ -17,7 +17,7 @@ export const PatientRegistration: React.FC = () => {
     address: '',
     area: '',
     paymentMethod: 'Initial Payment',
-    paymentAmount: '',
+    paymentAmount: '1500',
     emergencyContactName: '',
     emergencyContactPhone: '',
     insuranceProvider: '',
@@ -100,7 +100,7 @@ export const PatientRegistration: React.FC = () => {
       address: '',
       area: '',
       paymentMethod: 'Initial Payment',
-      paymentAmount: '',
+      paymentAmount: '1500',
       emergencyContactName: '',
       emergencyContactPhone: '',
       insuranceProvider: '',
@@ -384,7 +384,7 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="Amount (Rs.)"
               type="number"
-              placeholder="e.g. 500"
+              placeholder="e.g. 1500"
               value={formData.paymentAmount}
               onChange={e => handleInputChange('paymentAmount', e.target.value)}
             />

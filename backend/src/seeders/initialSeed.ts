@@ -45,12 +45,17 @@ export const seedDatabase = async () => {
     if (payCount === 0) {
       await PaymentOption.bulkCreate([
         { name: 'Initial Payment' },
-        { name: 'Cash' },
-        { name: 'Credit / Debit Card' },
-        { name: 'Online Transfer' },
-        { name: 'Insurance Claim' },
-        { name: 'Waived / Free' },
       ]);
+    } else {
+      await PaymentOption.destroy({
+        where: {
+          name: ['Cash', 'Credit / Debit Card', 'Online Transfer', 'Insurance Claim', 'Waived / Free']
+        }
+      });
+      const hasInit = await PaymentOption.findOne({ where: { name: 'Initial Payment' } });
+      if (!hasInit) {
+        await PaymentOption.create({ name: 'Initial Payment' });
+      }
     }
 
     const userCount = await User.count();
