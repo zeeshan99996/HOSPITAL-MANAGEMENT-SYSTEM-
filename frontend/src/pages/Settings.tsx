@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, Input } from '../components/UI';
 import { useAuth } from '../context/AuthContext';
-import { Settings as SettingsIcon, Shield, Server, BellRing, MapPin, CreditCard, Plus, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Server, BellRing, MapPin, CreditCard, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import { apiClient } from '../services/api';
 
 export const Settings: React.FC = () => {
@@ -20,11 +20,15 @@ export const Settings: React.FC = () => {
   const [areas, setAreas] = useState<any[]>([]);
   const [newAreaName, setNewAreaName] = useState('');
   const [areaLoading, setAreaLoading] = useState(false);
+  const [editingAreaId, setEditingAreaId] = useState<number | null>(null);
+  const [editingAreaName, setEditingAreaName] = useState('');
 
   // Payment modes state
   const [paymentModes, setPaymentModes] = useState<any[]>([]);
   const [newPaymentName, setNewPaymentName] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [editingPaymentName, setEditingPaymentName] = useState('');
 
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -68,6 +72,20 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleUpdateArea = async (id: number) => {
+    if (!editingAreaName.trim()) return;
+    setMsg(null);
+    try {
+      await apiClient.put(`/settings/areas/${id}`, { name: editingAreaName.trim() });
+      setEditingAreaId(null);
+      setEditingAreaName('');
+      setMsg({ text: 'Area / Colony updated successfully!', type: 'success' });
+      await fetchAreas();
+    } catch (err: any) {
+      setMsg({ text: err.message || 'Failed to update area.', type: 'error' });
+    }
+  };
+
   const handleDeleteArea = async (id: number) => {
     if (!window.confirm('Are you sure you want to remove this Area / Colony?')) return;
     try {
@@ -93,6 +111,20 @@ export const Settings: React.FC = () => {
       setMsg({ text: err.message || 'Failed to add payment option.', type: 'error' });
     } finally {
       setPaymentLoading(false);
+    }
+  };
+
+  const handleUpdatePaymentMode = async (id: number) => {
+    if (!editingPaymentName.trim()) return;
+    setMsg(null);
+    try {
+      await apiClient.put(`/settings/payment-modes/${id}`, { name: editingPaymentName.trim() });
+      setEditingPaymentId(null);
+      setEditingPaymentName('');
+      setMsg({ text: 'Payment option updated successfully!', type: 'success' });
+      await fetchPaymentModes();
+    } catch (err: any) {
+      setMsg({ text: err.message || 'Failed to update payment option.', type: 'error' });
     }
   };
 
@@ -225,18 +257,53 @@ export const Settings: React.FC = () => {
                   <div className="p-4 text-center text-xs text-slate-400">No areas added yet.</div>
                 ) : (
                   areas.map((area: any) => (
-                    <div key={area.id} className="p-3.5 flex justify-between items-center bg-white dark:bg-dark-900">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400" /> {area.name}
-                      </span>
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleDeleteArea(area.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
-                          title="Remove Area"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <div key={area.id} className="p-3.5 flex justify-between items-center bg-white dark:bg-dark-900 gap-2">
+                      {editingAreaId === area.id ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            value={editingAreaName}
+                            onChange={e => setEditingAreaName(e.target.value)}
+                            className="flex-1 text-xs py-1"
+                          />
+                          <button
+                            onClick={() => handleUpdateArea(area.id)}
+                            className="p-1.5 text-emerald-600 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                            title="Save"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => { setEditingAreaId(null); setEditingAreaName(''); }}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Cancel"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400" /> {area.name}
+                          </span>
+                          {isAdmin && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => { setEditingAreaId(area.id); setEditingAreaName(area.name); }}
+                                className="p-1.5 text-slate-400 hover:text-brand-500 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-colors"
+                                title="Edit Area"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteArea(area.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                title="Remove Area"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   ))
@@ -271,18 +338,53 @@ export const Settings: React.FC = () => {
                   <div className="p-4 text-center text-xs text-slate-400">No payment options configured.</div>
                 ) : (
                   paymentModes.map((pm: any) => (
-                    <div key={pm.id} className="p-3.5 flex justify-between items-center bg-white dark:bg-dark-900">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                        <CreditCard className="h-3.5 w-3.5 text-slate-400" /> {pm.name}
-                      </span>
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleDeletePaymentMode(pm.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
-                          title="Remove Payment Option"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <div key={pm.id} className="p-3.5 flex justify-between items-center bg-white dark:bg-dark-900 gap-2">
+                      {editingPaymentId === pm.id ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            value={editingPaymentName}
+                            onChange={e => setEditingPaymentName(e.target.value)}
+                            className="flex-1 text-xs py-1"
+                          />
+                          <button
+                            onClick={() => handleUpdatePaymentMode(pm.id)}
+                            className="p-1.5 text-emerald-600 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                            title="Save"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => { setEditingPaymentId(null); setEditingPaymentName(''); }}
+                            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Cancel"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                            <CreditCard className="h-3.5 w-3.5 text-slate-400" /> {pm.name}
+                          </span>
+                          {isAdmin && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => { setEditingPaymentId(pm.id); setEditingPaymentName(pm.name); }}
+                                className="p-1.5 text-slate-400 hover:text-brand-500 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-950/20 transition-colors"
+                                title="Edit Payment Option"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePaymentMode(pm.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                title="Remove Payment Option"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   ))

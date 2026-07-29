@@ -343,6 +343,22 @@ router.delete('/settings/areas/:id', authenticateToken, requireRoles(['admin']),
   }
 });
 
+router.put('/settings/areas/:id', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Area name is required' });
+  }
+  try {
+    const area = await Area.findByPk(id);
+    if (!area) return res.status(404).json({ message: 'Area not found' });
+    await area.update({ name: name.trim() });
+    return res.status(200).json(area);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error updating area', error: err.message });
+  }
+});
+
 // ==========================================
 // REGISTRATION PAYMENT MODES (ADMIN EDITABLE)
 // ==========================================
@@ -377,6 +393,22 @@ router.delete('/settings/payment-modes/:id', authenticateToken, requireRoles(['a
     return res.status(200).json({ message: 'Payment option removed successfully' });
   } catch (err: any) {
     return res.status(500).json({ message: 'Error deleting payment option', error: err.message });
+  }
+});
+
+router.put('/settings/payment-modes/:id', authenticateToken, requireRoles(['admin']), async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Payment option name is required' });
+  }
+  try {
+    const option = await PaymentOption.findByPk(id);
+    if (!option) return res.status(404).json({ message: 'Payment option not found' });
+    await option.update({ name: name.trim() });
+    return res.status(200).json(option);
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error updating payment option', error: err.message });
   }
 });
 
