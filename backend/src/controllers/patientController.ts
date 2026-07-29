@@ -10,10 +10,28 @@ export const createPatient = async (req: Request, res: Response) => {
       mrNumber: req.body.mrNumber || tempUuid
     };
 
-    // Remove empty string dob to prevent PostgreSQL DATE parse error
+    // Calculate approximate DOB if empty, or set default valid date string
     if (!patientData.dob || typeof patientData.dob !== 'string' || patientData.dob.trim() === '') {
-      delete patientData.dob;
+      if (patientData.age && !isNaN(parseInt(patientData.age))) {
+        const approxYear = new Date().getFullYear() - Math.max(0, parseInt(patientData.age));
+        patientData.dob = `${approxYear}-01-01`;
+      } else {
+        patientData.dob = '1990-01-01';
+      }
     }
+
+    // Sanitize optional string fields so they are never null/empty
+    patientData.guardianName = patientData.guardianName || 'N/A';
+    patientData.cnic = patientData.cnic || 'N/A';
+    patientData.address = patientData.address || 'N/A';
+    patientData.area = patientData.area || 'N/A';
+    patientData.emergencyContactName = patientData.emergencyContactName || 'N/A';
+    patientData.emergencyContactPhone = patientData.emergencyContactPhone || 'N/A';
+    patientData.bloodGroup = patientData.bloodGroup || 'N/A';
+    patientData.allergies = patientData.allergies || 'None';
+    patientData.insuranceProvider = patientData.insuranceProvider || 'N/A';
+    patientData.insurancePolicyNum = patientData.insurancePolicyNum || 'N/A';
+    patientData.paymentMethod = patientData.paymentMethod || 'Initial Payment';
 
     // Clean numerical amount for paymentAmount
     if (patientData.paymentAmount !== undefined && patientData.paymentAmount !== null) {
@@ -27,20 +45,20 @@ export const createPatient = async (req: Request, res: Response) => {
     try {
       patient = await Patient.create(patientData);
     } catch (dbErr: any) {
-      console.warn('[patientController] Primary Patient.create failed, dynamically altering missing columns & retrying:', dbErr.message);
+      console.warn('[patientController] Primary Patient.create failed, dynamically fixing schema & retrying:', dbErr.message);
 
-      // Auto alter table columns on live DB if missing
+      // Auto alter table columns & drop NOT NULL constraints on live DB
       try {
         const sequelize = (await import('../config/db')).default;
-        const columnsToEnsure = ['age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod'];
+        const columnsToEnsure = ['dob', 'age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
+        
         for (const col of columnsToEnsure) {
           try {
             await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
-          } catch (e) {
-            try {
-              await sequelize.query(`ALTER TABLE \`patients\` ADD \`${col}\` VARCHAR(255);`);
-            } catch (err) {}
-          }
+          } catch (e) {}
+          try {
+            await sequelize.query(`ALTER TABLE "patients" ALTER COLUMN "${col}" DROP NOT NULL;`);
+          } catch (e) {}
         }
       } catch (alterErr) {
         console.error('[patientController] Alter table error:', alterErr);
@@ -50,10 +68,9 @@ export const createPatient = async (req: Request, res: Response) => {
       try {
         patient = await Patient.create(patientData);
       } catch (retryErr: any) {
-        console.warn('[patientController] Second attempt failed, applying column fallback:', retryErr.message);
+        console.warn('[patientController] Second attempt failed, creating with fallback:', retryErr.message);
         const coreData = { ...patientData };
-        if (retryErr.message && retryErr.message.includes('age')) delete coreData.age;
-        if (retryErr.message && retryErr.message.includes('paymentAmount')) delete coreData.paymentAmount;
+        if (!coreData.dob) coreData.dob = '1990-01-01';
         patient = await Patient.create(coreData);
       }
     }

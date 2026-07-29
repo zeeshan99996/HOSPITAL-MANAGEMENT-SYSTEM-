@@ -50,16 +50,15 @@ function getApp(): express.Application {
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
-        // Ensure missing columns exist on live database tables
-        const colsToAlter = ['age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod'];
+        // Ensure missing columns exist and drop NOT NULL constraints on live database tables
+        const colsToAlter = ['dob', 'age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
         for (const col of colsToAlter) {
           try {
             await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
-          } catch (e) {
-            try {
-              await sequelize.query(`ALTER TABLE \`patients\` ADD \`${col}\` VARCHAR(255);`);
-            } catch (err) {}
-          }
+          } catch (e) {}
+          try {
+            await sequelize.query(`ALTER TABLE "patients" ALTER COLUMN "${col}" DROP NOT NULL;`);
+          } catch (e) {}
         }
 
         await seedDatabase();
