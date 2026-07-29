@@ -160,6 +160,7 @@ export class Patient extends Model {
   declare insuranceProvider: string;
   declare insurancePolicyNum: string;
   declare mrNumber: string;
+  declare tokenNumber: number;
   declare createdAt: Date;
 }
 Patient.init(
@@ -183,6 +184,7 @@ Patient.init(
     insuranceProvider: { type: DataTypes.STRING, allowNull: true },
     insurancePolicyNum: { type: DataTypes.STRING, allowNull: true },
     mrNumber: { type: DataTypes.STRING, allowNull: false, unique: true },
+    tokenNumber: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 1 },
   },
   { sequelize, modelName: 'patient', paranoid: true }
 );

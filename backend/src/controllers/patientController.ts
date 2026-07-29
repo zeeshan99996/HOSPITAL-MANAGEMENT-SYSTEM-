@@ -41,6 +41,28 @@ export const createPatient = async (req: Request, res: Response) => {
       patientData.paymentAmount = 1500;
     }
 
+    // Calculate daily sequence token number starting from 1 every midnight
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let todayCount = 0;
+    try {
+      todayCount = await Patient.count({
+        where: {
+          createdAt: {
+            [Op.gte]: startOfDay,
+            [Op.lte]: endOfDay
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('[patientController] Error counting today patients for token:', e);
+    }
+
+    patientData.tokenNumber = todayCount + 1;
+
     let patient: any;
     try {
       patient = await Patient.create(patientData);

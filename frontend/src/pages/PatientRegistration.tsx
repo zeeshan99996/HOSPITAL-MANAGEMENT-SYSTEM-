@@ -156,7 +156,7 @@ export const PatientRegistration: React.FC = () => {
       });
       const savedPatient = response.patient || response;
       setRegisteredPatient(savedPatient);
-      setSuccessMsg(`Patient successfully registered! MRN / Token: ${savedPatient.mrNumber}`);
+      setSuccessMsg(`Patient successfully registered! Daily Token #: ${savedPatient.tokenNumber || 1} (MRN: ${savedPatient.mrNumber})`);
 
       // Auto-trigger print receipt window instantly upon saving
       setTimeout(() => {
@@ -227,8 +227,9 @@ export const PatientRegistration: React.FC = () => {
           <div class="divider"></div>
 
           <div class="token-box">
-            <div class="token-label">TOKEN / MRN NUMBER</div>
-            <div class="token-number">\${target.mrNumber}</div>
+            <div class="token-label">TODAY'S DAILY TOKEN</div>
+            <div class="token-number">TOKEN # \${target.tokenNumber || 1}</div>
+            <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: \${target.mrNumber}</div>
           </div>
 
           <div class="divider"></div>
