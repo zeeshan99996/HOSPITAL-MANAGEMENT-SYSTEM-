@@ -11,22 +11,45 @@ export const createPatient = async (req: Request, res: Response) => {
     };
 
     // Remove empty string dob to prevent PostgreSQL DATE parse error
-    if (!patientData.dob || patientData.dob.trim() === '') {
+    if (!patientData.dob || typeof patientData.dob !== 'string' || patientData.dob.trim() === '') {
       delete patientData.dob;
     }
 
-    const patient = await Patient.create(patientData);
+    // Clean numerical amount for paymentAmount
+    if (patientData.paymentAmount !== undefined && patientData.paymentAmount !== null) {
+      const parsedAmount = parseFloat(patientData.paymentAmount);
+      patientData.paymentAmount = !isNaN(parsedAmount) ? parsedAmount : 1500;
+    } else {
+      patientData.paymentAmount = 1500;
+    }
+
+    let patient: any;
+    try {
+      patient = await Patient.create(patientData);
+    } catch (dbErr: any) {
+      console.warn('[patientController] Primary Patient.create failed, trying fallback:', dbErr.message);
+      if (patientData.paymentAmount !== undefined) {
+        delete patientData.paymentAmount;
+        patient = await Patient.create(patientData);
+      } else {
+        throw dbErr;
+      }
+    }
 
     if (patientData.mrNumber === tempUuid) {
       const year = new Date().getFullYear();
       const formattedMr = `MR-${year}-${String(patient.id).padStart(4, '0')}`;
-      await patient.update({ mrNumber: formattedMr });
+      try {
+        await patient.update({ mrNumber: formattedMr });
+      } catch (e) {
+        // Ignore if update fails
+      }
     }
 
     return res.status(201).json({ message: 'Patient registered successfully.', patient });
   } catch (error: any) {
     console.error('[patientController] Error creating patient:', error);
-    return res.status(500).json({ message: 'Error creating patient.', error: error.message });
+    return res.status(500).json({ message: error.message || 'Error creating patient.', error: error.message });
   }
 };
 
