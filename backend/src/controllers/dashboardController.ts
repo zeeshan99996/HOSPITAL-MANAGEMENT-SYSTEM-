@@ -181,6 +181,66 @@ export const updateStaffStatus = async (req: Request, res: Response) => {
   }
 };
 
+export const updateDoctor = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, email, phone, specialization, departmentId, consultationFee, biography, status } = req.body;
+
+  try {
+    const doctor = await Doctor.findByPk(id, { include: [{ model: User }] });
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor profile not found.' });
+    }
+
+    if (doctor.user) {
+      const userUpdates: any = {};
+      if (name) userUpdates.name = name;
+      if (email) userUpdates.email = email;
+      if (phone) userUpdates.phone = phone;
+      if (status) userUpdates.status = status;
+      await doctor.user.update(userUpdates);
+    }
+
+    const doctorUpdates: any = {};
+    if (specialization) doctorUpdates.specialization = specialization;
+    if (departmentId) doctorUpdates.departmentId = departmentId;
+    if (consultationFee !== undefined) doctorUpdates.consultationFee = consultationFee;
+    if (biography !== undefined) doctorUpdates.biography = biography;
+    if (status) doctorUpdates.status = status;
+
+    await doctor.update(doctorUpdates);
+
+    const updated = await Doctor.findByPk(id, {
+      include: [
+        { model: User, attributes: ['id', 'name', 'email', 'phone', 'status'] },
+        { model: Department, attributes: ['id', 'name'] }
+      ]
+    });
+
+    return res.status(200).json({ message: 'Doctor profile updated successfully.', doctor: updated });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error updating doctor profile.', error: error.message });
+  }
+};
+
+export const deleteDoctor = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const doctor = await Doctor.findByPk(id, { include: [{ model: User }] });
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor profile not found.' });
+    }
+
+    await doctor.update({ status: 'inactive' });
+    if (doctor.user) {
+      await doctor.user.update({ status: 'inactive' });
+    }
+
+    return res.status(200).json({ message: 'Doctor profile deactivated successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error deactivating doctor.', error: error.message });
+  }
+};
+
 // ==========================================
 // DEPARTMENTS
 // ==========================================

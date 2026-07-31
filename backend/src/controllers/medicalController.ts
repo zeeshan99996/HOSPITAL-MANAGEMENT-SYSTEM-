@@ -18,7 +18,20 @@ export const getBeds = async (req: Request, res: Response) => {
 // ADMISSIONS (IPD)
 // ==========================================
 export const admitPatient = async (req: Request, res: Response) => {
-  const { patientId, bedId, doctorId, condition, notes, baselineCost, advancePaid, discount } = req.body;
+  const {
+    patientId,
+    bedId,
+    doctorId,
+    condition,
+    notes,
+    baselineCost,
+    advancePaid,
+    discount,
+    admissionCategory,
+    stayType,
+    surgeryDetails,
+    treatmentPlan
+  } = req.body;
   const transaction = await sequelize.transaction();
 
   try {
@@ -38,6 +51,10 @@ export const admitPatient = async (req: Request, res: Response) => {
       baselineCost: baselineCost || 0.00,
       advancePaid: advancePaid || 0.00,
       discount: discount || 0.00,
+      admissionCategory: admissionCategory || 'medical',
+      stayType: stayType || 'short',
+      surgeryDetails: surgeryDetails || null,
+      treatmentPlan: treatmentPlan || null,
     }, { transaction });
 
     // Update bed status to occupied
@@ -72,7 +89,7 @@ export const admitPatient = async (req: Request, res: Response) => {
 
       await InvoiceItem.create({
         invoiceId: invoice.id,
-        itemName: `IPD Admission / Surgery Baseline Cost (Bed: ${bed.bedNumber})`,
+        itemName: `${(admissionCategory || 'medical').toUpperCase()} Admission Baseline Cost (Bed: ${bed.bedNumber})`,
         itemCategory: 'Room Charge',
         unitPrice: baselineCost,
         quantity: 1,
@@ -112,15 +129,17 @@ export const admitPatient = async (req: Request, res: Response) => {
 };
 
 export const getAdmissions = async (req: Request, res: Response) => {
-  const { status } = req.query; // admitted, discharged
+  const { status, category, stayType } = req.query; // admitted, discharged, medical, surgical, short, long
   const whereClause: any = {};
   if (status) whereClause.status = status;
+  if (category) whereClause.admissionCategory = category;
+  if (stayType) whereClause.stayType = stayType;
 
   try {
     const admissions = await Admission.findAll({
       where: whereClause,
       include: [
-        { model: Patient, attributes: ['id', 'name', 'phone', 'bloodGroup', 'allergies', 'mrNumber'] },
+        { model: Patient, attributes: ['id', 'name', 'phone', 'bloodGroup', 'allergies', 'mrNumber', 'dob', 'gender'] },
         { model: Bed, attributes: ['bedNumber', 'wardName', 'type'] },
         { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
       ],

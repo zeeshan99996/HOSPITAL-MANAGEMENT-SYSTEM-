@@ -290,11 +290,17 @@ Bed.init(
 // ==========================================
 // 9. ADMISSION MODEL (IPD & Surgery Advances)
 // ==========================================
+// 9. ADMISSION MODEL (IPD & Surgery Advances)
+// ==========================================
 export class Admission extends Model {
   declare id: number;
   declare patientId: number;
   declare bedId: number;
   declare doctorId: number;
+  declare admissionCategory: 'medical' | 'surgical';
+  declare stayType: 'short' | 'long';
+  declare surgeryDetails: string;
+  declare treatmentPlan: string;
   declare admissionDate: Date;
   declare dischargeDate: Date | null;
   declare condition: string;
@@ -313,6 +319,10 @@ Admission.init(
     patientId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'patients', key: 'id' } },
     bedId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'beds', key: 'id' } },
     doctorId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'doctors', key: 'id' } },
+    admissionCategory: { type: DataTypes.STRING, defaultValue: 'medical' },
+    stayType: { type: DataTypes.STRING, defaultValue: 'short' },
+    surgeryDetails: { type: DataTypes.TEXT, allowNull: true },
+    treatmentPlan: { type: DataTypes.TEXT, allowNull: true },
     admissionDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     dischargeDate: { type: DataTypes.DATE, allowNull: true },
     condition: { type: DataTypes.STRING, allowNull: false },

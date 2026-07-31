@@ -13,6 +13,7 @@ const Patients = lazy(() => import('./pages/Patients').then(m => ({ default: m.P
 const Appointments = lazy(() => import('./pages/Appointments').then(m => ({ default: m.Appointments })));
 const TokenQueue = lazy(() => import('./pages/TokenQueue').then(m => ({ default: m.TokenQueue })));
 const DoctorsSchedule = lazy(() => import('./pages/DoctorsSchedule').then(m => ({ default: m.DoctorsSchedule })));
+const Admissions = lazy(() => import('./pages/Admissions').then(m => ({ default: m.Admissions })));
 const Laboratory = lazy(() => import('./pages/Laboratory').then(m => ({ default: m.Laboratory })));
 const Pharmacy = lazy(() => import('./pages/Pharmacy').then(m => ({ default: m.Pharmacy })));
 const Billing = lazy(() => import('./pages/Billing').then(m => ({ default: m.Billing })));
@@ -77,6 +78,7 @@ const App: React.FC = () => {
               <Route path="/appointments" element={<Appointments />} />
               <Route path="/token-queue" element={<TokenQueue />} />
               <Route path="/doctors-schedule" element={<DoctorsSchedule />} />
+              <Route path="/admissions" element={<Admissions />} />
               <Route path="/laboratory" element={<Laboratory />} />
               <Route path="/pharmacy" element={<Pharmacy />} />
               <Route path="/billing" element={<Billing />} />

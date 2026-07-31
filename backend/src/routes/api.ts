@@ -29,6 +29,11 @@ import {
   createPrescription
 } from '../controllers/appointmentController';
 import {
+  getBeds,
+  admitPatient,
+  getAdmissions,
+  updateAdmissionNotes,
+  dischargePatient,
   createLabRequest,
   getLabRequests,
   processLabSample,
@@ -59,6 +64,8 @@ import {
   getAllStaff,
   createStaff,
   updateStaffStatus,
+  updateDoctor,
+  deleteDoctor,
   getDepartments,
   createDepartment,
   getActivityLogs,
@@ -133,6 +140,15 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 });
 
 // ==========================================
+// BED & ADMISSION MANAGEMENT (IPD & SURGERY)
+// ==========================================
+router.get('/beds', authenticateToken, getBeds);
+router.post('/admissions', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist']), validateAdmission, admitPatient);
+router.get('/admissions', authenticateToken, getAdmissions);
+router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse']), updateAdmissionNotes);
+router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin', 'doctor']), dischargePatient);
+
+// ==========================================
 // LABORATORY MANAGEMENT
 // ==========================================
 router.post('/lab/requests', authenticateToken, requireRoles(['admin', 'doctor']), validateLabRequest, createLabRequest);
@@ -177,12 +193,14 @@ router.get('/medicines/rates', authenticateToken, requireRoles(['admin', 'accoun
 router.post('/medicines/rates', authenticateToken, requireRoles(['admin', 'accountant']), saveMedicineRate);
 
 // ==========================================
-// ADMIN DASHBOARD & STAFF OPERATIONS
+// ADMIN DASHBOARD & STAFF / DOCTOR OPERATIONS
 // ==========================================
 router.get('/admin/stats', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'pharmacist', 'accountant']), getDashboardStats);
 router.get('/admin/staff', authenticateToken, requireRoles(['admin']), getAllStaff);
 router.post('/admin/staff', authenticateToken, requireRoles(['admin']), createStaff);
 router.put('/admin/staff/:id/status', authenticateToken, requireRoles(['admin']), updateStaffStatus);
+router.put('/doctors/:id', authenticateToken, requireRoles(['admin']), updateDoctor);
+router.delete('/doctors/:id', authenticateToken, requireRoles(['admin']), deleteDoctor);
 router.get('/admin/users', authenticateToken, requireRoles(['admin']), getAllUsersAdmin);
 router.put('/admin/users/:id/credentials', authenticateToken, requireRoles(['admin']), updateUserCredentials);
 router.get('/admin/departments', authenticateToken, getDepartments);
