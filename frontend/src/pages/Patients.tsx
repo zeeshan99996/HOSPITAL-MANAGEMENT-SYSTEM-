@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer } from 'lucide-react';
+import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw } from 'lucide-react';
 import { ThermalPrinter } from '../components/ThermalPrinter';
 
 export const Patients: React.FC = () => {
   const { user } = useAuth();
   const [patients, setPatients] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [searchPhone, setSearchPhone] = useState('');
+  const [searchArea, setSearchArea] = useState('');
+  const [searchDate, setSearchDate] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Modal / Drawer controls
@@ -50,10 +53,22 @@ export const Patients: React.FC = () => {
   const [vitalsHeight, setVitalsHeight] = useState('');
   const [vitalsNotes, setVitalsNotes] = useState('');
 
-  const fetchPatients = async (query: string = '') => {
+  const fetchPatients = async (overrideParams?: { name?: string; phone?: string; area?: string; date?: string }) => {
     setLoading(true);
     try {
-      const data = await apiClient.get(`/patients${query ? `?search=${query}` : ''}`);
+      const params = new URLSearchParams();
+      const nameVal = overrideParams?.name !== undefined ? overrideParams.name : searchName;
+      const phoneVal = overrideParams?.phone !== undefined ? overrideParams.phone : searchPhone;
+      const areaVal = overrideParams?.area !== undefined ? overrideParams.area : searchArea;
+      const dateVal = overrideParams?.date !== undefined ? overrideParams.date : searchDate;
+
+      if (nameVal.trim()) params.append('name', nameVal.trim());
+      if (phoneVal.trim()) params.append('phone', phoneVal.trim());
+      if (areaVal.trim()) params.append('area', areaVal.trim());
+      if (dateVal.trim()) params.append('date', dateVal.trim());
+
+      const queryString = params.toString();
+      const data = await apiClient.get(`/patients${queryString ? `?${queryString}` : ''}`);
       setPatients(data);
     } catch (err) {
       console.error('Error fetching patients', err);
@@ -68,7 +83,15 @@ export const Patients: React.FC = () => {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchPatients(search);
+    fetchPatients();
+  };
+
+  const handleResetFilters = () => {
+    setSearchName('');
+    setSearchPhone('');
+    setSearchArea('');
+    setSearchDate('');
+    fetchPatients({ name: '', phone: '', area: '', date: '' });
   };
 
   const handlePatientClick = async (id: number) => {
@@ -176,28 +199,99 @@ export const Patients: React.FC = () => {
     }
   };
 
+  const hasActiveFilters = searchName || searchPhone || searchArea || searchDate;
+
   return (
     <div className="space-y-6">
       {/* Title */}
       <div>
         <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Patient Database</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">View patient history records, log vital stats, and generate queue tickets.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">View patient history records, log vital stats, and search by Name, Phone, Area, or Date.</p>
       </div>
 
-      {/* Filter panel */}
-      <form onSubmit={handleSearchSubmit} className="flex gap-3 max-w-md">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4.5 w-4.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by name, MR Number, phone..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-slate-250 dark:border-slate-800/80 bg-white dark:bg-dark-900 py-2 pl-10 pr-4 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
-          />
-        </div>
-        <Button type="submit" variant="secondary" size="sm">Search</Button>
-      </form>
+      {/* Filter panel - 4 Separate Search Boxes */}
+      <Card className="p-4 bg-slate-50/50 dark:bg-dark-900/50 border border-slate-200 dark:border-slate-800">
+        <form onSubmit={handleSearchSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Box 1: Name / MR Number */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                <User className="h-3 w-3 text-brand-500" /> Patient Name / MR#
+              </label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search Name or MR..."
+                  value={searchName}
+                  onChange={e => setSearchName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Box 2: Phone Number */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                <Phone className="h-3 w-3 text-brand-500" /> Phone Number
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search Phone..."
+                  value={searchPhone}
+                  onChange={e => setSearchPhone(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Box 3: Area */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                <MapPin className="h-3 w-3 text-brand-500" /> Area / Colony
+              </label>
+              <div className="relative">
+                <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search Area..."
+                  value={searchArea}
+                  onChange={e => setSearchArea(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Box 4: Date */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                <Calendar className="h-3 w-3 text-brand-500" /> Date
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={searchDate}
+                  onChange={e => setSearchDate(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 px-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end items-center gap-2 pt-1">
+            {hasActiveFilters && (
+              <Button type="button" variant="secondary" size="sm" onClick={handleResetFilters} className="flex items-center gap-1 text-slate-600">
+                <RotateCcw className="h-3.5 w-3.5" /> Clear Filters
+              </Button>
+            )}
+            <Button type="submit" size="sm" className="flex items-center gap-1">
+              <Search className="h-3.5 w-3.5" /> Search Patient
+            </Button>
+          </div>
+        </form>
+      </Card>
 
       {/* Patients Data Table */}
       {loading ? (
@@ -209,7 +303,7 @@ export const Patients: React.FC = () => {
       ) : patients.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <p className="text-sm font-semibold text-slate-555 dark:text-slate-400">No patient files found.</p>
-          <p className="text-xs text-slate-450 dark:text-slate-500 mt-1">Try refining your search query or register a new patient.</p>
+          <p className="text-xs text-slate-450 dark:text-slate-500 mt-1">Try refining your search parameters or register a new patient.</p>
         </Card>
       ) : (
         <Card className="overflow-x-auto p-0">
@@ -217,7 +311,7 @@ export const Patients: React.FC = () => {
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-dark-950/20 text-slate-450 uppercase tracking-wider text-[10px]">
                 <th className="px-6 py-3.5">MR Number / Name</th>
-                <th className="px-6 py-3.5">Contact Details</th>
+                <th className="px-6 py-3.5">Contact & Area Details</th>
                 <th className="px-6 py-3.5">Biological Info</th>
                 <th className="px-6 py-3.5">Registered Date & Time</th>
                 <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
@@ -229,11 +323,16 @@ export const Patients: React.FC = () => {
                   <td className="px-6 py-4">
                     <span className="font-mono text-[10px] font-bold text-brand-600 dark:text-brand-400">{p.mrNumber}</span>
                     <span className="block font-bold text-slate-900 dark:text-slate-100 text-xs mt-0.5">{p.name}</span>
-                    <span className="block text-[10px] text-slate-500 font-medium capitalize mt-0.5">{p.gender} • DOB: {p.dob}</span>
+                    <span className="block text-[10px] text-slate-500 font-medium capitalize mt-0.5">{p.gender} • DOB: {p.dob || 'N/A'}</span>
                   </td>
                   <td className="px-6 py-4 font-mono">
                     <span className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {p.phone}</span>
                     <span className="block text-[10px] text-slate-550 dark:text-slate-400 mt-0.5 lowercase font-sans">{p.email || 'No email registered'}</span>
+                    {(p.area || p.address) && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-sans text-brand-600 dark:text-brand-400 mt-1 font-medium bg-brand-500/10 px-1.5 py-0.5 rounded">
+                        <MapPin className="h-2.5 w-2.5" /> {p.area || p.address}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-bold">Blood Group: {p.bloodGroup || 'N/A'}</span>

@@ -115,19 +115,86 @@ export const createPatient = async (req: Request, res: Response) => {
 };
 
 export const getAllPatients = async (req: Request, res: Response) => {
-  const { search } = req.query;
+  const { search, name, phone, area, date } = req.query;
   const whereClause: any = {};
 
   const isPostgres = process.env.DB_DIALECT === 'postgres' || !!process.env.DATABASE_URL;
   const likeOp = isPostgres ? Op.iLike : Op.like;
 
-  if (search) {
-    whereClause[Op.or] = [
-      { name: { [likeOp]: `%${search}%` } },
-      { phone: { [likeOp]: `%${search}%` } },
-      { email: { [likeOp]: `%${search}%` } },
-      { mrNumber: { [likeOp]: `%${search}%` } },
-    ];
+  const andConditions: any[] = [];
+
+  // Legacy search param (searches across multiple fields)
+  if (search && typeof search === 'string' && search.trim() !== '') {
+    const s = search.trim();
+    andConditions.push({
+      [Op.or]: [
+        { name: { [likeOp]: `%${s}%` } },
+        { phone: { [likeOp]: `%${s}%` } },
+        { email: { [likeOp]: `%${s}%` } },
+        { mrNumber: { [likeOp]: `%${s}%` } },
+        { area: { [likeOp]: `%${s}%` } },
+        { address: { [likeOp]: `%${s}%` } },
+      ]
+    });
+  }
+
+  // 1. Name / MR Number search filter
+  if (name && typeof name === 'string' && name.trim() !== '') {
+    const n = name.trim();
+    andConditions.push({
+      [Op.or]: [
+        { name: { [likeOp]: `%${n}%` } },
+        { mrNumber: { [likeOp]: `%${n}%` } }
+      ]
+    });
+  }
+
+  // 2. Phone Number search filter
+  if (phone && typeof phone === 'string' && phone.trim() !== '') {
+    const p = phone.trim();
+    andConditions.push({
+      phone: { [likeOp]: `%${p}%` }
+    });
+  }
+
+  // 3. Area / Colony search filter
+  if (area && typeof area === 'string' && area.trim() !== '') {
+    const a = area.trim();
+    andConditions.push({
+      [Op.or]: [
+        { area: { [likeOp]: `%${a}%` } },
+        { address: { [likeOp]: `%${a}%` } }
+      ]
+    });
+  }
+
+  // 4. Date search filter (matches DOB or Registration createdAt date)
+  if (date && typeof date === 'string' && date.trim() !== '') {
+    const d = date.trim();
+    const parsedDate = new Date(d);
+    if (!isNaN(parsedDate.getTime())) {
+      const startDate = new Date(parsedDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(parsedDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      andConditions.push({
+        [Op.or]: [
+          { dob: { [likeOp]: `%${d}%` } },
+          { createdAt: { [Op.gte]: startDate, [Op.lte]: endDate } }
+        ]
+      });
+    } else {
+      andConditions.push({
+        [Op.or]: [
+          { dob: { [likeOp]: `%${d}%` } }
+        ]
+      });
+    }
+  }
+
+  if (andConditions.length > 0) {
+    whereClause[Op.and] = andConditions;
   }
 
   try {
