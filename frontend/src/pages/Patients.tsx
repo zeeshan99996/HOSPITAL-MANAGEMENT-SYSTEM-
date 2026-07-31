@@ -529,28 +529,6 @@ export const Patients: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {/* Bed admissions history */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-3 border-b border-slate-200/50 dark:border-slate-800 pb-1">Inpatient Admissions (IPD)</span>
-              {selectedPatient.admissions?.length === 0 ? (
-                <p className="text-xs text-slate-500 italic">No admission history.</p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedPatient.admissions?.map((adm: any) => (
-                    <div key={adm.id} className="flex items-center justify-between border border-slate-200/40 dark:border-slate-800/60 p-3 rounded-lg bg-slate-50 dark:bg-dark-950/20 text-xs">
-                      <div>
-                        <p className="font-semibold text-slate-800 dark:text-slate-200">{adm.bed?.bedNumber} ({adm.bed?.wardName})</p>
-                        <p className="text-[10px] text-slate-550 mt-0.5">Condition: {adm.condition}</p>
-                      </div>
-                      <Badge type={adm.status === 'admitted' ? 'warning' : 'neutral'}>
-                        {adm.status === 'admitted' ? 'Admitted' : 'Discharged'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         ) : null}
       </Drawer>

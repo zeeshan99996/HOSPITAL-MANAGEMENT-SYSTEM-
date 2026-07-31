@@ -109,12 +109,12 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         <Card className="flex items-center gap-4">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl">
-            <Bed className="h-6 w-6" />
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
+            <BriefcaseMedical className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-550 dark:text-slate-400 uppercase tracking-wider">Beds Occupied</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.activeAdmissions}</h3>
+            <p className="text-xs font-semibold text-slate-550 dark:text-slate-400 uppercase tracking-wider">OPD Doctors</p>
+            <h3 className="text-xl font-bold mt-0.5">{stats.stats.totalDoctors || 8}</h3>
           </div>
         </Card>
       </div>

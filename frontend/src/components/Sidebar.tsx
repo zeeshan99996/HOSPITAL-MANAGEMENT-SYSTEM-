@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Users,
   Calendar,
-  BedDouble,
   Beaker,
   Receipt,
   UsersRound,
@@ -63,12 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       path: '/token-queue',
       icon: Ticket,
       roles: ['admin', 'receptionist'],
-    },
-    {
-      name: 'Bed Admissions',
-      path: '/admissions',
-      icon: BedDouble,
-      roles: ['admin', 'doctor'],
     },
     {
       name: 'Laboratory Tests',

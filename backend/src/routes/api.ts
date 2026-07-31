@@ -7,8 +7,7 @@ import {
   validateInvoice,
   validateMedicineSale,
   validateLabRequest,
-  validateVitals,
-  validateAdmission
+  validateVitals
 } from '../middleware/validate';
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
@@ -30,11 +29,6 @@ import {
   createPrescription
 } from '../controllers/appointmentController';
 import {
-  getBeds,
-  admitPatient,
-  getAdmissions,
-  updateAdmissionNotes,
-  dischargePatient,
   createLabRequest,
   getLabRequests,
   processLabSample,
@@ -137,15 +131,6 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     return res.status(500).json({ message: 'Error generating token record', error: err.message });
   }
 });
-
-// ==========================================
-// BED & ADMISSION MANAGEMENT (IPD)
-// ==========================================
-router.get('/beds', authenticateToken, getBeds);
-router.post('/admissions', authenticateToken, requireRoles(['admin', 'doctor', 'nurse']), validateAdmission, admitPatient);
-router.get('/admissions', authenticateToken, getAdmissions);
-router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse']), updateAdmissionNotes);
-router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin', 'doctor']), dischargePatient);
 
 // ==========================================
 // LABORATORY MANAGEMENT
