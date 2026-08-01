@@ -7,7 +7,8 @@ import {
   validateInvoice,
   validateMedicineSale,
   validateLabRequest,
-  validateVitals
+  validateVitals,
+  validateAdmission
 } from '../middleware/validate';
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
