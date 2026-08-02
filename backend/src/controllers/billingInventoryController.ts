@@ -184,10 +184,12 @@ export const getMedicines = async (req: Request, res: Response) => {
 export const updateMedicineStock = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { stockLevel, price, lowStockThreshold, unit } = req.body;
+  const transaction = await sequelize.transaction();
 
   try {
-    const med = await Medicine.findByPk(id);
+    const med = await Medicine.findByPk(id, { transaction });
     if (!med) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Medicine not found.' });
     }
 
@@ -197,18 +199,20 @@ export const updateMedicineStock = async (req: Request, res: Response) => {
     if (lowStockThreshold !== undefined) updates.lowStockThreshold = lowStockThreshold;
     if (unit !== undefined) updates.unit = unit;
 
-    await med.update(updates);
+    await med.update(updates, { transaction });
 
     // Sync unit rate
     if (price !== undefined) {
       await MedicineRate.upsert({
         medicineId: med.id,
         unitRate: price,
-      });
+      }, { transaction });
     }
 
+    await transaction.commit();
     return res.status(200).json({ message: 'Medicine updated.', medicine: med });
   } catch (error: any) {
+    await transaction.rollback();
     return res.status(500).json({ message: 'Error updating stock.', error: error.message });
   }
 };

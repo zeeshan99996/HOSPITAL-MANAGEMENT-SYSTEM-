@@ -41,27 +41,27 @@ export const createPatient = async (req: Request, res: Response) => {
       patientData.paymentAmount = 1500;
     }
 
-    // Calculate daily sequence token number starting from 1 every midnight
+    // Calculate daily sequence token number starting from 1 every midnight (using MAX for concurrent safety)
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    let todayCount = 0;
+    let maxToken = 0;
     try {
-      todayCount = await Patient.count({
+      maxToken = (await Patient.max('tokenNumber', {
         where: {
           createdAt: {
             [Op.gte]: startOfDay,
             [Op.lte]: endOfDay
           }
         }
-      });
+      }) as number) || 0;
     } catch (e) {
-      console.warn('[patientController] Error counting today patients for token:', e);
+      console.warn('[patientController] Error getting max today token number:', e);
     }
 
-    patientData.tokenNumber = todayCount + 1;
+    patientData.tokenNumber = maxToken + 1;
 
     let patient: any;
     try {
@@ -172,6 +172,9 @@ export const getAllPatients = async (req: Request, res: Response) => {
   if (date && typeof date === 'string' && date.trim() !== '') {
     const d = date.trim();
     const parsedDate = new Date(d);
+    const sequelize = (require('../config/db')).default;
+    const safeDobCondition = sequelize.where(sequelize.cast(sequelize.col('dob'), 'VARCHAR'), { [likeOp]: `%${d}%` });
+
     if (!isNaN(parsedDate.getTime())) {
       const startDate = new Date(parsedDate);
       startDate.setHours(0, 0, 0, 0);
@@ -180,14 +183,14 @@ export const getAllPatients = async (req: Request, res: Response) => {
 
       andConditions.push({
         [Op.or]: [
-          { dob: { [likeOp]: `%${d}%` } },
+          safeDobCondition,
           { createdAt: { [Op.gte]: startDate, [Op.lte]: endDate } }
         ]
       });
     } else {
       andConditions.push({
         [Op.or]: [
-          { dob: { [likeOp]: `%${d}%` } }
+          safeDobCondition
         ]
       });
     }

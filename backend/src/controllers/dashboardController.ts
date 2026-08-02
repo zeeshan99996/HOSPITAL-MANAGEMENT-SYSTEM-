@@ -33,13 +33,26 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       include: [{ model: User, attributes: ['name', 'role'] }],
     });
 
-    const departmentStats = [
-      { name: 'Cardiology', appointments: 12 },
-      { name: 'Pediatrics', appointments: 8 },
-      { name: 'Neurology', appointments: 5 },
-      { name: 'Orthopedics', appointments: 14 },
-      { name: 'General Medicine', appointments: 25 },
-    ];
+    // Live department appointment counts
+    const deptsWithDocs = await Department.findAll({
+      include: [{
+        model: Doctor,
+        attributes: ['id'],
+        include: [{ model: Appointment, attributes: ['id'] }]
+      }]
+    });
+
+    const departmentStats = deptsWithDocs.map(d => {
+      let count = 0;
+      if (d.doctors) {
+        d.doctors.forEach(doc => {
+          if ((doc as any).appointments) {
+            count += (doc as any).appointments.length;
+          }
+        });
+      }
+      return { name: d.name, appointments: count };
+    });
 
     if (userRole === 'receptionist') {
       // Return filtered stats without revenue/financial metrics or low-stock thresholds
@@ -62,22 +75,38 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     }
 
     // Revenue aggregates for other roles (admin, doctor, accountant, etc.)
-    const paidInvoices = await Invoice.findAll({ where: { status: 'paid' } });
+    const paidInvoices = await Invoice.findAll({
+      where: { status: 'paid' },
+      attributes: ['grandTotal', 'createdAt']
+    });
     const totalRevenue = paidInvoices.reduce((acc, inv) => acc + Number(inv.grandTotal), 0);
 
     const pendingBills = await Invoice.count({ where: { status: 'unpaid' } });
     const pendingLabs = await LabRequest.count({ where: { status: 'pending' } });
     const lowStockMeds = await Medicine.count({ where: { stockLevel: { [Op.lt]: 20 } } });
 
-    // Mock chart data (Monthly Revenue & Department Bookings)
-    const monthlyRevenue = [
-      { month: 'Jan', revenue: totalRevenue * 0.4 },
-      { month: 'Feb', revenue: totalRevenue * 0.5 },
-      { month: 'Mar', revenue: totalRevenue * 0.65 },
-      { month: 'Apr', revenue: totalRevenue * 0.75 },
-      { month: 'May', revenue: totalRevenue * 0.8 },
-      { month: 'Jun', revenue: totalRevenue },
-    ];
+    // Aggregate actual monthly revenue for last 6 months
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyMap: { [key: string]: number } = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const mName = monthNames[d.getMonth()];
+      monthlyMap[mName] = 0;
+    }
+
+    paidInvoices.forEach(inv => {
+      const invDate = new Date(inv.createdAt);
+      const mName = monthNames[invDate.getMonth()];
+      if (monthlyMap[mName] !== undefined) {
+        monthlyMap[mName] += Number(inv.grandTotal);
+      }
+    });
+
+    const monthlyRevenue = Object.keys(monthlyMap).map(month => ({
+      month,
+      revenue: Number(monthlyMap[month].toFixed(2))
+    }));
 
     return res.status(200).json({
       stats: {

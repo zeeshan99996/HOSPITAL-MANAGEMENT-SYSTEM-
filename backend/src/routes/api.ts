@@ -262,16 +262,31 @@ router.get('/doctors/schedule', authenticateToken, async (req, res) => {
       ]
     });
 
-    const scheduledDoctors = doctors.map((doc: any, index) => {
-      const statuses = ['available', 'in_consultation', 'on_break'];
+    const activeTokens = await TokenQueue.findAll({
+      where: {
+        status: ['processing', 'waiting']
+      }
+    });
+
+    const scheduledDoctors = doctors.map((doc: any) => {
+      const isProcessing = activeTokens.some((t: any) => t.doctorId === doc.id && t.status === 'processing');
+      const isWaiting = activeTokens.some((t: any) => t.doctorId === doc.id && t.status === 'waiting');
+
+      let currentStatus = 'available';
+      if (doc.status === 'inactive') {
+        currentStatus = 'on_break';
+      } else if (isProcessing) {
+        currentStatus = 'in_consultation';
+      }
+
       return {
         id: doc.id,
         doctorName: doc.user?.name || 'Unknown Doctor',
         department: doc.department?.name || 'General Medicine',
         roomNumber: `OPD-${100 + doc.id}`,
         availableTime: '09:00 AM - 05:00 PM',
-        currentStatus: statuses[index % statuses.length],
-        nextAvailableSlot: '15 mins',
+        currentStatus,
+        nextAvailableSlot: isProcessing ? '15 mins' : (isWaiting ? '10 mins' : 'Immediate'),
         leaveStatus: doc.status === 'active' ? 'active' : 'on_leave'
       };
     });
