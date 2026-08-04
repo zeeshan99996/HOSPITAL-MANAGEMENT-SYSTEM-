@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Appointments',
       path: '/appointments',
       icon: Calendar,
-      roles: ['admin', 'doctor', 'receptionist'],
+      roles: ['admin', 'doctor'],
     },
     {
       name: 'Token Queue',

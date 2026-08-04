@@ -96,6 +96,22 @@ export const Appointments: React.FC = () => {
     fetchDoctorsAndPatients();
   }, [user]);
 
+  if (user?.role === 'receptionist') {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Card className="p-8 max-w-md text-center border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="h-12 w-12 rounded-full bg-rose-50 dark:bg-rose-950/30 text-rose-500 flex items-center justify-center mx-auto">
+            <Calendar className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Appointments Access Restricted</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Appointments section has been disabled for the Receptionist portal. Please use Patient Registration and Token Queue for patient intake.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
