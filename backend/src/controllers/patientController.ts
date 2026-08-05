@@ -201,30 +201,39 @@ export const getAllPatients = async (req: Request, res: Response) => {
   }
 
   try {
-    const patients = await Patient.findAll({
-      where: whereClause,
-      include: [
-        {
-          model: TokenQueue,
-          include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
-          required: false
-        },
-        {
-          model: Appointment,
-          include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
-          required: false
-        },
-        {
-          model: Admission,
-          include: [
-            { model: Bed },
-            { model: Doctor, include: [{ model: User, attributes: ['name'] }] }
-          ],
-          required: false
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-    });
+    let patients: any[] = [];
+    try {
+      patients = await Patient.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: TokenQueue,
+            include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+            required: false
+          },
+          {
+            model: Appointment,
+            include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+            required: false
+          },
+          {
+            model: Admission,
+            include: [
+              { model: Bed },
+              { model: Doctor, include: [{ model: User, attributes: ['name'] }] }
+            ],
+            required: false
+          }
+        ],
+        order: [['createdAt', 'DESC']],
+      });
+    } catch (includeErr) {
+      console.warn('[getAllPatients] Association include fallback triggered:', includeErr);
+      patients = await Patient.findAll({
+        where: whereClause,
+        order: [['createdAt', 'DESC']],
+      });
+    }
     return res.status(200).json(patients);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving patients.', error: error.message });
@@ -235,38 +244,44 @@ export const getPatientById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const patient = await Patient.findByPk(id, {
-      include: [
-        {
-          model: Appointment,
-          include: [
-            {
-              model: Doctor,
-              include: [{ model: User, attributes: ['name'] }],
-            },
-            {
-              model: Prescription,
-              include: [PrescriptionItem],
-            },
-          ],
-        },
-        {
-          model: LabRequest,
-          include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
-        },
-        {
-          model: Admission,
-          include: [
-            { model: Bed },
-            { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
-          ],
-        },
-        {
-          model: PatientVital,
-          include: [{ model: User, as: 'logger', attributes: ['name', 'role'] }]
-        }
-      ],
-    });
+    let patient: any = null;
+    try {
+      patient = await Patient.findByPk(id, {
+        include: [
+          {
+            model: Appointment,
+            include: [
+              {
+                model: Doctor,
+                include: [{ model: User, attributes: ['name'] }],
+              },
+              {
+                model: Prescription,
+                include: [PrescriptionItem],
+              },
+            ],
+          },
+          {
+            model: LabRequest,
+            include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+          },
+          {
+            model: Admission,
+            include: [
+              { model: Bed },
+              { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
+            ],
+          },
+          {
+            model: PatientVital,
+            include: [{ model: User, as: 'logger', attributes: ['name', 'role'] }]
+          }
+        ],
+      });
+    } catch (includeErr) {
+      console.warn('[getPatientById] Association include fallback triggered:', includeErr);
+      patient = await Patient.findByPk(id);
+    }
 
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found.' });
