@@ -108,23 +108,88 @@ router.get('/appointments', authenticateToken, getAppointments);
 router.put('/appointments/:id/status', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor']), updateAppointmentStatus);
 router.post('/appointments/prescription', authenticateToken, requireRoles(['admin', 'doctor']), createPrescription);
 
-// THERMAL PRINTER & QUEUE TOKEN GENERATION
+// THERMAL PRINTER & QUEUE TOKEN GENERATION (DOCTOR-SPECIFIC DAILY SEQUENCE)
 router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']), async (req, res) => {
-  const { type, patientId, doctorId, detail } = req.body;
+  const { type, patientId, doctorId, detail, fee } = req.body;
   try {
-    const year = new Date().getFullYear();
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const tokenId = `${type.toUpperCase()}-${year}-${rand}`;
-    
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let docSeq = 1;
+    let doctorName = 'General OPD';
+
+    if (doctorId) {
+      const docObj = await Doctor.findByPk(doctorId, {
+        include: [{ model: User, attributes: ['name'] }]
+      });
+      if (docObj) {
+        doctorName = docObj.user?.name || `Doctor #${doctorId}`;
+      }
+
+      const countToday = await TokenQueue.count({
+        where: {
+          doctorId: Number(doctorId),
+          createdAt: {
+            [Op.between]: [startOfDay, endOfDay]
+          }
+        }
+      });
+      docSeq = countToday + 1;
+    } else {
+      const countToday = await TokenQueue.count({
+        where: {
+          doctorId: null,
+          createdAt: {
+            [Op.between]: [startOfDay, endOfDay]
+          }
+        }
+      });
+      docSeq = countToday + 1;
+    }
+
+    const docShortName = doctorName.replace(/^Dr\.\s*/i, '');
+    const tokenId = `${docShortName} #${String(docSeq).padStart(2, '0')}`;
+
     const token = await TokenQueue.create({
       tokenNumber: tokenId,
-      type,
+      type: type || 'opd',
       patientId,
-      doctorId: doctorId || null,
+      doctorId: doctorId ? Number(doctorId) : null,
       status: 'waiting',
-      waitingTime: Math.floor(5 + Math.random() * 25), // Mock estimation
+      waitingTime: Math.floor(5 + Math.random() * 20),
       detail: detail || ''
     });
+
+    // If fee > 0, generate consultation invoice
+    const numericFee = Number(fee) || 0;
+    if (numericFee > 0) {
+      try {
+        const invoice = await Invoice.create({
+          patientId,
+          totalAmount: numericFee,
+          discount: 0.00,
+          tax: 0.00,
+          grandTotal: numericFee,
+          paidAmount: numericFee,
+          status: 'paid',
+          insuranceClaimed: false,
+          paymentMethod: 'cash'
+        });
+
+        await InvoiceItem.create({
+          invoiceId: invoice.id,
+          itemName: `Consultation Fee - ${doctorName} (${tokenId})`,
+          itemCategory: 'Consultation',
+          unitPrice: numericFee,
+          quantity: 1,
+          totalPrice: numericFee,
+        });
+      } catch (invErr) {
+        console.warn('Invoice generation warning:', invErr);
+      }
+    }
 
     // Populate associations
     const populated = await TokenQueue.findByPk(token.id, {

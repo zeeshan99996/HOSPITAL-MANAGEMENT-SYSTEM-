@@ -26,6 +26,8 @@ export const PatientRegistration: React.FC = () => {
 
   const [areas, setAreas] = useState<any[]>([]);
   const [paymentModes, setPaymentModes] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -37,9 +39,10 @@ export const PatientRegistration: React.FC = () => {
 
   const fetchOptions = async () => {
     try {
-      const [areasRes, paymentsRes] = await Promise.all([
+      const [areasRes, paymentsRes, rawDocs] = await Promise.all([
         apiClient.get('/settings/areas'),
-        apiClient.get('/settings/payment-modes')
+        apiClient.get('/settings/payment-modes'),
+        apiClient.get('/doctors')
       ]);
       setAreas(areasRes || []);
       let modes = paymentsRes || [];
@@ -47,11 +50,22 @@ export const PatientRegistration: React.FC = () => {
         modes = [{ id: 'init-default', name: 'Initial Payment' }, ...modes];
       }
       setPaymentModes(modes);
+      setDoctors(rawDocs || []);
+
       if (modes.length > 0) {
         setFormData(prev => ({ ...prev, paymentMethod: prev.paymentMethod || 'Initial Payment' }));
       }
     } catch (err) {
       console.error('Failed to load area/payment settings options:', err);
+    }
+  };
+
+  const handleDoctorSelect = (docIdStr: string) => {
+    setSelectedDoctorId(docIdStr);
+    const docObj = doctors.find(d => String(d.id) === docIdStr);
+    if (docObj) {
+      const fee = docObj.consultationFee ? String(docObj.consultationFee) : '1500';
+      setFormData(prev => ({ ...prev, paymentAmount: fee }));
     }
   };
 
@@ -156,7 +170,26 @@ export const PatientRegistration: React.FC = () => {
       });
       const savedPatient = response.patient || response;
       setRegisteredPatient(savedPatient);
-      setSuccessMsg(`Patient successfully registered! Daily Token #: ${savedPatient.tokenNumber || 1} (MRN: ${savedPatient.mrNumber})`);
+
+      let tokenInfoStr = `MRN: ${savedPatient.mrNumber}`;
+
+      if (selectedDoctorId) {
+        try {
+          const tokenRes = await apiClient.post('/tokens', {
+            type: 'opd',
+            patientId: savedPatient.id,
+            doctorId: Number(selectedDoctorId),
+            fee: Number(formData.paymentAmount) || 1500,
+            detail: 'New Patient Registration Visit'
+          });
+          if (tokenRes && tokenRes.tokenNumber) {
+            tokenInfoStr += ` • Token: ${tokenRes.tokenNumber}`;
+            savedPatient.tokenNumber = tokenRes.tokenNumber;
+          }
+        } catch (tErr) {}
+      }
+
+      setSuccessMsg(`Patient successfully registered! (${tokenInfoStr})`);
 
       // Auto-trigger print receipt window instantly upon saving
       setTimeout(() => {
@@ -183,6 +216,7 @@ export const PatientRegistration: React.FC = () => {
         insuranceProvider: '',
         insurancePolicyNum: '',
       });
+      setSelectedDoctorId('');
 
       if (andBook) {
         window.location.href = `/appointments?prefillName=${encodeURIComponent(savedPatient.name)}&prefillPhone=${encodeURIComponent(savedPatient.phone)}&prefillId=${savedPatient.id}`;
@@ -417,7 +451,24 @@ export const PatientRegistration: React.FC = () => {
             <CreditCard className="h-4 w-4 text-brand-500" /> Payment Details (Compulsory)
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                Assigned OPD Doctor
+              </label>
+              <select
+                value={selectedDoctorId}
+                onChange={e => handleDoctorSelect(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-brand-400 dark:border-brand-600 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 font-medium"
+              >
+                <option value="">-- Select Available Doctor --</option>
+                {doctors.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.user?.name ? (d.user.name.startsWith('Dr.') ? d.user.name : `Dr. ${d.user.name}`) : `Dr. ${d.specialization || 'Physician'}`} ({d.specialization || d.department?.name || 'OPD'}) - Rs. {d.consultationFee || 1500}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                 Payment <span className="text-rose-500">*</span>

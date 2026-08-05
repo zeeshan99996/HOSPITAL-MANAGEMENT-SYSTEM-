@@ -203,6 +203,18 @@ export const getAllPatients = async (req: Request, res: Response) => {
   try {
     const patients = await Patient.findAll({
       where: whereClause,
+      include: [
+        {
+          model: TokenQueue,
+          include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+          required: false
+        },
+        {
+          model: Appointment,
+          include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+          required: false
+        }
+      ],
       order: [['createdAt', 'DESC']],
     });
     return res.status(200).json(patients);

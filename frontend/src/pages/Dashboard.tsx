@@ -13,6 +13,7 @@ import {
   BriefcaseMedical,
   Inbox,
   UserPlus,
+  UserCheck,
   Ticket,
   Receipt
 } from 'lucide-react';
@@ -182,13 +183,13 @@ export const Dashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => window.location.href = '/appointments'}
+                  onClick={() => window.location.href = '/old-patient'}
                   className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
                 >
                   <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-500 group-hover:scale-110 transition-transform rounded-xl">
-                    <Calendar className="h-5 w-5" />
+                    <UserCheck className="h-5 w-5" />
                   </div>
-                  <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-350">Book Appointment</span>
+                  <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-350">Old Patient</span>
                 </button>
 
                 <button

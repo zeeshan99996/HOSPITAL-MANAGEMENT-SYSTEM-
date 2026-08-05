@@ -9,6 +9,7 @@ import { AIChatbotWidget } from './components/AIChatbotWidget';
 // Lazy-loaded page components for Code Splitting & Performance Optimization
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const PatientRegistration = lazy(() => import('./pages/PatientRegistration').then(m => ({ default: m.PatientRegistration })));
+const OldPatient = lazy(() => import('./pages/OldPatient').then(m => ({ default: m.OldPatient })));
 const Patients = lazy(() => import('./pages/Patients').then(m => ({ default: m.Patients })));
 const Appointments = lazy(() => import('./pages/Appointments').then(m => ({ default: m.Appointments })));
 const TokenQueue = lazy(() => import('./pages/TokenQueue').then(m => ({ default: m.TokenQueue })));
@@ -74,6 +75,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/patient-registration" element={<PatientRegistration />} />
+              <Route path="/old-patient" element={<OldPatient />} />
               <Route path="/patients" element={<Patients />} />
               <Route path="/appointments" element={<Appointments />} />
               <Route path="/token-queue" element={<TokenQueue />} />

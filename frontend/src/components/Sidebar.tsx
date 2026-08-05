@@ -15,6 +15,7 @@ import {
   LogOut,
   HeartPulse,
   UserPlus,
+  UserCheck,
   Ticket,
   FileText,
   User,
@@ -44,6 +45,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Patient Registration',
       path: '/patient-registration',
       icon: UserPlus,
+      roles: ['admin', 'receptionist'],
+    },
+    {
+      name: 'Old Patient Intake',
+      path: '/old-patient',
+      icon: UserCheck,
       roles: ['admin', 'receptionist'],
     },
     {
