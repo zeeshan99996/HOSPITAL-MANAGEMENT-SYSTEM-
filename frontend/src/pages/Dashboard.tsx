@@ -171,7 +171,7 @@ export const Dashboard: React.FC = () => {
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest border-b border-slate-100 dark:border-slate-850 pb-2 mb-4">
                 Reception Desk Quick Actions
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
                   onClick={() => window.location.href = '/patient-registration'}
                   className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
@@ -190,16 +190,6 @@ export const Dashboard: React.FC = () => {
                     <UserCheck className="h-5 w-5" />
                   </div>
                   <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-350">Old Patient</span>
-                </button>
-
-                <button
-                  onClick={() => window.location.href = '/token-queue'}
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
-                >
-                  <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-500 group-hover:scale-110 transition-transform rounded-xl">
-                    <Ticket className="h-5 w-5" />
-                  </div>
-                  <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-350">Generate Token</span>
                 </button>
 
                 <button
