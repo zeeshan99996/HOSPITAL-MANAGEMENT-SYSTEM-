@@ -163,7 +163,11 @@ export const Patients: React.FC = () => {
     return p.admissions && p.admissions.some((a: any) => a.status === 'admitted');
   });
 
-  const displayedPatients = activeTab === 'today' ? todayPatients : activeTab === 'admitted' ? admittedPatients : patients;
+  const displayedPatients = activeTab === 'today'
+    ? (todayPatients.length > 0 ? todayPatients : patients)
+    : activeTab === 'admitted'
+      ? admittedPatients
+      : patients;
 
   return (
     <div className="space-y-6">
@@ -296,6 +300,12 @@ export const Patients: React.FC = () => {
       </Card>
 
       {/* Patients Data Table */}
+      {activeTab === 'today' && todayPatients.length === 0 && !loading && (
+        <div className="p-3.5 bg-brand-500/10 border border-brand-500/25 rounded-xl text-xs text-brand-700 dark:text-brand-300 font-semibold flex items-center justify-between">
+          <span>💡 <strong>Notice:</strong> No new OPD intake tokens recorded for today yet. Showing all registered master patient records below.</span>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
