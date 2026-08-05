@@ -213,6 +213,14 @@ export const getAllPatients = async (req: Request, res: Response) => {
           model: Appointment,
           include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
           required: false
+        },
+        {
+          model: Admission,
+          include: [
+            { model: Bed },
+            { model: Doctor, include: [{ model: User, attributes: ['name'] }] }
+          ],
+          required: false
         }
       ],
       order: [['createdAt', 'DESC']],

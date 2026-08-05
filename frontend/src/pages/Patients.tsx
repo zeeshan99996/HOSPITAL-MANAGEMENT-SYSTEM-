@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw } from 'lucide-react';
+import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw, BedDouble, Scissors, Stethoscope, Clock } from 'lucide-react';
 import { ThermalPrinter } from '../components/ThermalPrinter';
 
 export const Patients: React.FC = () => {
@@ -14,8 +14,10 @@ export const Patients: React.FC = () => {
   const [searchDate, setSearchDate] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Active Tab View: 'today' (Current Today Patients), 'admitted' (Admit Patients), 'all' (All Patients)
+  const [activeTab, setActiveTab] = useState<'today' | 'admitted' | 'all'>('today');
+
   // Modal / Drawer controls
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -27,21 +29,6 @@ export const Patients: React.FC = () => {
   // Token printing simulator control
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [printedToken, setPrintedToken] = useState<any>(null);
-
-  // Form State - Register Patient
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [gender, setGender] = useState('male');
-  const [dob, setDob] = useState('');
-  const [address, setAddress] = useState('');
-  const [bloodGroup, setBloodGroup] = useState('O+');
-  const [allergies, setAllergies] = useState('');
-  const [emergencyContactName, setEmergencyContactName] = useState('');
-  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
-  const [insuranceProvider, setInsuranceProvider] = useState('');
-  const [insurancePolicyNum, setInsurancePolicyNum] = useState('');
-  const [mrNumber, setMrNumber] = useState(''); // Allow custom or generate in backend
 
   // Form State - Patient Vitals
   const [vitalsBP, setVitalsBP] = useState('120/80');
@@ -102,53 +89,13 @@ export const Patients: React.FC = () => {
       const data = await apiClient.get(`/patients/${id}`);
       setSelectedPatient(data);
     } catch (err) {
-      console.error('Error fetching patient details', err);
+      console.error('Error fetching patient EMR details', err);
     } finally {
       setDrawerLoading(false);
     }
   };
 
-  const handleAddPatient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const payload: any = {
-        name,
-        email,
-        phone,
-        gender,
-        address,
-        bloodGroup,
-        allergies,
-        emergencyContactName,
-        emergencyContactPhone,
-        insuranceProvider,
-        insurancePolicyNum,
-        mrNumber,
-      };
-      if (dob && dob.trim() !== '') {
-        payload.dob = dob;
-      }
-      await apiClient.post('/patients', payload);
-      setIsAddOpen(false);
-      await fetchPatients();
-      // Reset form
-      setName('');
-      setEmail('');
-      setPhone('');
-      setDob('');
-      setAddress('');
-      setAllergies('');
-      setEmergencyContactName('');
-      setEmergencyContactPhone('');
-      setInsuranceProvider('');
-      setInsurancePolicyNum('');
-      setMrNumber('');
-    } catch (err: any) {
-      alert(err.message || 'Error creating patient profile.');
-    }
-  };
-
-  const handleVitalsSubmit = async (e: React.FormEvent) => {
+  const handleAddVitalsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientId) return;
 
@@ -165,11 +112,12 @@ export const Patients: React.FC = () => {
       });
 
       setIsVitalsOpen(false);
-      // Reload details
-      handlePatientClick(selectedPatientId);
-      alert('Patient vitals recorded successfully.');
-      
-      // Reset vitals form
+      // Refresh drawer
+      const updated = await apiClient.get(`/patients/${selectedPatientId}`);
+      setSelectedPatient(updated);
+      alert('Vitals logged successfully.');
+
+      // Reset form
       setVitalsBP('120/80');
       setVitalsTemp(98.6);
       setVitalsPulse(72);
@@ -201,15 +149,69 @@ export const Patients: React.FC = () => {
 
   const hasActiveFilters = searchName || searchPhone || searchArea || searchDate;
 
+  // Filter Today's Patients vs Admitted Patients vs All
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const todayPatients = patients.filter(p => {
+    const createdDate = new Date(p.createdAt).toISOString().split('T')[0];
+    const hasTodayToken = p.token_queues && p.token_queues.some((t: any) => new Date(t.createdAt).toISOString().split('T')[0] === todayStr);
+    const hasTodayAppt = p.appointments && p.appointments.some((a: any) => new Date(a.appointmentDate).toISOString().split('T')[0] === todayStr);
+    return createdDate === todayStr || hasTodayToken || hasTodayAppt;
+  });
+
+  const admittedPatients = patients.filter(p => {
+    return p.admissions && p.admissions.some((a: any) => a.status === 'admitted');
+  });
+
+  const displayedPatients = activeTab === 'today' ? todayPatients : activeTab === 'admitted' ? admittedPatients : patients;
+
   return (
     <div className="space-y-6">
       {/* Title */}
-      <div>
-        <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Patient Database</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">View patient history records, log vital stats, and search by Name, Phone, Area, or Date.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Patient Directory & EMR Records</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Track Today's Intake Patients, Live OPD Doctor Tokens, and Active Inpatient Admissions.</p>
+        </div>
       </div>
 
-      {/* Filter panel - 4 Separate Search Boxes */}
+      {/* Tabs Selection Bar */}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          onClick={() => setActiveTab('today')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+            activeTab === 'today'
+              ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+              : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <Clock className="h-4 w-4" /> Current Today Patients ({todayPatients.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('admitted')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+            activeTab === 'admitted'
+              ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+              : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <BedDouble className="h-4 w-4" /> Admitted Patients ({admittedPatients.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+            activeTab === 'all'
+              ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-md'
+              : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <User className="h-4 w-4" /> All Master Patients ({patients.length})
+        </button>
+      </div>
+
+      {/* Filter panel - 4 Separate Search Boxes (Image 02) */}
       <Card className="p-4 bg-slate-50/50 dark:bg-dark-900/50 border border-slate-200 dark:border-slate-800">
         <form onSubmit={handleSearchSubmit} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -300,55 +302,186 @@ export const Patients: React.FC = () => {
             <div key={i} className="h-16 bg-slate-200 dark:bg-dark-900 rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : patients.length === 0 ? (
+      ) : displayedPatients.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
-          <p className="text-sm font-semibold text-slate-555 dark:text-slate-400">No patient files found.</p>
-          <p className="text-xs text-slate-450 dark:text-slate-500 mt-1">Try refining your search parameters or register a new patient.</p>
+          <p className="text-sm font-semibold text-slate-555 dark:text-slate-400">No patient records found in {activeTab === 'today' ? "Today's Intake" : activeTab === 'admitted' ? "Admitted IPD Registry" : "Master Records"}.</p>
+          <p className="text-xs text-slate-450 dark:text-slate-500 mt-1">Try switching tabs or refining your search parameters.</p>
         </Card>
-      ) : (
-        <Card className="overflow-x-auto p-0">
+      ) : activeTab === 'admitted' ? (
+        /* ADMITTED PATIENTS TABLE */
+        <Card className="overflow-x-auto p-0 border border-slate-200 dark:border-slate-850">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-dark-950/20 text-slate-450 uppercase tracking-wider text-[10px]">
-                <th className="px-6 py-3.5">MR Number / Name</th>
-                <th className="px-6 py-3.5">Contact & Area Details</th>
-                <th className="px-6 py-3.5">Biological Info</th>
-                <th className="px-6 py-3.5">Registered Date & Time</th>
-                <th className="px-6 py-3.5 text-right font-semibold">Actions</th>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-rose-50/40 dark:bg-rose-950/20 text-slate-500 uppercase tracking-wider text-[10px]">
+                <th className="px-6 py-3.5">MR Number & Name</th>
+                <th className="px-6 py-3.5">Contact & Area</th>
+                <th className="px-6 py-3.5">Category & Stay Duration</th>
+                <th className="px-6 py-3.5">Alotted Bed & Ward</th>
+                <th className="px-6 py-3.5">Attending Doctor</th>
+                <th className="px-6 py-3.5">Condition / Diagnosis</th>
+                <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-              {patients.map(p => (
-                <tr key={p.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
-                  <td className="px-6 py-4">
-                    <span className="font-mono text-[10px] font-bold text-brand-600 dark:text-brand-400">{p.mrNumber}</span>
-                    <span className="block font-bold text-slate-900 dark:text-slate-100 text-xs mt-0.5">{p.name}</span>
-                    <span className="block text-[10px] text-slate-500 font-medium capitalize mt-0.5">{p.gender} • DOB: {p.dob || 'N/A'}</span>
-                  </td>
-                  <td className="px-6 py-4 font-mono">
-                    <span className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {p.phone}</span>
-                    <span className="block text-[10px] text-slate-550 dark:text-slate-400 mt-0.5 lowercase font-sans">{p.email || 'No email registered'}</span>
-                    {(p.area || p.address) && (
+              {displayedPatients.map(p => {
+                const activeAdmission = p.admissions && p.admissions.find((a: any) => a.status === 'admitted');
+                const isSurgical = activeAdmission?.admissionCategory === 'surgical';
+                const isLongStay = activeAdmission?.stayType === 'long';
+                const doctorName = activeAdmission?.doctor?.user?.name || 'Assigned Physician';
+
+                return (
+                  <tr key={p.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-[10px] font-bold text-brand-600 dark:text-brand-400">{p.mrNumber}</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-100 text-xs mt-0.5">{p.name}</span>
+                      <span className="block text-[10px] text-slate-500 font-medium capitalize mt-0.5">{p.age ? `${p.age} Yrs` : 'N/A'} • {p.gender}</span>
+                    </td>
+                    <td className="px-6 py-4 font-mono">
+                      <span className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {p.phone}</span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-sans text-brand-600 dark:text-brand-400 mt-1 font-medium bg-brand-500/10 px-1.5 py-0.5 rounded">
-                        <MapPin className="h-2.5 w-2.5" /> {p.area || p.address}
+                        <MapPin className="h-2.5 w-2.5" /> {p.area || p.address || 'N/A'}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="font-bold">Blood Group: {p.bloodGroup || 'N/A'}</span>
-                    <span className="block text-[10px] text-rose-500 max-w-[150px] truncate mt-0.5" title={p.allergies}>Allergies: {p.allergies || 'None'}</span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 font-mono text-[11px]">{new Date(p.createdAt).toLocaleString()}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handlePatientClick(p.id)}
-                      className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
-                    >
-                      <Eye className="h-3 w-3" /> EMR File
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded w-fit ${
+                          isSurgical
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                            : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                        }`}>
+                          {isSurgical ? <Scissors className="h-3 w-3" /> : <Stethoscope className="h-3 w-3" />}
+                          {isSurgical ? 'SURGICAL PATIENT' : 'MEDICAL PATIENT'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded w-fit ${
+                          isLongStay
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          <Clock className="h-2.5 w-2.5" />
+                          {isLongStay ? 'Long Stay (3+ Days)' : 'Short Stay (< 48 hrs)'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                        <BedDouble className="h-3.5 w-3.5" /> Bed: {activeAdmission?.bed?.bedNumber || 'Assigned'}
+                      </span>
+                      <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">{activeAdmission?.bed?.wardName || 'Ward Area'}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-bold text-slate-850 dark:text-slate-200">{doctorName}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{activeAdmission?.condition || 'Under Observation'}</span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handlePatientClick(p.id)}
+                        className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
+                      >
+                        <Eye className="h-3 w-3" /> EMR File
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      ) : (
+        /* TODAY'S OPD PATIENTS / MASTER PATIENTS TABLE */
+        <Card className="overflow-x-auto p-0 border border-slate-200 dark:border-slate-850">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-dark-950/20 text-slate-450 uppercase tracking-wider text-[10px]">
+                <th className="px-6 py-3.5">MR Number & Name</th>
+                <th className="px-6 py-3.5">Contact Number</th>
+                <th className="px-6 py-3.5">Area / Colony</th>
+                <th className="px-6 py-3.5">Token Number</th>
+                <th className="px-6 py-3.5">Doctor Name</th>
+                <th className="px-6 py-3.5">Live Status</th>
+                <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
+              {displayedPatients.map(p => {
+                let latestTokenNum = 'No Token';
+                let doctorName = 'Unassigned';
+                let liveStatus = 'Registered';
+                let statusBadgeType: 'info' | 'success' | 'warning' | 'error' = 'info';
+
+                if (p.token_queues && p.token_queues.length > 0) {
+                  const sortedTokens = [...p.token_queues].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                  const topToken = sortedTokens[0];
+                  latestTokenNum = topToken.tokenNumber;
+                  if (topToken.doctor?.user?.name) {
+                    doctorName = topToken.doctor.user.name;
+                  }
+
+                  if (topToken.status === 'waiting') {
+                    liveStatus = 'Waiting in Queue';
+                    statusBadgeType = 'warning';
+                  } else if (topToken.status === 'processing') {
+                    liveStatus = 'In Doctor Consultation';
+                    statusBadgeType = 'info';
+                  } else if (topToken.status === 'completed') {
+                    liveStatus = 'Consultation Completed';
+                    statusBadgeType = 'success';
+                  }
+                } else if (p.appointments && p.appointments.length > 0) {
+                  const sortedAppts = [...p.appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
+                  latestTokenNum = sortedAppts[0].queueToken || 'Appt';
+                  if (sortedAppts[0].doctor?.user?.name) {
+                    doctorName = sortedAppts[0].doctor.user.name;
+                  }
+                  liveStatus = sortedAppts[0].status;
+                }
+
+                // Check if patient is admitted
+                if (p.admissions && p.admissions.some((a: any) => a.status === 'admitted')) {
+                  liveStatus = 'Inpatient Admitted';
+                  statusBadgeType = 'error';
+                }
+
+                return (
+                  <tr key={p.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-[10px] font-bold text-brand-600 dark:text-brand-400">{p.mrNumber}</span>
+                      <span className="block font-bold text-slate-900 dark:text-slate-100 text-xs mt-0.5">{p.name}</span>
+                      <span className="block text-[10px] text-slate-500 font-medium capitalize mt-0.5">{p.age ? `${p.age} Yrs` : 'N/A'} • {p.gender}</span>
+                    </td>
+                    <td className="px-6 py-4 font-mono">
+                      <span className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-slate-400" /> {p.phone}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-sans text-brand-600 dark:text-brand-400 font-medium bg-brand-500/10 px-2 py-0.5 rounded">
+                        <MapPin className="h-2.5 w-2.5" /> {p.area || p.address || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-mono font-bold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-dark-950 px-2 py-1 rounded border border-slate-200/60 dark:border-slate-800">
+                        {latestTokenNum}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-bold text-slate-850 dark:text-slate-200">{doctorName}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge type={statusBadgeType}>
+                        {liveStatus}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handlePatientClick(p.id)}
+                        className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
+                      >
+                        <Eye className="h-3 w-3" /> EMR File
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </Card>
@@ -383,26 +516,26 @@ export const Patients: React.FC = () => {
 
             {/* Quick Action Queue Tokens Generator */}
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-550 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-550 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">
                 Thermal Print Tokens Desk
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
-                  onClick={() => triggerTokenGeneration('opd', 'Dr. Jane Smith (Room 12)')}
+                  onClick={() => triggerTokenGeneration('opd', 'OPD Ticket Intake')}
                   className="flex flex-col items-center justify-center p-2 rounded-lg border border-brand-200 bg-brand-500/5 hover:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-[10px] font-bold transition-all"
                 >
                   <Ticket className="h-4.5 w-4.5 mb-1" />
                   OPD Ticket
                 </button>
                 <button
-                  onClick={() => triggerTokenGeneration('lab', 'ECG Fixed Scan Local Test')}
+                  onClick={() => triggerTokenGeneration('lab', 'Laboratory Diagnostics Scan')}
                   className="flex flex-col items-center justify-center p-2 rounded-lg border border-violet-200 bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[10px] font-bold transition-all"
                 >
                   <Activity className="h-4.5 w-4.5 mb-1" />
                   Lab Ticket
                 </button>
                 <button
-                  onClick={() => triggerTokenGeneration('bill', 'IPD Advance Deposit - Rs 5000')}
+                  onClick={() => triggerTokenGeneration('bill', 'IPD Deposit Counter')}
                   className="flex flex-col items-center justify-center p-2 rounded-lg border border-emerald-200 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold transition-all"
                 >
                   <Ticket className="h-4.5 w-4.5 mb-1" />
@@ -413,7 +546,7 @@ export const Patients: React.FC = () => {
 
             {/* Demographics Block */}
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-550 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Demographics</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Demographics</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                 <div>
                   <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Date of Birth</span>
@@ -439,7 +572,7 @@ export const Patients: React.FC = () => {
             {/* Vitals History Tracking */}
             <div>
               <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555">Vitals History Tracker</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555">Vitals History Tracker</span>
                 {user?.role !== 'accountant' && (
                   <button
                     onClick={() => setIsVitalsOpen(true)}
@@ -449,83 +582,28 @@ export const Patients: React.FC = () => {
                   </button>
                 )}
               </div>
-
-              {selectedPatient.patient_vitals?.length === 0 ? (
-                <p className="text-xs text-slate-500 italic">No vital logs recorded yet. Please perform receptionist/nurse initial vital check.</p>
-              ) : (
-                <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-                  {selectedPatient.patient_vitals?.map((v: any) => (
-                    <div key={v.id} className="border border-slate-200/60 dark:border-slate-850 p-2.5 rounded-lg bg-slate-50/50 dark:bg-dark-950/20 text-[11px] space-y-1">
-                      <div className="flex justify-between font-bold text-[9px] text-slate-500">
-                        <span>Logged by: {v.logger?.name} ({v.logger?.role})</span>
-                        <span>{new Date(v.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+              
+              {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedPatient.patient_vitals.map((v: any) => (
+                    <div key={v.id} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1.5">
+                      <div className="flex justify-between items-center text-[10px] text-slate-450 border-b border-slate-200/40 dark:border-slate-850 pb-1">
+                        <span>{new Date(v.createdAt).toLocaleString()}</span>
+                        <span>Logged by: {v.logger?.name || 'Staff Nurse'}</span>
                       </div>
-                      <div className="grid grid-cols-3 gap-y-1 gap-x-2 text-[10px] font-medium text-slate-800 dark:text-slate-350">
-                        <div>BP: <strong className="text-slate-950 dark:text-white">{v.bp}</strong></div>
-                        <div>Temp: <strong className="text-slate-950 dark:text-white">{v.temperature}°F</strong></div>
-                        <div>Pulse: <strong className="text-slate-950 dark:text-white">{v.pulse} bpm</strong></div>
-                        <div>SpO2: <strong className="text-slate-950 dark:text-white">{v.spo2}%</strong></div>
-                        <div>Resp: <strong className="text-slate-950 dark:text-white">{v.respRate}</strong></div>
-                        {v.weight && <div>Wt: <strong className="text-slate-950 dark:text-white">{v.weight}kg</strong></div>}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-2xs font-semibold pt-0.5">
+                        <div>BP: <strong className="text-slate-900 dark:text-slate-100">{v.bp}</strong></div>
+                        <div>Temp: <strong className="text-slate-900 dark:text-slate-100">{v.temperature} °F</strong></div>
+                        <div>Pulse: <strong className="text-slate-900 dark:text-slate-100">{v.pulse} bpm</strong></div>
+                        <div>SpO2: <strong className="text-slate-900 dark:text-slate-100">{v.spo2}%</strong></div>
                       </div>
-                      {v.notes && <p className="text-[10px] text-slate-500 mt-1 italic">Note: "{v.notes}"</p>}
+                      {v.notes && <p className="text-[10px] text-slate-500 italic">Notes: {v.notes}</p>}
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Emergency & Insurance Block */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Emergency Contact</span>
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-rose-500" /> {selectedPatient.emergencyContactName || 'N/A'}</p>
-                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedPatient.emergencyContactPhone || 'N/A'}</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Insurance Policy</span>
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1"><Shield className="h-3.5 w-3.5 text-brand-500" /> {selectedPatient.insuranceProvider || 'None'}</p>
-                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedPatient.insurancePolicyNum || 'N/A'}</p>
-              </div>
-            </div>
-
-            {/* Medical Allergies warnings */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-450 block mb-2 border-b border-rose-100 dark:border-rose-950/20 pb-1">Allergies & Contraindications</span>
-              <p className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/5 p-2.5 rounded-lg border border-rose-500/10 leading-relaxed">
-                {selectedPatient.allergies || 'No allergies recorded.'}
-              </p>
-            </div>
-
-            {/* Clinical Visits and Prescriptions History */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-3 border-b border-slate-200/50 dark:border-slate-800 pb-1">Prescription Records</span>
-              {selectedPatient.appointments?.length === 0 ? (
-                <p className="text-xs text-slate-500 italic">No medical consult records available.</p>
               ) : (
-                <div className="space-y-4">
-                  {selectedPatient.appointments?.map((appt: any) => appt.prescription && (
-                    <div key={appt.id} className="border border-slate-200/50 dark:border-slate-800/80 p-3.5 rounded-xl bg-slate-50/50 dark:bg-dark-950/30">
-                      <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-bold text-slate-900 dark:text-slate-150">Diag: {appt.prescription.diagnosis}</span>
-                        <span className="text-[9px] font-semibold text-slate-550">{new Date(appt.prescription.prescriptionDate).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-550 dark:text-slate-400 mt-1 leading-relaxed italic">Notes: {appt.prescription.notes || 'None'}</p>
-                      
-                      {/* Meds List */}
-                      {appt.prescription.prescription_items?.length > 0 && (
-                        <div className="mt-2.5 pt-2.5 border-t border-slate-200/40 dark:border-slate-800/80 space-y-1.5">
-                          <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block">Dispensed Drugs:</span>
-                          {appt.prescription.prescription_items.map((med: any) => (
-                            <div key={med.id} className="flex justify-between text-[11px] font-medium">
-                              <span className="text-slate-800 dark:text-slate-200">{med.medicineName}</span>
-                              <span className="text-slate-500">{med.dosage} ({med.frequency} • {med.duration})</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
+                  No vital signs logged for this patient yet.
                 </div>
               )}
             </div>
@@ -533,98 +611,32 @@ export const Patients: React.FC = () => {
         ) : null}
       </Drawer>
 
-      {/* Add Patient Modal */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Register New Patient File">
-        <form onSubmit={handleAddPatient} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Patient Full Name" required value={name} onChange={e => setName(e.target.value)} />
-            <Input label="Custom MR Number (Optional)" value={mrNumber} onChange={e => setMrNumber(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Email Address (Optional)" type="email" maxLength={50} value={email} onChange={e => setEmail(e.target.value.slice(0, 50))} />
-            <Input label="Phone Number" required maxLength={11} value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Gender</label>
-              <select
-                value={gender}
-                onChange={e => setGender(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <Input label="Date of Birth" type="date" required value={dob} onChange={e => setDob(e.target.value)} />
-          </div>
-          <Input label="Address" required value={address} onChange={e => setAddress(e.target.value)} />
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Blood Group (Optional)</label>
-              <select
-                value={bloodGroup}
-                onChange={e => setBloodGroup(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-              >
-                <option value="">Select Blood Group (Optional)</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-              </select>
-            </div>
-            <Input label="Allergies / Alerts" placeholder="e.g. Penicillin, Peanuts" value={allergies} onChange={e => setAllergies(e.target.value)} />
+      {/* Log Patient Vitals Modal */}
+      <Modal isOpen={isVitalsOpen} onClose={() => setIsVitalsOpen(false)} title="Record Patient Vital Signs">
+        <form onSubmit={handleAddVitalsSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Input label="BP (Systolic/Diastolic)" required value={vitalsBP} onChange={e => setVitalsBP(e.target.value)} placeholder="120/80" />
+            <Input label="Temp (°F)" required type="number" step="0.1" value={vitalsTemp} onChange={e => setVitalsTemp(Number(e.target.value))} placeholder="98.6" />
+            <Input label="Pulse (bpm)" required type="number" value={vitalsPulse} onChange={e => setVitalsPulse(Number(e.target.value))} placeholder="72" />
+            <Input label="SpO2 (%)" required type="number" value={vitalsSpo2} onChange={e => setVitalsSpo2(Number(e.target.value))} placeholder="98" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Emergency Contact Name" value={emergencyContactName} onChange={e => setEmergencyContactName(e.target.value)} />
-            <Input label="Emergency Contact Phone" value={emergencyContactPhone} onChange={e => setEmergencyContactPhone(e.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Weight (kg) - Optional" type="number" step="0.1" value={vitalsWeight} onChange={e => setVitalsWeight(e.target.value)} placeholder="e.g. 70" />
+            <Input label="Height (cm) - Optional" type="number" step="0.1" value={vitalsHeight} onChange={e => setVitalsHeight(e.target.value)} placeholder="e.g. 175" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Insurance Provider" placeholder="e.g. BlueCross" value={insuranceProvider} onChange={e => setInsuranceProvider(e.target.value)} />
-            <Input label="Insurance Policy Number" value={insurancePolicyNum} onChange={e => setInsurancePolicyNum(e.target.value)} />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <Button type="button" variant="secondary" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-            <Button type="submit">Create Patient File</Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Log Vitals Modal */}
-      <Modal isOpen={isVitalsOpen} onClose={() => setIsVitalsOpen(false)} title="Record Patient Intake Vitals">
-        <form onSubmit={handleVitalsSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Blood Pressure (BP)" required value={vitalsBP} onChange={e => setVitalsBP(e.target.value)} placeholder="e.g. 120/80" />
-            <Input label="Body Temp (°F)" required type="number" step="0.1" value={vitalsTemp} onChange={e => setVitalsTemp(Number(e.target.value))} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input label="Pulse (bpm)" required type="number" value={vitalsPulse} onChange={e => setVitalsPulse(Number(e.target.value))} />
-            <Input label="Resp Rate (bpm)" required type="number" value={vitalsResp} onChange={e => setVitalsResp(Number(e.target.value))} />
-            <Input label="SpO2 (%)" required type="number" value={vitalsSpo2} onChange={e => setVitalsSpo2(Number(e.target.value))} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Weight (kg)" type="number" step="0.1" value={vitalsWeight} onChange={e => setVitalsWeight(e.target.value)} placeholder="Optional" />
-            <Input label="Height (cm)" type="number" step="0.1" value={vitalsHeight} onChange={e => setVitalsHeight(e.target.value)} placeholder="Optional" />
-          </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Nursing Intake / Vitals Notes</label>
+            <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Nursing Care & Vitals Notes</label>
             <textarea
+              rows={3}
               value={vitalsNotes}
               onChange={e => setVitalsNotes(e.target.value)}
-              placeholder="Vitals checked, patient stable. Clear consciousness."
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+              placeholder="e.g. Patient comfortable. Routine vital check."
+              className="w-full px-3 py-2 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
           </div>
+
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
             <Button type="button" variant="secondary" onClick={() => setIsVitalsOpen(false)}>Cancel</Button>
             <Button type="submit">Commit Vitals Entry</Button>
@@ -632,12 +644,18 @@ export const Patients: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Simulated Thermal Printer Modal */}
-      <ThermalPrinter
-        isOpen={isPrintOpen}
-        onClose={() => setIsPrintOpen(false)}
-        tokenData={printedToken}
-      />
+      {/* Print Thermal Slip Modal Simulator */}
+      {isPrintOpen && printedToken && (
+        <ThermalPrinter
+          tokenNumber={printedToken.tokenNumber}
+          type={printedToken.type}
+          patientName={selectedPatient?.name || 'Patient'}
+          mrNumber={selectedPatient?.mrNumber || 'MRN-000'}
+          waitingTime={printedToken.waitingTime || 10}
+          detail={printedToken.detail}
+          onClose={() => setIsPrintOpen(false)}
+        />
+      )}
     </div>
   );
 };
