@@ -234,51 +234,6 @@ export const TokenQueue: React.FC = () => {
         </div>
       </div>
 
-      {/* Global Summary Stats Board */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <Card className="p-4 flex items-center gap-4 bg-white dark:bg-dark-900 border border-slate-200/60 dark:border-slate-850">
-          <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-650 dark:text-brand-400 rounded-xl">
-            <Play className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest">Global Active</p>
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">{activeToken ? activeToken.tokenNumber : '--'}</h3>
-          </div>
-        </Card>
-
-        <Card className="p-4 flex items-center gap-4 bg-white dark:bg-dark-900 border border-slate-200/60 dark:border-slate-850">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 rounded-xl">
-            <ArrowRight className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest">Global Next</p>
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">{nextToken ? nextToken.tokenNumber : '--'}</h3>
-          </div>
-        </Card>
-
-        <Card className="p-4 flex items-center gap-4 bg-white dark:bg-dark-900 border border-slate-200/60 dark:border-slate-850">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-650 dark:text-amber-400 rounded-xl">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest">Total Waiting</p>
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">{waitingTokens.length} patients</h3>
-          </div>
-        </Card>
-
-        <Card className="p-4 flex items-center gap-4 bg-white dark:bg-dark-900 border border-slate-200/60 dark:border-slate-850">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-650 dark:text-emerald-400 rounded-xl">
-            <CheckCircle className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest">Completed Today</p>
-            <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">
-              {tokens.filter(t => t.status === 'completed').length} slots
-            </h3>
-          </div>
-        </Card>
-      </div>
-
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Token Generator Form */}
