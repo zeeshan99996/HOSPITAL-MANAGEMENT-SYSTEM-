@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog } from '../models';
+import { User, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog, TokenQueue } from '../models';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
 
@@ -26,6 +26,68 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     const activeAdmissions = await Admission.count({ where: { status: 'admitted' } });
     
+    // Live Doctor Token Queue Monitor
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const doctorsList = await Doctor.findAll({
+      include: [
+        { model: User, attributes: ['name', 'email'] },
+        { model: Department, attributes: ['name'] }
+      ]
+    });
+
+    const liveDoctorsQueue = await Promise.all(
+      doctorsList.map(async (doc) => {
+        const todayTokens = await TokenQueue.findAll({
+          where: {
+            doctorId: doc.id,
+            createdAt: { [Op.between]: [startOfDay, endOfDay] }
+          },
+          order: [['createdAt', 'ASC']],
+          include: [{ model: Patient, attributes: ['name', 'mrNumber'] }]
+        });
+
+        const activeProcessingToken = todayTokens.find(t => t.status === 'processing');
+        const waitingTokens = todayTokens.filter(t => t.status === 'waiting');
+        const completedTokens = todayTokens.filter(t => t.status === 'completed');
+
+        const currentTokenStr = activeProcessingToken
+          ? activeProcessingToken.tokenNumber
+          : waitingTokens.length > 0
+            ? `${waitingTokens[0].tokenNumber} (Next)`
+            : 'No Token';
+
+        const currentPatientName = activeProcessingToken
+          ? activeProcessingToken.patient?.name
+          : waitingTokens.length > 0
+            ? waitingTokens[0].patient?.name
+            : 'None';
+
+        let opdStatus = 'available';
+        if (activeProcessingToken) {
+          opdStatus = 'in_consultation';
+        } else if (todayTokens.length > 0) {
+          opdStatus = 'busy';
+        }
+
+        return {
+          doctorId: doc.id,
+          doctorName: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. Physician #${doc.id}`,
+          specialization: doc.specialization || doc.department?.name || 'General OPD',
+          roomNumber: doc.roomNumber || `Room 10${doc.id}`,
+          currentToken: currentTokenStr,
+          currentPatientName: currentPatientName,
+          totalPatientsToday: todayTokens.length,
+          waitingQueueCount: waitingTokens.length,
+          completedCount: completedTokens.length,
+          opdStatus
+        };
+      })
+    );
+
     // Recent activity log
     const recentActivity = await ActivityLog.findAll({
       limit: 6,
@@ -70,6 +132,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           monthlyRevenue: [], // Hidden
           departmentStats,
         },
+        liveDoctorsQueue,
         recentActivity,
       });
     }
@@ -122,6 +185,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         monthlyRevenue,
         departmentStats,
       },
+      liveDoctorsQueue,
       recentActivity,
     });
   } catch (error: any) {

@@ -231,6 +231,78 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
+      {/* Live OPD Doctor Token & Patient Queue Monitor */}
+      {stats?.liveDoctorsQueue && stats.liveDoctorsQueue.length > 0 && (
+        <Card className="p-5 border border-brand-500/30 bg-gradient-to-br from-white via-slate-50/50 to-brand-500/[0.03] dark:from-dark-900 dark:to-dark-950 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Ticket className="h-4.5 w-4.5 text-brand-500" /> Live OPD Doctor Tokens & Patient Queue Status
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Real-time monitor showing active consultation tokens, patient names, and queue totals per doctor.
+              </p>
+            </div>
+            <span className="p-1 px-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/25 flex items-center gap-1.5 animate-pulse">
+              <span className="h-2 w-2 rounded-full bg-emerald-500"></span> Live Queue Active
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.liveDoctorsQueue.map((doc: any) => (
+              <div key={doc.doctorId} className="p-4 bg-white dark:bg-dark-950 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden group">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-brand-500 transition-colors">
+                      {doc.doctorName}
+                    </h4>
+                    <span className="text-[10px] font-semibold text-slate-500 block capitalize">
+                      {doc.specialization} • {doc.roomNumber}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                    doc.opdStatus === 'in_consultation'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/30'
+                  }`}>
+                    {doc.opdStatus === 'in_consultation' ? 'In Room' : 'Available'}
+                  </span>
+                </div>
+
+                {/* Current Active Token Box */}
+                <div className="p-3 bg-slate-50 dark:bg-dark-900 rounded-lg border border-slate-100 dark:border-slate-850 space-y-1">
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-450 block">Current Running Token</span>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-lg font-black text-brand-600 dark:text-brand-400 tracking-tight font-mono">
+                      {doc.currentToken}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[110px]" title={doc.currentPatientName}>
+                      {doc.currentPatientName}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Queue Summary Counter */}
+                <div className="grid grid-cols-3 gap-1 text-center pt-1 border-t border-slate-100 dark:border-slate-850 text-[10px]">
+                  <div>
+                    <span className="text-[9px] text-slate-450 block font-bold">Total Today</span>
+                    <span className="font-extrabold text-slate-900 dark:text-slate-100">{doc.totalPatientsToday}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-amber-600 dark:text-amber-400 block font-bold">Waiting</span>
+                    <span className="font-extrabold text-amber-600 dark:text-amber-400">{doc.waitingQueueCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 block font-bold">Done</span>
+                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{doc.completedCount}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Activity Logs Row - Only visible to Admin */}
       {isAdmin && (
         <div className="grid grid-cols-1 gap-6">
