@@ -2,14 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { Beaker, Check, Plus, Printer, FileText, Search, Activity, Calendar, ShieldCheck, CheckSquare, Square, ChevronDown, Trash2, Edit3, Settings } from 'lucide-react';
+import { Beaker, Check, Plus, Printer, FileText, Search, Activity, Calendar, ShieldCheck, CheckSquare, Square, ChevronDown, Trash2, Settings } from 'lucide-react';
 
 const DEFAULT_LAB_TESTS = [
-  { id: 1, name: 'LFT', category: 'Blood Chemistry', rate: 1200 },
-  { id: 2, name: 'RFT', category: 'Kidney Panel', rate: 1000 },
-  { id: 3, name: 'CBC', category: 'Hematology', rate: 600 },
-  { id: 4, name: 'Blood Sugar', category: 'Diabetic Panel', rate: 300 },
-  { id: 5, name: 'Uric Acid', category: 'Metabolic Panel', rate: 500 },
+  { id: 1, name: 'LFT', rate: 1200 },
+  { id: 2, name: 'RFT', rate: 1000 },
+  { id: 3, name: 'CBC', rate: 600 },
+  { id: 4, name: 'Blood Sugar', rate: 300 },
+  { id: 5, name: 'Uric Acid', rate: 500 },
 ];
 
 export const Laboratory: React.FC = () => {
@@ -29,7 +29,6 @@ export const Laboratory: React.FC = () => {
   // Admin Catalog Form State
   const [isAddTestOpen, setIsAddTestOpen] = useState(false);
   const [newTestName, setNewTestName] = useState('');
-  const [newTestCategory, setNewTestCategory] = useState('Pathology');
   const [newTestRate, setNewTestRate] = useState('500');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -97,7 +96,7 @@ export const Laboratory: React.FC = () => {
   };
 
   // Toggle test checkbox for a patient
-  const handleToggleTest = async (patient: any, testNameStr: string, categoryStr: string) => {
+  const handleToggleTest = async (patient: any, testNameStr: string) => {
     const existingReq = requests.find(
       r => r.patientId === patient.id && r.testName.toLowerCase() === testNameStr.toLowerCase()
     );
@@ -114,7 +113,7 @@ export const Laboratory: React.FC = () => {
           patientId: patient.id,
           doctorId: patient.tokens?.[0]?.doctorId || null,
           testName: testNameStr,
-          category: categoryStr,
+          category: 'Pathology',
         });
       }
       fetchLabData();
@@ -131,7 +130,7 @@ export const Laboratory: React.FC = () => {
     try {
       await apiClient.post('/lab/tests', {
         name: newTestName,
-        category: newTestCategory,
+        category: 'Pathology',
         rate: Number(newTestRate)
       });
       setIsAddTestOpen(false);
@@ -178,7 +177,7 @@ export const Laboratory: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Beaker className="h-5 w-5 text-brand-500" /> Laboratory Tests & Pathology Desk
+            <Beaker className="h-5 w-5 text-brand-500" /> Laboratory Tests Desk
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Manage dynamic lab test catalog, patient test checklists, and daily audit reports.
@@ -362,7 +361,7 @@ export const Laboratory: React.FC = () => {
                                     return (
                                       <label
                                         key={t.id}
-                                        onClick={() => handleToggleTest(p, t.name, t.category)}
+                                        onClick={() => handleToggleTest(p, t.name)}
                                         className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${
                                           checked
                                             ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold'
@@ -377,7 +376,6 @@ export const Laboratory: React.FC = () => {
                                           )}
                                           <span>{t.name}</span>
                                         </div>
-                                        <span className="text-[9px] text-slate-450 uppercase">{t.category}</span>
                                       </label>
                                     );
                                   })}
@@ -414,7 +412,6 @@ export const Laboratory: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px] font-semibold">
                   <th className="px-5 py-3">Test Name</th>
-                  <th className="px-5 py-3">Category</th>
                   <th className="px-5 py-3">Standard Fee (Rs.)</th>
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
@@ -423,7 +420,6 @@ export const Laboratory: React.FC = () => {
                 {testCatalog.map(t => (
                   <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
                     <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white text-xs">{t.name}</td>
-                    <td className="px-5 py-3.5">{t.category}</td>
                     <td className="px-5 py-3.5 font-mono font-bold text-brand-600 dark:text-brand-400">Rs. {Number(t.rate || 0).toLocaleString()}</td>
                     <td className="px-5 py-3.5 text-right">
                       <button
@@ -456,7 +452,6 @@ export const Laboratory: React.FC = () => {
                   <th className="px-5 py-3">Date / Time</th>
                   <th className="px-5 py-3">Patient File</th>
                   <th className="px-5 py-3">Lab Test Name</th>
-                  <th className="px-5 py-3">Category</th>
                   <th className="px-5 py-3">Ordered By</th>
                   <th className="px-5 py-3 text-right">Status</th>
                 </tr>
@@ -472,7 +467,6 @@ export const Laboratory: React.FC = () => {
                       <span className="text-[10px] text-slate-450 font-mono">{req.patient?.mrNumber}</span>
                     </td>
                     <td className="px-5 py-3.5 font-extrabold text-brand-600 dark:text-brand-400">{req.testName}</td>
-                    <td className="px-5 py-3.5">{req.category}</td>
                     <td className="px-5 py-3.5">{req.doctor?.user?.name || 'Receptionist'}</td>
                     <td className="px-5 py-3.5 text-right">
                       <Badge type="success">COMPLETED</Badge>
@@ -495,23 +489,6 @@ export const Laboratory: React.FC = () => {
             onChange={e => setNewTestName(e.target.value)}
             placeholder="e.g. Lipid Profile, ECG, Urine RE, Vitamin D"
           />
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1">Test Category</label>
-            <select
-              value={newTestCategory}
-              onChange={e => setNewTestCategory(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200"
-            >
-              <option value="Blood Chemistry">Blood Chemistry</option>
-              <option value="Hematology">Hematology</option>
-              <option value="Kidney Panel">Kidney Panel</option>
-              <option value="Diabetic Panel">Diabetic Panel</option>
-              <option value="Metabolic Panel">Metabolic Panel</option>
-              <option value="Radiology & Scan">Radiology & Scan</option>
-              <option value="Pathology">Pathology</option>
-            </select>
-          </div>
 
           <Input
             label="Standard Test Rate / Fee (Rs.)"
