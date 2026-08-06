@@ -217,15 +217,15 @@ router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin'
 // ==========================================
 // LABORATORY MANAGEMENT
 // ==========================================
-router.post('/lab/requests', authenticateToken, requireRoles(['admin', 'doctor']), validateLabRequest, createLabRequest);
+router.post('/lab/requests', authenticateToken, requireRoles(['admin', 'doctor', 'receptionist']), validateLabRequest, createLabRequest);
 router.get('/lab/requests', authenticateToken, getLabRequests);
-router.put('/lab/requests/:id/process', authenticateToken, requireRoles(['admin', 'lab_technician']), processLabSample);
-router.put('/lab/requests/:id/send', authenticateToken, requireRoles(['admin', 'lab_technician', 'nurse']), sendSampleToLab);
-router.put('/lab/requests/:id/result', authenticateToken, requireRoles(['admin', 'lab_technician']), submitLabResult);
+router.put('/lab/requests/:id/process', authenticateToken, requireRoles(['admin', 'lab_technician', 'receptionist']), processLabSample);
+router.put('/lab/requests/:id/send', authenticateToken, requireRoles(['admin', 'lab_technician', 'nurse', 'receptionist']), sendSampleToLab);
+router.put('/lab/requests/:id/result', authenticateToken, requireRoles(['admin', 'lab_technician', 'receptionist']), submitLabResult);
 
 // LAB TESTS RATE CATALOG
 router.get('/lab/tests', authenticateToken, getLaboratoryTests);
-router.post('/lab/tests', authenticateToken, requireRoles(['admin', 'accountant']), createLaboratoryTest);
+router.post('/lab/tests', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), createLaboratoryTest);
 
 // ==========================================
 // BILLING, PAYROLL, PETTY CASH LEDGER

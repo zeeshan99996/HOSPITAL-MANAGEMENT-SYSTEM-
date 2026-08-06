@@ -75,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Laboratory Tests',
       path: '/laboratory',
       icon: Beaker,
-      roles: ['admin', 'doctor', 'lab_technician'],
+      roles: ['admin', 'doctor', 'receptionist', 'lab_technician'],
     },
     {
       name: 'Billing & Invoices',
