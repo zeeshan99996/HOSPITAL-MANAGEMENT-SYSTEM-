@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import apiRouter from '../src/routes/api';
 
 dotenv.config();
 
@@ -31,7 +32,7 @@ function getApp(): express.Application {
   instance.use(express.json());
   instance.use(express.urlencoded({ extended: true }));
 
-  // Health check route (Instant 200 response, no DB required)
+  // Health check route
   instance.get('/health', (req, res) => {
     res.status(200).json({ status: 'UP', message: 'HMS Service running healthy on Vercel.' });
   });
@@ -40,7 +41,7 @@ function getApp(): express.Application {
     res.status(200).json({ status: 'UP', message: 'HMS API Service running healthy on Vercel.' });
   });
 
-  // Lazy DB & Routes Middleware
+  // Lazy DB & Seeding Middleware
   instance.use(async (req, res, next) => {
     if (!isDbInitialized) {
       try {
@@ -50,7 +51,6 @@ function getApp(): express.Application {
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
-        // Ensure missing columns exist and drop NOT NULL constraints on live database tables
         const colsToAlter = ['dob', 'age', 'tokenNumber', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
         for (const col of colsToAlter) {
           try {
@@ -71,22 +71,9 @@ function getApp(): express.Application {
     next();
   });
 
-  // Route Dispatcher
-  instance.use(async (req, res, next) => {
-    try {
-      const apiRouter = (await import('../src/routes/api')).default;
-      
-      // Normalize URL for Express sub-router matching on Vercel
-      if (req.url.startsWith('/api')) {
-        req.url = req.url.substring(4) || '/';
-      }
-      
-      apiRouter(req, res, next);
-    } catch (err: any) {
-      console.error('[Router Import Error]:', err);
-      next(err);
-    }
-  });
+  // Mount API Router on both /api and root
+  instance.use('/api', apiRouter);
+  instance.use('/', apiRouter);
 
   // Global Error Handler
   instance.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
