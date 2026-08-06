@@ -1,32 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { Beaker, Check, Plus, Printer, FileText, Search, Activity, Calendar, ShieldCheck, CheckSquare, Square } from 'lucide-react';
+import { Beaker, Check, Plus, Printer, FileText, Search, Activity, Calendar, ShieldCheck, CheckSquare, Square, ChevronDown, Trash2, Edit3, Settings } from 'lucide-react';
 
-const STANDARD_TESTS = [
-  { id: 'LFT', name: 'LFT', label: 'LFT (Liver Function)', category: 'Blood Chemistry' },
-  { id: 'RFT', name: 'RFT', label: 'RFT (Renal Function)', category: 'Kidney Panel' },
-  { id: 'CBC', name: 'CBC', label: 'CBC (Blood Count)', category: 'Hematology' },
-  { id: 'Blood Sugar', name: 'Blood Sugar', label: 'Blood Sugar (F/R)', category: 'Diabetic Panel' },
-  { id: 'Uric Acid', name: 'Uric Acid', label: 'Uric Acid', category: 'Metabolic Panel' },
+const DEFAULT_LAB_TESTS = [
+  { id: 1, name: 'LFT', category: 'Blood Chemistry', rate: 1200 },
+  { id: 2, name: 'RFT', category: 'Kidney Panel', rate: 1000 },
+  { id: 3, name: 'CBC', category: 'Hematology', rate: 600 },
+  { id: 4, name: 'Blood Sugar', category: 'Diabetic Panel', rate: 300 },
+  { id: 5, name: 'Uric Acid', category: 'Metabolic Panel', rate: 500 },
 ];
 
 export const Laboratory: React.FC = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState<any[]>([]);
   const [todayPatients, setTodayPatients] = useState<any[]>([]);
+  const [testCatalog, setTestCatalog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Tab View: Today Checklist vs Full History
-  const [viewTab, setViewTab] = useState<'today' | 'history'>('today');
+  // Tab View
+  const [viewTab, setViewTab] = useState<'today' | 'history' | 'catalog'>('today');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Custom Test Modal
-  const [isCustomOpen, setIsCustomOpen] = useState(false);
-  const [customPatientId, setCustomPatientId] = useState<number | null>(null);
-  const [customTestName, setCustomTestName] = useState('');
-  const [customCategory, setCustomCategory] = useState('Pathology');
+  // Dropdown State for open patient dropdown
+  const [openDropdownPatientId, setOpenDropdownPatientId] = useState<number | null>(null);
+
+  // Admin Catalog Form State
+  const [isAddTestOpen, setIsAddTestOpen] = useState(false);
+  const [newTestName, setNewTestName] = useState('');
+  const [newTestCategory, setNewTestCategory] = useState('Pathology');
+  const [newTestRate, setNewTestRate] = useState('500');
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdownPatientId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchLabData = async () => {
     setLoading(true);
@@ -35,7 +52,15 @@ export const Laboratory: React.FC = () => {
       const reqData = await apiClient.get('/lab/requests');
       setRequests(Array.isArray(reqData) ? reqData : []);
 
-      // 2. Fetch Patients & Today Tokens
+      // 2. Fetch Dynamic Catalog Tests
+      const catalogData = await apiClient.get('/lab/tests');
+      if (Array.isArray(catalogData) && catalogData.length > 0) {
+        setTestCatalog(catalogData);
+      } else {
+        setTestCatalog(DEFAULT_LAB_TESTS);
+      }
+
+      // 3. Fetch Patients & Today Tokens
       const [patientsData, tokensData] = await Promise.all([
         apiClient.get('/patients'),
         apiClient.get('/tokens')
@@ -79,12 +104,12 @@ export const Laboratory: React.FC = () => {
 
     try {
       if (existingReq) {
-        // Mark result or delete request
+        // Cancel/Remove request
         await apiClient.put(`/lab/requests/${existingReq.id}/result`, {
           resultDetails: 'Cancelled / Removed by Receptionist'
         });
       } else {
-        // Create new lab request for patient
+        // Create new lab request
         await apiClient.post('/lab/requests', {
           patientId: patient.id,
           doctorId: patient.tokens?.[0]?.doctorId || null,
@@ -98,28 +123,43 @@ export const Laboratory: React.FC = () => {
     }
   };
 
-  // Custom Test Submission
-  const handleAddCustomTest = async (e: React.FormEvent) => {
+  // Admin Add New Test to Catalog
+  const handleAddTestToCatalog = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customPatientId || !customTestName) return;
+    if (!newTestName) return;
 
     try {
-      await apiClient.post('/lab/requests', {
-        patientId: customPatientId,
-        testName: customTestName,
-        category: customCategory,
+      await apiClient.post('/lab/tests', {
+        name: newTestName,
+        category: newTestCategory,
+        rate: Number(newTestRate)
       });
-      setIsCustomOpen(false);
-      setCustomTestName('');
+      setIsAddTestOpen(false);
+      setNewTestName('');
+      setNewTestRate('500');
       fetchLabData();
+      alert(`Test '${newTestName}' added to Lab Catalog successfully!`);
     } catch (err: any) {
-      alert(`Error adding custom test: ${err.message}`);
+      alert(`Failed to add test to catalog: ${err.message}`);
+    }
+  };
+
+  // Admin Delete Test from Catalog
+  const handleDeleteTestFromCatalog = async (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to remove '${name}' from the Lab Catalog?`)) {
+      try {
+        await apiClient.delete(`/lab/tests/${id}`);
+        fetchLabData();
+        alert(`Test '${name}' removed from catalog.`);
+      } catch (err: any) {
+        alert(`Failed to delete test: ${err.message}`);
+      }
     }
   };
 
   // Statistics Computations
   const totalTestsToday = requests.length;
-  const testBreakdown = STANDARD_TESTS.reduce((acc: any, t) => {
+  const testBreakdown = testCatalog.reduce((acc: any, t) => {
     acc[t.name] = requests.filter(r => r.testName.toLowerCase() === t.name.toLowerCase()).length;
     return acc;
   }, {});
@@ -130,26 +170,28 @@ export const Laboratory: React.FC = () => {
     (p.phone && p.phone.includes(searchQuery))
   );
 
+  const isAdmin = user?.role === 'admin';
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Beaker className="h-5 w-5 text-brand-500" /> Laboratory Tests & Diagnostics Checklist
+            <Beaker className="h-5 w-5 text-brand-500" /> Laboratory Tests & Pathology Desk
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Receptionist & Clinical Pathology register: select ordered lab tests per patient for daily/monthly records.
+            Manage dynamic lab test catalog, patient test checklists, and daily audit reports.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => window.print()}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5"
-          >
+          {isAdmin && (
+            <Button onClick={() => setIsAddTestOpen(true)} className="flex items-center gap-1.5 shadow-sm">
+              <Plus className="h-4 w-4" /> Add New Test to Catalog
+            </Button>
+          )}
+          <Button onClick={() => window.print()} variant="outline" size="sm" className="flex items-center gap-1.5">
             <Printer className="h-3.5 w-3.5" /> Print Summary Report
           </Button>
         </div>
@@ -159,26 +201,20 @@ export const Laboratory: React.FC = () => {
       <Card className="p-4 border border-brand-500/30 bg-gradient-to-r from-white via-slate-50/50 to-brand-500/[0.02] dark:from-dark-900 dark:to-dark-950 space-y-3">
         <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
           <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-            <Activity className="h-4 w-4 text-brand-500" /> Daily Laboratory Tests Counter & Audit Record
+            <Activity className="h-4 w-4 text-brand-500" /> Daily Lab Tests Breakdown Audit ({totalTestsToday} Conducted Today)
           </h3>
-          <Badge type="info">Total Conducted: {totalTestsToday} Tests</Badge>
+          <Badge type="info">Active Test Types: {testCatalog.length}</Badge>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
-          {STANDARD_TESTS.map(t => (
+          {testCatalog.slice(0, 6).map(t => (
             <div key={t.id} className="p-2.5 bg-white dark:bg-dark-950 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-0.5">
-              <span className="text-[9px] font-bold text-slate-450 uppercase block">{t.name}</span>
+              <span className="text-[9px] font-bold text-slate-450 uppercase block truncate" title={t.name}>{t.name}</span>
               <span className="text-base font-extrabold text-brand-600 dark:text-brand-400 font-mono">
                 {testBreakdown[t.name] || 0}
               </span>
             </div>
           ))}
-          <div className="p-2.5 bg-white dark:bg-dark-950 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-0.5">
-            <span className="text-[9px] font-bold text-slate-450 uppercase block">Other Tests</span>
-            <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
-              {requests.filter(r => !STANDARD_TESTS.some(st => st.name.toLowerCase() === r.testName.toLowerCase())).length}
-            </span>
-          </div>
         </div>
       </Card>
 
@@ -195,6 +231,7 @@ export const Laboratory: React.FC = () => {
           >
             <Calendar className="h-4 w-4" /> Today Patients Checklist ({todayPatients.length})
           </button>
+          
           <button
             onClick={() => setViewTab('history')}
             className={`px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 ${
@@ -203,8 +240,21 @@ export const Laboratory: React.FC = () => {
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            <FileText className="h-4 w-4" /> All Lab Records History ({requests.length})
+            <FileText className="h-4 w-4" /> Lab Audit History ({requests.length})
           </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => setViewTab('catalog')}
+              className={`px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 ${
+                viewTab === 'catalog'
+                  ? 'border-brand-500 text-brand-600 dark:text-brand-400 bg-brand-500/10'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Settings className="h-4 w-4" /> Admin Tests Catalog ({testCatalog.length})
+            </button>
+          )}
         </div>
 
         {viewTab === 'today' && (
@@ -212,7 +262,7 @@ export const Laboratory: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search patient by Name or MR#..."
+              placeholder="Search patient..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200 focus:outline-none"
@@ -228,100 +278,163 @@ export const Laboratory: React.FC = () => {
           ))}
         </div>
       ) : viewTab === 'today' ? (
-        /* TODAY PATIENTS LAB CHECKLIST TABLE */
+        /* TODAY PATIENTS TABLE WITH MULTI-SELECT CHECKBOX DROPDOWN */
         <Card className="p-0 overflow-hidden border border-slate-200 dark:border-slate-850">
           <div className="p-4 border-b border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-dark-950/20 flex justify-between items-center">
             <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
-              Today Patient Lab Test Selection & Checklist
+              Today Patient Lab Test Selection
             </h3>
-            <span className="text-[10px] text-slate-450 font-semibold">Check boxes to save lab tests</span>
+            <span className="text-[10px] text-slate-450 font-semibold">Click 'Select Lab Tests' dropdown to check/uncheck tests</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px] font-semibold">
-                  <th className="px-4 py-3">MR# / Patient File</th>
-                  <th className="px-4 py-3">Attending Doctor</th>
-                  {STANDARD_TESTS.map(t => (
-                    <th key={t.id} className="px-3 py-3 text-center bg-brand-500/5 font-extrabold text-brand-600 dark:text-brand-400">
-                      {t.name}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-right">Custom Tests / Actions</th>
+                  <th className="px-5 py-3.5">MR# / Patient File</th>
+                  <th className="px-5 py-3.5">Attending Doctor</th>
+                  <th className="px-5 py-3.5">Selected Tests</th>
+                  <th className="px-5 py-3.5 text-right">Lab Test Selection Dropdown</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
                 {filteredPatients.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-450 text-xs">
+                    <td colSpan={4} className="p-8 text-center text-slate-450 text-xs">
                       No patients registered today.
                     </td>
                   </tr>
                 ) : (
                   filteredPatients.map(p => {
                     const patientReqs = requests.filter(r => r.patientId === p.id);
-                    const customReqs = patientReqs.filter(
-                      r => !STANDARD_TESTS.some(st => st.name.toLowerCase() === r.testName.toLowerCase())
-                    );
+                    const isOpen = openDropdownPatientId === p.id;
 
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
-                        <td className="px-4 py-3">
-                          <span className="font-bold text-slate-900 dark:text-white block">{p.name}</span>
+                        <td className="px-5 py-4">
+                          <span className="font-bold text-slate-900 dark:text-white block text-xs">{p.name}</span>
                           <span className="text-[10px] text-slate-450 font-mono">
                             {p.mrNumber || 'MR-N/A'} • {p.phone}
                           </span>
                         </td>
 
-                        <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">
+                        <td className="px-5 py-4 font-semibold text-slate-800 dark:text-slate-200">
                           {p.doctorName || p.tokens?.[0]?.doctor?.user?.name || 'OPD Physician'}
                         </td>
 
-                        {/* Standard Test Checkboxes */}
-                        {STANDARD_TESTS.map(t => {
-                          const checked = isTestChecked(p.id, t.name);
-                          return (
-                            <td key={t.id} className="px-3 py-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleTest(p, t.name, t.category)}
-                                className={`p-2 rounded-lg transition-all flex items-center justify-center mx-auto border ${
-                                  checked
-                                    ? 'bg-brand-500 text-white border-brand-500 shadow-sm shadow-brand-500/30'
-                                    : 'bg-white dark:bg-dark-900 text-slate-300 dark:text-slate-700 border-slate-200 dark:border-slate-800 hover:border-brand-500/50'
-                                }`}
-                                title={`Toggle ${t.name} for ${p.name}`}
-                              >
-                                {checked ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-                              </button>
-                            </td>
-                          );
-                        })}
+                        {/* Selected Test Badges Pills */}
+                        <td className="px-5 py-4">
+                          <div className="flex flex-wrap gap-1.5 max-w-md">
+                            {patientReqs.length === 0 ? (
+                              <span className="text-[11px] text-slate-400 italic">No tests selected</span>
+                            ) : (
+                              patientReqs.map(r => (
+                                <span key={r.id} className="px-2.5 py-0.5 bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/30 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                                  <Check className="h-3 w-3" /> {r.testName}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </td>
 
-                        {/* Custom Tests & Add Button */}
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex flex-col items-end gap-1">
-                            {customReqs.map(cr => (
-                              <Badge key={cr.id} type="info" className="text-[9px]">
-                                {cr.testName}
-                              </Badge>
-                            ))}
+                        {/* CHECKBOX MULTI-SELECT DROPDOWN */}
+                        <td className="px-5 py-4 text-right relative">
+                          <div className="inline-block text-left" ref={isOpen ? dropdownRef : null}>
                             <button
-                              onClick={() => {
-                                setCustomPatientId(p.id);
-                                setIsCustomOpen(true);
-                              }}
-                              className="px-2 py-1 bg-slate-100 dark:bg-dark-900 hover:bg-brand-500 hover:text-white text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded border border-slate-200 dark:border-slate-800 transition-all flex items-center gap-1"
+                              type="button"
+                              onClick={() => setOpenDropdownPatientId(isOpen ? null : p.id)}
+                              className="px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold rounded-lg transition-all shadow-sm flex items-center gap-1.5"
                             >
-                              <Plus className="h-3 w-3" /> Add Test
+                              <Beaker className="h-3.5 w-3.5" /> Select Lab Tests ({patientReqs.length}) <ChevronDown className="h-3.5 w-3.5" />
                             </button>
+
+                            {/* Dropdown Menu */}
+                            {isOpen && (
+                              <div className="origin-top-right absolute right-5 mt-2 w-64 rounded-xl shadow-xl bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 z-50 p-2 space-y-1 divide-y divide-slate-100 dark:divide-slate-850">
+                                <div className="p-2 text-[10px] font-extrabold text-slate-450 uppercase tracking-wider flex justify-between items-center">
+                                  <span>Check Tests for {p.name}</span>
+                                  <span className="text-brand-500">{patientReqs.length} Selected</span>
+                                </div>
+
+                                <div className="max-h-60 overflow-y-auto space-y-1 pt-1">
+                                  {testCatalog.map(t => {
+                                    const checked = isTestChecked(p.id, t.name);
+                                    return (
+                                      <label
+                                        key={t.id}
+                                        onClick={() => handleToggleTest(p, t.name, t.category)}
+                                        className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${
+                                          checked
+                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold'
+                                            : 'hover:bg-slate-50 dark:hover:bg-dark-950 text-slate-700 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          {checked ? (
+                                            <CheckSquare className="h-4 w-4 text-brand-500" />
+                                          ) : (
+                                            <Square className="h-4 w-4 text-slate-300 dark:text-slate-700" />
+                                          )}
+                                          <span>{t.name}</span>
+                                        </div>
+                                        <span className="text-[9px] text-slate-450 uppercase">{t.category}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
                     );
                   })
                 )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : viewTab === 'catalog' ? (
+        /* ADMIN EDITABLE TEST CATALOG MANAGEMENT TABLE */
+        <Card className="p-0 overflow-hidden border border-slate-200 dark:border-slate-850">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-dark-950/20 flex justify-between items-center">
+            <div>
+              <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+                Admin Dynamic Lab Test Catalog
+              </h3>
+              <p className="text-[10px] text-slate-500">Configure tests available in receptionist dropdown menu.</p>
+            </div>
+            <Button onClick={() => setIsAddTestOpen(true)} size="sm" className="flex items-center gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Add New Test
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px] font-semibold">
+                  <th className="px-5 py-3">Test Name</th>
+                  <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3">Standard Fee (Rs.)</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
+                {testCatalog.map(t => (
+                  <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
+                    <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white text-xs">{t.name}</td>
+                    <td className="px-5 py-3.5">{t.category}</td>
+                    <td className="px-5 py-3.5 font-mono font-bold text-brand-600 dark:text-brand-400">Rs. {Number(t.rate || 0).toLocaleString()}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={() => handleDeleteTestFromCatalog(t.id, t.name)}
+                        className="p-1 px-2 bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white rounded text-[10px] font-bold transition-all flex items-center gap-1 ml-auto"
+                      >
+                        <Trash2 className="h-3 w-3" /> Remove Test
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -345,7 +458,7 @@ export const Laboratory: React.FC = () => {
                   <th className="px-5 py-3">Lab Test Name</th>
                   <th className="px-5 py-3">Category</th>
                   <th className="px-5 py-3">Ordered By</th>
-                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -361,7 +474,7 @@ export const Laboratory: React.FC = () => {
                     <td className="px-5 py-3.5 font-extrabold text-brand-600 dark:text-brand-400">{req.testName}</td>
                     <td className="px-5 py-3.5">{req.category}</td>
                     <td className="px-5 py-3.5">{req.doctor?.user?.name || 'Receptionist'}</td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 text-right">
                       <Badge type="success">COMPLETED</Badge>
                     </td>
                   </tr>
@@ -372,33 +485,44 @@ export const Laboratory: React.FC = () => {
         </Card>
       )}
 
-      {/* CUSTOM TEST MODAL */}
-      <Modal isOpen={isCustomOpen} onClose={() => setIsCustomOpen(false)} title="Add Custom Lab Test for Patient">
-        <form onSubmit={handleAddCustomTest} className="space-y-4">
+      {/* ADMIN ADD TEST TO CATALOG MODAL */}
+      <Modal isOpen={isAddTestOpen} onClose={() => setIsAddTestOpen(false)} title="Add New Lab Test to Catalog">
+        <form onSubmit={handleAddTestToCatalog} className="space-y-4">
           <Input
-            label="Custom Test Name"
+            label="Lab Test Name"
             required
-            value={customTestName}
-            onChange={e => setCustomTestName(e.target.value)}
-            placeholder="e.g. Lipid Profile, Urine RE, Serum Electrolytes"
+            value={newTestName}
+            onChange={e => setNewTestName(e.target.value)}
+            placeholder="e.g. Lipid Profile, ECG, Urine RE, Vitamin D"
           />
 
           <div>
             <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1">Test Category</label>
             <select
-              value={customCategory}
-              onChange={e => setCustomCategory(e.target.value)}
+              value={newTestCategory}
+              onChange={e => setNewTestCategory(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200"
             >
-              <option value="Pathology">Pathology</option>
               <option value="Blood Chemistry">Blood Chemistry</option>
+              <option value="Hematology">Hematology</option>
+              <option value="Kidney Panel">Kidney Panel</option>
+              <option value="Diabetic Panel">Diabetic Panel</option>
+              <option value="Metabolic Panel">Metabolic Panel</option>
               <option value="Radiology & Scan">Radiology & Scan</option>
-              <option value="Microbiology">Microbiology</option>
+              <option value="Pathology">Pathology</option>
             </select>
           </div>
 
+          <Input
+            label="Standard Test Rate / Fee (Rs.)"
+            type="number"
+            required
+            value={newTestRate}
+            onChange={e => setNewTestRate(e.target.value)}
+          />
+
           <Button type="submit" className="w-full flex items-center justify-center gap-1.5">
-            <Check className="h-4 w-4" /> Save Lab Test Record
+            <Check className="h-4 w-4" /> Save to Catalog
           </Button>
         </form>
       </Modal>

@@ -376,3 +376,40 @@ export const submitLabResult = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error submitting results.', error: error.message });
   }
 };
+
+// ==========================================
+// LABORATORY TEST CATALOG MANAGEMENT
+// ==========================================
+export const getLaboratoryTests = async (req: Request, res: Response) => {
+  try {
+    const tests = await LaboratoryTest.findAll({ order: [['name', 'ASC']] });
+    return res.status(200).json(tests);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error retrieving laboratory test catalog.', error: error.message });
+  }
+};
+
+export const createLaboratoryTest = async (req: Request, res: Response) => {
+  const { name, category, rate, isOutsourced } = req.body;
+  try {
+    const test = await LaboratoryTest.create({
+      name,
+      category: category || 'General',
+      rate: Number(rate) || 0.00,
+      isOutsourced: Boolean(isOutsourced)
+    });
+    return res.status(201).json(test);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error creating laboratory test.', error: error.message });
+  }
+};
+
+export const deleteLaboratoryTest = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await LaboratoryTest.destroy({ where: { id } });
+    return res.status(200).json({ message: 'Laboratory test deleted successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error deleting laboratory test.', error: error.message });
+  }
+};
