@@ -29,7 +29,7 @@ export const Laboratory: React.FC = () => {
   // Admin Catalog Form State
   const [isAddTestOpen, setIsAddTestOpen] = useState(false);
   const [newTestName, setNewTestName] = useState('');
-  const [newTestRate, setNewTestRate] = useState('500');
+  const [newTestRate, setNewTestRate] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -131,11 +131,11 @@ export const Laboratory: React.FC = () => {
       await apiClient.post('/lab/tests', {
         name: newTestName,
         category: 'Pathology',
-        rate: Number(newTestRate)
+        rate: newTestRate ? Number(newTestRate) : 0
       });
       setIsAddTestOpen(false);
       setNewTestName('');
-      setNewTestRate('500');
+      setNewTestRate('');
       fetchLabData();
       alert(`Test '${newTestName}' added to Lab Catalog successfully!`);
     } catch (err: any) {
@@ -491,9 +491,9 @@ export const Laboratory: React.FC = () => {
           />
 
           <Input
-            label="Standard Test Rate / Fee (Rs.)"
+            label="Standard Test Rate / Fee (Rs.) - Optional"
             type="number"
-            required
+            placeholder="e.g. 500 (Leave blank if Free / Included)"
             value={newTestRate}
             onChange={e => setNewTestRate(e.target.value)}
           />
