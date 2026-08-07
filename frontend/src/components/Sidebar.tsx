@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Dashboard',
       path: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'doctor', 'receptionist', 'lab_technician', 'accountant'],
+      roles: ['admin', 'doctor', 'receptionist', 'accountant'],
     },
     {
       name: 'Patient Registration',
@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Laboratory Tests',
       path: '/laboratory',
       icon: Beaker,
-      roles: ['admin', 'doctor', 'receptionist', 'lab_technician'],
+      roles: ['admin', 'doctor', 'receptionist'],
     },
     {
       name: 'Pharmacy Dispensary',
@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Profile',
       path: '/profile',
       icon: User,
-      roles: ['admin', 'doctor', 'lab_technician', 'accountant'],
+      roles: ['admin', 'doctor', 'accountant'],
     },
     {
       name: 'Staff Registry',
@@ -155,7 +155,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     admin: 'System Admin',
     doctor: 'Medical Doctor',
     receptionist: 'Reception Staff',
-    lab_technician: 'Lab Tech',
     pharmacist: 'Pharmacist',
     accountant: 'Accountant',
   };

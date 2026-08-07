@@ -75,7 +75,6 @@ export const seedDatabase = async () => {
       { name: 'admin', description: 'System Administrator' },
       { name: 'doctor', description: 'Medical Doctor' },
       { name: 'receptionist', description: 'Front Desk Receptionist' },
-      { name: 'lab_technician', description: 'Laboratory Technician' },
       { name: 'pharmacist', description: 'Clinical Pharmacist' },
       { name: 'accountant', description: 'Financial Accountant' },
     ];
@@ -138,7 +137,6 @@ export const seedDatabase = async () => {
       { name: 'System Admin', email: 'admin@lifeflow.com', password: hashedPassword, role: 'admin', phone: '1234567890', roleId: rolesMap['admin'].id },
       { name: 'Dr. Jane Smith', email: 'doctor@lifeflow.com', password: hashedPassword, role: 'doctor', phone: '2345678901', roleId: rolesMap['doctor'].id },
       { name: 'Receptionist Emily Davis', email: 'receptionist@lifeflow.com', password: hashedPassword, role: 'receptionist', phone: '4567890123', roleId: rolesMap['receptionist'].id },
-      { name: 'Lab Tech Robert Miller', email: 'lab@lifeflow.com', password: hashedPassword, role: 'lab_technician', phone: '5678901234', roleId: rolesMap['lab_technician'].id },
       { name: 'Pharmacist David Wilson', email: 'pharmacist@lifeflow.com', password: hashedPassword, role: 'pharmacist', phone: '6789012345', roleId: rolesMap['pharmacist'].id },
       { name: 'Accountant Mark Evans', email: 'accountant@lifeflow.com', password: hashedPassword, role: 'accountant', phone: '7890123456', roleId: rolesMap['accountant'].id },
     ];

@@ -19,7 +19,6 @@ export const Login: React.FC = () => {
     doctor: { name: 'Medical Doctor', email: 'doctor@lifeflow.com' },
     receptionist: { name: 'Front Desk Receptionist', email: 'receptionist@lifeflow.com' },
     pharmacist: { name: 'Clinical Pharmacist', email: 'pharmacist@lifeflow.com' },
-    lab_technician: { name: 'Laboratory Technician', email: 'lab@lifeflow.com' },
     accountant: { name: 'Financial Accountant', email: 'accountant@lifeflow.com' },
     custom: { name: 'Other / Custom Email', email: '' }
   };
@@ -89,7 +88,6 @@ export const Login: React.FC = () => {
                   <option value="doctor">Medical Doctor (doctor@lifeflow.com)</option>
                   <option value="receptionist">Front Desk Receptionist (receptionist@lifeflow.com)</option>
                   <option value="pharmacist">Clinical Pharmacist (pharmacist@lifeflow.com)</option>
-                  <option value="lab_technician">Laboratory Technician (lab@lifeflow.com)</option>
                   <option value="accountant">Financial Accountant (accountant@lifeflow.com)</option>
                   <option value="custom">Other / Custom Email</option>
                 </select>

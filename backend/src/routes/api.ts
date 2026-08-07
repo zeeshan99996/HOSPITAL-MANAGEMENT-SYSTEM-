@@ -221,9 +221,9 @@ router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin'
 // ==========================================
 router.post('/lab/requests', authenticateToken, requireRoles(['admin', 'doctor', 'receptionist']), validateLabRequest, createLabRequest);
 router.get('/lab/requests', authenticateToken, getLabRequests);
-router.put('/lab/requests/:id/process', authenticateToken, requireRoles(['admin', 'lab_technician', 'receptionist']), processLabSample);
-router.put('/lab/requests/:id/send', authenticateToken, requireRoles(['admin', 'lab_technician', 'nurse', 'receptionist']), sendSampleToLab);
-router.put('/lab/requests/:id/result', authenticateToken, requireRoles(['admin', 'lab_technician', 'receptionist']), submitLabResult);
+router.put('/lab/requests/:id/process', authenticateToken, requireRoles(['admin', 'receptionist']), processLabSample);
+router.put('/lab/requests/:id/send', authenticateToken, requireRoles(['admin', 'nurse', 'receptionist']), sendSampleToLab);
+router.put('/lab/requests/:id/result', authenticateToken, requireRoles(['admin', 'receptionist']), submitLabResult);
 
 // LAB TESTS RATE CATALOG
 router.get('/lab/tests', authenticateToken, getLaboratoryTests);
@@ -265,7 +265,7 @@ router.post('/medicines/rates', authenticateToken, requireRoles(['admin', 'accou
 // ==========================================
 // ADMIN DASHBOARD & STAFF / DOCTOR OPERATIONS
 // ==========================================
-router.get('/admin/stats', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'pharmacist', 'accountant']), getDashboardStats);
+router.get('/admin/stats', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'accountant']), getDashboardStats);
 router.get('/admin/staff', authenticateToken, requireRoles(['admin']), getAllStaff);
 router.post('/admin/staff', authenticateToken, requireRoles(['admin']), createStaff);
 router.put('/admin/staff/:id/status', authenticateToken, requireRoles(['admin']), updateStaffStatus);

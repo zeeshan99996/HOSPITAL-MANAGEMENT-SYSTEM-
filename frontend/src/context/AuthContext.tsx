@@ -5,7 +5,7 @@ export interface UserSession {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'doctor' | 'receptionist' | 'nurse' | 'lab_technician' | 'pharmacist' | 'accountant' | 'patient';
+  role: 'admin' | 'doctor' | 'receptionist' | 'nurse' | 'pharmacist' | 'accountant' | 'patient';
   profileId: number | null;
 }
 
