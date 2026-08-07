@@ -116,13 +116,31 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       return { name: d.name, appointments: count };
     });
 
+    const totalTodayTokens = await TokenQueue.count({
+      where: {
+        createdAt: { [Op.between]: [startOfDay, endOfDay] }
+      }
+    });
+
+    const pendingCheckups = await TokenQueue.count({
+      where: {
+        status: 'waiting',
+        createdAt: { [Op.between]: [startOfDay, endOfDay] }
+      }
+    });
+
+    const todayPatients = totalTodayTokens > 0 ? totalTodayTokens : todayAppointments;
+
     if (userRole === 'receptionist') {
       // Return filtered stats without revenue/financial metrics or low-stock thresholds
       return res.status(200).json({
         stats: {
           totalPatients,
-          todayAppointments,
+          todayPatients,
+          todayAppointments: todayPatients,
           activeAdmissions,
+          pendingCheckups,
+          totalDoctors: doctorsList.length,
           totalRevenue: null, // Hidden
           pendingBills: null, // Hidden
           pendingLabs: 0,
@@ -174,8 +192,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     return res.status(200).json({
       stats: {
         totalPatients,
-        todayAppointments,
+        todayPatients,
+        todayAppointments: todayPatients,
         activeAdmissions,
+        pendingCheckups,
+        totalDoctors: doctorsList.length,
         totalRevenue,
         pendingBills,
         pendingLabs,

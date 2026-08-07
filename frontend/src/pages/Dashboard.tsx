@@ -88,34 +88,44 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Widgets Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <Card className="flex items-center gap-4">
           <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl">
-            <Users className="h-6 w-6" />
+            <Calendar className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Patients</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.totalPatients}</h3>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today Patient (OPD)</p>
+            <h3 className="text-xl font-bold mt-0.5">{stats.stats.todayPatients || stats.stats.todayAppointments || 0}</h3>
           </div>
         </Card>
 
         <Card className="flex items-center gap-4">
           <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
-            <Calendar className="h-6 w-6" />
+            <Bed className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today's Visits</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.todayAppointments}</h3>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Admit Patient (IPD)</p>
+            <h3 className="text-xl font-bold mt-0.5">{stats.stats.activeAdmissions || 0}</h3>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-4">
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl">
+            <Clock className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending Checkups</p>
+            <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{stats.stats.pendingCheckups || 0}</h3>
           </div>
         </Card>
 
         <Card className="flex items-center gap-4">
           <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
-            <BriefcaseMedical className="h-6 w-6" />
+            <Users className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-550 dark:text-slate-400 uppercase tracking-wider">OPD Doctors</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.totalDoctors || 8}</h3>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Registered Patients</p>
+            <h3 className="text-xl font-bold mt-0.5">{stats.stats.totalPatients}</h3>
           </div>
         </Card>
       </div>
