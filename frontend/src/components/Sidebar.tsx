@@ -19,7 +19,8 @@ import {
   Ticket,
   FileText,
   User,
-  ShieldCheck
+  ShieldCheck,
+  Pill
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -39,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Dashboard',
       path: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'doctor', 'receptionist', 'lab_technician', 'pharmacist', 'accountant'],
+      roles: ['admin', 'doctor', 'receptionist', 'lab_technician', 'accountant'],
     },
     {
       name: 'Patient Registration',
@@ -78,6 +79,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       roles: ['admin', 'doctor', 'receptionist', 'lab_technician'],
     },
     {
+      name: 'Pharmacy Dispensary',
+      path: '/pharmacy',
+      icon: Pill,
+      roles: ['admin', 'pharmacist', 'doctor', 'accountant'],
+    },
+    {
       name: 'Billing & Invoices',
       path: '/billing',
       icon: Receipt,
@@ -93,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Profile',
       path: '/profile',
       icon: User,
-      roles: ['admin', 'doctor', 'receptionist', 'lab_technician', 'pharmacist', 'accountant'],
+      roles: ['admin', 'doctor', 'receptionist', 'lab_technician', 'accountant'],
     },
     {
       name: 'Staff Registry',
@@ -121,11 +128,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     },
   ];
 
-  // If receptionist, filter to exactly show Receptionist Portal specs (dashboard, registration, patients, appointments, queue, schedules, billing, reports, profile, logout)
+  // Role based filtering logic
+  const isPharmacist = user.role === 'pharmacist';
   const isReceptionist = user.role === 'receptionist';
   const filteredItems = menuItems.filter(item => {
+    if (isPharmacist) {
+      return item.path === '/pharmacy';
+    }
     if (isReceptionist) {
-      // Limit receptionist to: Dashboard, Patient Registration, Patients, Appointments, Token Queue, Doctors Schedule, Billing, Reports, Profile
       const allowedPaths = [
         '/dashboard',
         '/patient-registration',

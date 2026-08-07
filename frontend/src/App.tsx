@@ -73,7 +73,7 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={user.role === 'pharmacist' ? <Navigate to="/pharmacy" replace /> : <Dashboard />} />
               <Route path="/patient-registration" element={<PatientRegistration />} />
               <Route path="/old-patient" element={<OldPatient />} />
               <Route path="/patients" element={<Patients />} />
@@ -90,7 +90,7 @@ const App: React.FC = () => {
               <Route path="/staff" element={<Staff />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to={user.role === 'pharmacist' ? "/pharmacy" : "/dashboard"} replace />} />
             </Routes>
           </Suspense>
         </main>
