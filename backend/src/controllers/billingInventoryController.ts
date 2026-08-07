@@ -233,6 +233,16 @@ export const addMedicine = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteMedicine = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await Medicine.destroy({ where: { id } });
+    return res.status(200).json({ message: 'Medicine deleted successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error deleting medicine.', error: error.message });
+  }
+};
+
 export const recordMedicineSale = async (req: Request, res: Response) => {
   const { patientId, items, discount } = req.body; // items: [{medicineId, quantity}], discount optional
   const transaction = await sequelize.transaction();

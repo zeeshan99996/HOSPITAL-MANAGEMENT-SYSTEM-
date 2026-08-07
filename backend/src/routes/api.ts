@@ -51,6 +51,7 @@ import {
   getMedicines,
   updateMedicineStock,
   addMedicine,
+  deleteMedicine,
   recordMedicineSale,
   administerMedicine,
   getMedicineRates,
@@ -251,6 +252,7 @@ router.put('/payroll/:id/pay', authenticateToken, requireRoles(['admin', 'accoun
 router.get('/medicines', authenticateToken, getMedicines);
 router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), addMedicine);
 router.put('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), updateMedicineStock);
+router.delete('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist']), deleteMedicine);
 router.post('/medicines/sale', authenticateToken, requireRoles(['admin', 'pharmacist']), validateMedicineSale, recordMedicineSale);
 
 // DIRECT MEDICINE/INJECTION CLINICAL ADMINISTRATION
