@@ -435,7 +435,7 @@ export const Pharmacy: React.FC = () => {
                           <option value="">-- Select Medicine / Injection --</option>
                           {medicines.map(m => (
                             <option key={m.id} value={m.id} disabled={m.stockLevel <= 0}>
-                              {m.name} ({m.category || 'Med'}) • {m.unit || '500 mg'} • Stock: {m.stockLevel} • Rs. {Number(m.price).toLocaleString()}
+                              {m.name}
                             </option>
                           ))}
                         </select>
