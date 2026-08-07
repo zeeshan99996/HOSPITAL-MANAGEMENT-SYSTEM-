@@ -190,6 +190,45 @@ export const Billing: React.FC = () => {
     }
   };
 
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customPatientId) {
+      alert('Please select a patient file.');
+      return;
+    }
+
+    try {
+      await apiClient.post('/invoices', {
+        patientId: Number(customPatientId),
+        discount: Number(customDiscount || 0),
+        items: [
+          {
+            itemName: 'Custom Hospital Billing Invoice',
+            itemCategory: 'General',
+            unitPrice: 500,
+            quantity: 1
+          }
+        ]
+      });
+
+      setIsCreateOpen(false);
+      setCustomPatientId('');
+      setCustomDiscount(0);
+      fetchBillingData();
+      alert('Custom invoice issued successfully.');
+    } catch (err: any) {
+      alert(`Invoice compilation failed: ${err.message}`);
+    }
+  };
+
+  const handlePayClick = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    const balance = Number(invoice.grandTotal) - Number(invoice.paidAmount);
+    setPayAmount(balance);
+    setPayMethod('cash');
+    setIsPayOpen(true);
+  };
+
   // Submit IPD Advance Settlement
   const handleAdmissionPaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
