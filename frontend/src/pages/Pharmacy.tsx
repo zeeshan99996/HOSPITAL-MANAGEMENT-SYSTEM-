@@ -272,7 +272,7 @@ export const Pharmacy: React.FC = () => {
           </p>
         </div>
 
-        {isAdmin && mainTab === 'store' && (
+        {isSysAdmin && mainTab === 'store' && (
           <Button onClick={() => setIsAddMedOpen(true)} className="flex items-center gap-1.5 shadow-sm">
             <Plus className="h-4 w-4" /> Add New Medicine / Injection Stock
           </Button>
@@ -550,13 +550,13 @@ export const Pharmacy: React.FC = () => {
                   <th className="px-5 py-3.5">Available Stock</th>
                   <th className="px-5 py-3.5">Unit Price (Rs.)</th>
                   <th className="px-5 py-3.5">Batch # / Expiry</th>
-                  <th className="px-5 py-3.5 text-right">Admin Actions</th>
+                  {isSysAdmin && <th className="px-5 py-3.5 text-right">Admin Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
                 {filteredStoreMeds.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-450 text-xs">
+                    <td colSpan={isSysAdmin ? 7 : 6} className="p-8 text-center text-slate-450 text-xs">
                       No medicines match the search criteria.
                     </td>
                   </tr>
@@ -602,8 +602,8 @@ export const Pharmacy: React.FC = () => {
                           <span>Exp: {m.expiryDate ? new Date(m.expiryDate).toLocaleDateString() : 'N/A'}</span>
                         </td>
 
-                        <td className="px-5 py-4 text-right">
-                          {isAdmin && (
+                        {isSysAdmin && (
+                          <td className="px-5 py-4 text-right">
                             <div className="flex justify-end gap-1.5">
                               <button
                                 onClick={() => handleOpenEditModal(m)}
@@ -618,8 +618,8 @@ export const Pharmacy: React.FC = () => {
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                          )}
-                        </td>
+                          </td>
+                        )}
                       </tr>
                     );
                   })
