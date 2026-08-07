@@ -256,6 +256,7 @@ export const Pharmacy: React.FC = () => {
   );
 
   const activePatientList = patientSubTab === 'today' ? todayPatients : admitPatients;
+  const isSysAdmin = user?.role === 'admin';
   const isAdmin = user?.role === 'admin' || user?.role === 'pharmacist';
 
   return (
@@ -278,8 +279,9 @@ export const Pharmacy: React.FC = () => {
         )}
       </div>
 
-      {/* KPI STATS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* KPI STATS ROW - ADMIN ONLY */}
+      {isSysAdmin && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="flex items-center gap-3 py-3 border border-slate-200 dark:border-slate-850">
           <div className="p-2 bg-brand-500/10 text-brand-600 rounded-xl">
             <Package className="h-5 w-5" />
@@ -310,6 +312,7 @@ export const Pharmacy: React.FC = () => {
           </div>
         </Card>
       </div>
+      )}
 
       {/* MAIN NAVIGATION TABS: PATIENT vs STORE */}
       <div className="flex border-b border-slate-200 dark:border-slate-800">
