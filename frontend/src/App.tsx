@@ -85,7 +85,7 @@ const App: React.FC = () => {
               <Route path="/pharmacy" element={<Pharmacy />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/reports" element={<Reports />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile" element={user.role === 'receptionist' || user.role === 'pharmacist' ? <Navigate to="/dashboard" replace /> : <Profile />} />
               <Route path="/security" element={<SecurityManagement />} />
               <Route path="/staff" element={<Staff />} />
               <Route path="/logs" element={<Logs />} />
