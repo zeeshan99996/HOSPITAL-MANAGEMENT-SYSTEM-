@@ -127,6 +127,7 @@ export const SecurityManagement: React.FC = () => {
   };
 
   const filteredUsers = users.filter(u => {
+    if (u.role === 'lab_technician' || u.email === 'lab@lifeflow.com') return false;
     const matchesSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||

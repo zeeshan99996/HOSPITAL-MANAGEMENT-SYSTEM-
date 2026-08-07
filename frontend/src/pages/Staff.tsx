@@ -125,7 +125,9 @@ export const Staff: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-              {staff.map(s => (
+              {staff
+                .filter(s => s.role !== 'lab_technician' && s.email !== 'lab@lifeflow.com' && s.user?.role !== 'lab_technician' && s.user?.email !== 'lab@lifeflow.com')
+                .map(s => (
                 <tr key={s.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
                   <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">
                     {s.name}
@@ -193,7 +195,6 @@ export const Staff: React.FC = () => {
                 <option value="nurse">Ward Nurse</option>
                 <option value="receptionist">Receptionist</option>
                 <option value="pharmacist">Pharmacist</option>
-                <option value="lab_technician">Laboratory Technician</option>
                 <option value="accountant">Accountant</option>
                 <option value="admin">System Administrator</option>
               </select>
