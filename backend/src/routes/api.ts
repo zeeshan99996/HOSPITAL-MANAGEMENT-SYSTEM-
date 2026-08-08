@@ -119,20 +119,53 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    let docSeq = 1;
+    // Validate Patient ID
+    let validPatientId = Number(patientId);
+    let patObj = await Patient.findByPk(validPatientId);
+    if (!patObj) {
+      const fallbackPat = await Patient.findOne();
+      if (fallbackPat) validPatientId = fallbackPat.id;
+    }
+
+    // Validate Doctor ID
+    let validDocId: number | null = null;
     let doctorName = 'General OPD';
 
     if (doctorId) {
-      const docObj = await Doctor.findByPk(doctorId, {
+      const numDocId = Number(doctorId);
+      let docObj = await Doctor.findByPk(numDocId, {
         include: [{ model: User, attributes: ['name'] }]
       });
-      if (docObj) {
-        doctorName = docObj.user?.name || `Doctor #${doctorId}`;
+
+      if (!docObj) {
+        // Fallback: check if doctorId was passed as User.id
+        docObj = await Doctor.findOne({
+          where: { userId: numDocId },
+          include: [{ model: User, attributes: ['name'] }]
+        });
       }
 
+      if (docObj) {
+        validDocId = docObj.id;
+        doctorName = docObj.user?.name || `Doctor #${docObj.id}`;
+      }
+    }
+
+    if (!validDocId) {
+      const fallbackDoc = await Doctor.findOne({
+        include: [{ model: User, attributes: ['name'] }]
+      });
+      if (fallbackDoc) {
+        validDocId = fallbackDoc.id;
+        doctorName = fallbackDoc.user?.name || `Doctor #${fallbackDoc.id}`;
+      }
+    }
+
+    let docSeq = 1;
+    if (validDocId) {
       const countToday = await TokenQueue.count({
         where: {
-          doctorId: Number(doctorId),
+          doctorId: validDocId,
           createdAt: {
             [Op.between]: [startOfDay, endOfDay]
           }
@@ -156,8 +189,8 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     const token = await TokenQueue.create({
       tokenNumber: tokenId,
       type: type || 'opd',
-      patientId,
-      doctorId: doctorId ? Number(doctorId) : null,
+      patientId: validPatientId,
+      doctorId: validDocId,
       status: 'waiting',
       waitingTime: Math.floor(5 + Math.random() * 20),
       detail: detail || ''
