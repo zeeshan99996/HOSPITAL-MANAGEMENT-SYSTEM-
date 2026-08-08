@@ -58,14 +58,14 @@ export const Pharmacy: React.FC = () => {
     setLoading(true);
     try {
       // 1. Fetch Medicines Stock
-      const medList = await apiClient.get('/medicines');
+      const medList = await apiClient.get('/medicines').catch(() => []);
       setMedicines(Array.isArray(medList) ? medList : []);
 
-      // 2. Fetch Patients & Admissions
+      // 2. Fetch Patients & Admissions safely
       const [patientsRes, tokensRes, admissionsRes] = await Promise.all([
-        apiClient.get('/patients'),
-        apiClient.get('/tokens'),
-        apiClient.get('/admissions')
+        apiClient.get('/patients').catch(() => []),
+        apiClient.get('/tokens').catch(() => []),
+        apiClient.get('/admissions').catch(() => [])
       ]);
 
       const allPatients = Array.isArray(patientsRes) ? patientsRes : (patientsRes?.patients || []);
@@ -73,25 +73,35 @@ export const Pharmacy: React.FC = () => {
       const admissionsList = Array.isArray(admissionsRes) ? admissionsRes : [];
 
       // Filter Today Patients (OPD visit today)
-      const todayTokenPatientIds = new Set(todayTokens.map((t: any) => t.patientId));
+      const todayTokenPatientIds = new Set(todayTokens.map((t: any) => Number(t.patientId)));
       const todayList = allPatients.filter((p: any) => {
         const isToday = new Date(p.createdAt).toDateString() === new Date().toDateString();
-        return isToday || todayTokenPatientIds.has(p.id);
+        return isToday || todayTokenPatientIds.has(Number(p.id));
       });
-      setTodayPatients(todayList.length > 0 ? todayList : allPatients.slice(0, 15));
+
+      const finalTodayList = todayList.length > 0 ? todayList : allPatients;
+      setTodayPatients(finalTodayList);
 
       // Filter Admitted Patients (IPD active admissions)
       const admittedList = admissionsList
-        .filter((adm: any) => adm.status === 'admitted' || !adm.dischargeDate)
+        .filter((adm: any) => adm && (adm.status === 'admitted' || !adm.dischargeDate))
         .map((adm: any) => ({
-          ...adm.patient,
-          bedNumber: adm.bed?.bedNumber || 'N/A',
+          ...(adm.patient || {}),
+          id: adm.patientId || adm.patient?.id,
+          name: adm.patient?.name || `Patient #${adm.patientId}`,
+          mrNumber: adm.patient?.mrNumber || 'MR-N/A',
+          phone: adm.patient?.phone || 'N/A',
+          bedNumber: adm.bed?.bedNumber || 'IPD',
           wardName: adm.bed?.wardName || 'IPD Ward',
           admissionId: adm.id
         }));
 
-      // Fallback if no active admissions seeded
-      setAdmitPatients(admittedList.length > 0 ? admittedList : allPatients.slice(0, 5));
+      const finalAdmitList = admittedList.length > 0 ? admittedList : allPatients;
+      setAdmitPatients(finalAdmitList);
+
+      if (finalTodayList.length > 0 && !selectedPatientId) {
+        setSelectedPatientId(finalTodayList[0].id.toString());
+      }
     } catch (err) {
       console.error('Error fetching pharmacy records', err);
     } finally {
