@@ -131,18 +131,34 @@ export const Billing: React.FC = () => {
       detail: `Paid at reception desk on ${new Date(selectedPatientObj.createdAt).toLocaleDateString()}`
     });
 
-    // 2. Pharmacy Medicines & Injections (Tekka)
+    // 2. Pharmacy Medicines & Injections (Tekka) & All Patient Invoices
     patientInvoices.forEach(inv => {
-      if (inv.items && Array.isArray(inv.items)) {
-        inv.items.forEach((item: any) => {
+      const itemsList = inv.invoiceItems || inv.items;
+      if (Array.isArray(itemsList) && itemsList.length > 0) {
+        itemsList.forEach((item: any) => {
+          // Avoid duplicating consultation registration fee
+          if (item.itemCategory === 'Consultation' || item.itemName.toLowerCase().includes('registration fee')) {
+            return;
+          }
           computedItems.push({
             title: item.itemName,
             category: item.itemCategory || 'Pharmacy',
             amount: Number(item.totalPrice || item.unitPrice || 0),
             qty: Number(item.quantity || 1),
-            detail: `Invoice #${inv.id}`
+            detail: `Pharmacy Bill #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
           });
         });
+      } else {
+        const amt = Number(inv.grandTotal || inv.totalAmount || 0);
+        if (amt > 0) {
+          computedItems.push({
+            title: `Pharmacy Medicine & Prescription Charges`,
+            category: 'Pharmacy',
+            amount: amt,
+            qty: 1,
+            detail: `Invoice #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
+          });
+        }
       }
     });
 
