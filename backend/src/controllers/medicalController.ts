@@ -7,7 +7,22 @@ import sequelize from '../config/db';
 // ==========================================
 export const getBeds = async (req: Request, res: Response) => {
   try {
-    const beds = await Bed.findAll();
+    let beds = await Bed.findAll();
+    if (beds.length === 0) {
+      const defaultBeds = [
+        { bedNumber: 'Bed-101', wardName: 'General Male Ward', type: 'general', status: 'available' },
+        { bedNumber: 'Bed-102', wardName: 'General Female Ward', type: 'general', status: 'available' },
+        { bedNumber: 'Bed-201', wardName: 'Surgical ICU Ward', type: 'icu', status: 'available' },
+        { bedNumber: 'Bed-202', wardName: 'Private VIP Suite', type: 'private', status: 'available' },
+        { bedNumber: 'Bed-203', wardName: 'Emergency Recovery Ward', type: 'semi-private', status: 'available' },
+      ];
+      for (const b of defaultBeds) {
+        try {
+          await Bed.create(b as any);
+        } catch (e) {}
+      }
+      beds = await Bed.findAll();
+    }
     return res.status(200).json(beds);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving beds.', error: error.message });

@@ -54,44 +54,59 @@ export const Admissions: React.FC = () => {
     setLoading(true);
     try {
       const bedList = await apiClient.get('/beds');
-      setBeds(bedList);
+      const bArr = Array.isArray(bedList) ? bedList : [];
+      setBeds(bArr);
+      if (bArr.length > 0 && !bedId) {
+        const avail = bArr.find((b: any) => b.status === 'available' || !b.status);
+        if (avail) setBedId(avail.id.toString());
+      }
 
       const admList = await apiClient.get('/admissions');
-      setAdmissions(admList);
+      setAdmissions(Array.isArray(admList) ? admList : []);
 
-      if (user?.role !== 'patient') {
-        const patientList = await apiClient.get('/patients');
-        setPatients(patientList);
+      const patientList = await apiClient.get('/patients');
+      const pArr = Array.isArray(patientList) ? patientList : [];
+      setPatients(pArr);
+      if (pArr.length > 0 && !patientId) {
+        setPatientId(pArr[0].id.toString());
+      }
 
-        let docList: any[] = [];
+      let docList: any[] = [];
+      try {
+        const rawDocs = await apiClient.get('/doctors');
+        if (Array.isArray(rawDocs) && rawDocs.length > 0) {
+          docList = rawDocs.map((doc: any) => ({
+            id: doc.id,
+            name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`
+          }));
+        }
+      } catch (e) {}
+
+      if (docList.length === 0) {
         try {
-          const rawDocs = await apiClient.get('/doctors');
-          if (Array.isArray(rawDocs) && rawDocs.length > 0) {
-            docList = rawDocs.map((doc: any) => ({
-              id: doc.id,
-              name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`
-            }));
+          const depts = await apiClient.get('/admin/departments');
+          if (Array.isArray(depts)) {
+            depts.forEach((d: any) => {
+              if (d.doctors) {
+                d.doctors.forEach((doc: any) => {
+                  docList.push({
+                    id: doc.id,
+                    name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`
+                  });
+                });
+              }
+            });
           }
         } catch (e) {}
-
-        if (docList.length === 0) {
-          const depts = await apiClient.get('/admin/departments');
-          depts.forEach((d: any) => {
-            if (d.doctors) {
-              d.doctors.forEach((doc: any) => {
-                docList.push({
-                  id: doc.id,
-                  name: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. ${doc.specialization || 'Physician'}`
-                });
-              });
-            }
-          });
-        }
-        setDoctors(docList);
-
-        const medList = await apiClient.get('/medicines');
-        setMedicines(medList);
       }
+
+      setDoctors(docList);
+      if (docList.length > 0 && !doctorId) {
+        setDoctorId(docList[0].id.toString());
+      }
+
+      const medList = await apiClient.get('/medicines');
+      setMedicines(Array.isArray(medList) ? medList : []);
     } catch (err) {
       console.error('Error fetching admission data', err);
     } finally {
@@ -101,7 +116,7 @@ export const Admissions: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, []);
 
   const handleAdmitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -538,8 +553,11 @@ export const Admissions: React.FC = () => {
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
               >
                 <option value="">-- Select Bed --</option>
-                {beds.filter(b => b.status === 'available').map(b => (
-                  <option key={b.id} value={b.id}>{b.bedNumber} - {b.wardName} ({b.type})</option>
+                {(beds.filter(b => !b.status || b.status === 'available' || b.status !== 'occupied').length > 0
+                  ? beds.filter(b => !b.status || b.status === 'available' || b.status !== 'occupied')
+                  : beds
+                ).map(b => (
+                  <option key={b.id} value={b.id}>{b.bedNumber} - {b.wardName} ({b.type || 'general'})</option>
                 ))}
               </select>
             </div>
