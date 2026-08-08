@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
-import { Card } from '../components/UI';
+import { Card, Button, Badge } from '../components/UI';
 import {
   Users,
   Calendar,
@@ -15,7 +15,12 @@ import {
   UserPlus,
   UserCheck,
   Ticket,
-  Receipt
+  Receipt,
+  CheckCircle,
+  Play,
+  Eye,
+  Pill,
+  Stethoscope
 } from 'lucide-react';
 import {
   AreaChart,
@@ -35,20 +40,30 @@ export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await apiClient.get('/admin/stats');
-        setStats(res);
-      } catch (err) {
-        console.error('Error fetching dashboard stats', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/admin/stats');
+      setStats(res);
+    } catch (err) {
+      console.error('Error fetching dashboard stats', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchStats();
   }, [user]);
+
+  const handleDoctorTokenStatus = async (tokenId: number, status: 'waiting' | 'processing' | 'completed') => {
+    try {
+      await apiClient.put(`/tokens/${tokenId}/status`, { status });
+      fetchStats();
+    } catch (err: any) {
+      alert(`Status update failed: ${err.message}`);
+    }
+  };
 
   if (loading) {
     return (
@@ -67,8 +82,187 @@ export const Dashboard: React.FC = () => {
   }
 
   const COLORS = ['#0ea0ea', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const isDoctor = user?.role === 'doctor' || stats?.isDoctorView;
   const isReceptionist = user?.role === 'receptionist';
   const isAdmin = user?.role === 'admin';
+
+  // =========================================================================
+  // DOCTOR SPECIFIC DASHBOARD VIEW
+  // =========================================================================
+  if (isDoctor) {
+    const docInfo = stats?.doctorInfo || {};
+    const queueList: any[] = stats?.doctorQueueList || [];
+
+    return (
+      <div className="space-y-6">
+        {/* Doctor Header Banner */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-brand-950 text-white shadow-xl border border-slate-800">
+          <div className="flex items-center gap-3.5">
+            <div className="h-12 w-12 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-400/30 flex items-center justify-center font-black text-xl">
+              <Stethoscope className="h-6 w-6 text-brand-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                Welcome, {docInfo.name || 'Doctor Portal'}
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5 font-medium">
+                {docInfo.specialization || 'OPD Consultant Physician'} • Location: <span className="text-brand-400 font-bold">{docInfo.roomNumber || 'Room 101'}</span>
+              </p>
+            </div>
+          </div>
+          <Badge type="success">Active Doctor OPD Duty</Badge>
+        </div>
+
+        {/* Doctor-Specific KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <Card className="flex items-center gap-4 border border-brand-500/20">
+            <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">My Total Patients Today</p>
+              <h3 className="text-xl font-bold mt-0.5 text-slate-900 dark:text-white">{stats.stats.todayPatients || 0}</h3>
+            </div>
+          </Card>
+
+          <Card className="flex items-center gap-4 border border-emerald-500/20">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+              <CheckCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Checkup Completed</p>
+              <h3 className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{stats.stats.completedPatients || 0}</h3>
+            </div>
+          </Card>
+
+          <Card className="flex items-center gap-4 border border-amber-500/20">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Remaining / Waiting</p>
+              <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{stats.stats.remainingPatients || 0}</h3>
+            </div>
+          </Card>
+
+          <Card className="flex items-center gap-4 border border-indigo-500/20">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
+              <Bed className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">My Admitted Patients</p>
+              <h3 className="text-xl font-bold mt-0.5 text-indigo-600 dark:text-indigo-400">{stats.stats.activeAdmissions || 0}</h3>
+            </div>
+          </Card>
+        </div>
+
+        {/* Doctor's Today Patient OPD Queue Table */}
+        <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Ticket className="h-4.5 w-4.5 text-brand-500" /> My OPD Consultation Queue Today ({queueList.length} Patients)
+              </h3>
+              <p className="text-[11px] text-slate-500">Live patient sequence assigned specifically to your consultation room.</p>
+            </div>
+            <Button onClick={fetchStats} variant="secondary" className="flex items-center gap-1.5 text-xs">
+              <Clock className="h-3.5 w-3.5" /> Sync Queue
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-dark-950/60 text-slate-450 uppercase text-[10px] tracking-wider font-semibold">
+                  <th className="px-5 py-3.5">Token #</th>
+                  <th className="px-5 py-3.5">Patient Name & MR#</th>
+                  <th className="px-5 py-3.5">Age / Gender</th>
+                  <th className="px-5 py-3.5">Contact Phone</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 text-right">Doctor Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
+                {queueList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-450 text-xs">
+                      No patients in your consultation queue today yet.
+                    </td>
+                  </tr>
+                ) : (
+                  queueList.map((t: any) => {
+                    const pat = t.patient || {};
+                    const isProcessing = t.status === 'processing';
+                    const isCompleted = t.status === 'completed';
+
+                    return (
+                      <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
+                        <td className="px-5 py-4 font-mono">
+                          <span className="px-2.5 py-1 rounded-md font-black text-xs bg-slate-100 dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-slate-200 dark:border-slate-800">
+                            {t.tokenNumber}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="font-extrabold text-slate-900 dark:text-white block text-xs">{pat.name || 'Patient'}</span>
+                          <span className="text-[10px] font-mono text-slate-450 block mt-0.5">MRN: {pat.mrNumber || 'N/A'}</span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="text-slate-800 dark:text-slate-200 capitalize text-xs">
+                            {pat.age ? `${pat.age} Yrs` : 'N/A'} • {pat.gender || 'male'}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4 font-mono text-xs">
+                          {pat.phone || 'N/A'}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <Badge type={isCompleted ? 'success' : isProcessing ? 'info' : 'warning'}>
+                            {isCompleted ? 'COMPLETED' : isProcessing ? 'IN ROOM' : 'WAITING'}
+                          </Badge>
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            {!isCompleted && !isProcessing && (
+                              <button
+                                onClick={() => handleDoctorTokenStatus(t.id, 'processing')}
+                                className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1 shadow-sm"
+                              >
+                                <Play className="h-3.5 w-3.5" /> Call Next
+                              </button>
+                            )}
+
+                            {isProcessing && (
+                              <button
+                                onClick={() => handleDoctorTokenStatus(t.id, 'completed')}
+                                className="px-2.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1 shadow-sm"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" /> Complete Checkup
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => window.location.href = `/patients`}
+                              className="px-2 py-1.5 bg-slate-100 dark:bg-dark-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg transition-all text-xs font-bold flex items-center gap-1 border border-slate-200 dark:border-slate-800"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> EMR Record
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   // Staff/Clinical Administrator View
   return (

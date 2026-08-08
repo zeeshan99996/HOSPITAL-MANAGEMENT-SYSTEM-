@@ -131,6 +131,51 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     const todayPatients = totalTodayTokens > 0 ? totalTodayTokens : todayAppointments;
 
+    // DOCTOR ROLE SPECIFIC DASHBOARD
+    if (userRole === 'doctor') {
+      const currentDoc = await Doctor.findOne({
+        where: { userId: (req as any).user.id },
+        include: [{ model: User, attributes: ['name', 'email'] }, { model: Department, attributes: ['name'] }]
+      });
+
+      const docObj = currentDoc || (doctorsList.length > 0 ? doctorsList[0] : null);
+      const targetDocId = docObj ? docObj.id : null;
+
+      const docTodayTokens = targetDocId ? await TokenQueue.findAll({
+        where: {
+          doctorId: targetDocId,
+          createdAt: { [Op.between]: [startOfDay, endOfDay] }
+        },
+        order: [['createdAt', 'ASC']],
+        include: [{ model: Patient, attributes: ['id', 'name', 'mrNumber', 'phone', 'gender', 'age', 'bloodGroup', 'address', 'area'] }]
+      }) : [];
+
+      const docCompleted = docTodayTokens.filter(t => t.status === 'completed').length;
+      const docRemaining = docTodayTokens.filter(t => t.status === 'waiting' || t.status === 'processing').length;
+      const docAdmitted = targetDocId ? await Admission.count({ where: { doctorId: targetDocId, status: 'admitted' } }) : 0;
+
+      return res.status(200).json({
+        isDoctorView: true,
+        doctorInfo: {
+          id: docObj?.id,
+          name: docObj?.user?.name ? (docObj.user.name.startsWith('Dr.') ? docObj.user.name : `Dr. ${docObj.user.name}`) : 'Dr. Medical Doctor',
+          specialization: docObj?.specialization || docObj?.department?.name || 'General OPD',
+          roomNumber: docObj?.roomNumber || `Room 10${docObj?.id || 1}`,
+        },
+        stats: {
+          totalPatients: docTodayTokens.length,
+          todayPatients: docTodayTokens.length,
+          completedPatients: docCompleted,
+          remainingPatients: docRemaining,
+          activeAdmissions: docAdmitted,
+          pendingCheckups: docRemaining,
+        },
+        doctorQueueList: docTodayTokens,
+        liveDoctorsQueue,
+        recentActivity: []
+      });
+    }
+
     if (userRole === 'receptionist') {
       // Return filtered stats without revenue/financial metrics or low-stock thresholds
       return res.status(200).json({
