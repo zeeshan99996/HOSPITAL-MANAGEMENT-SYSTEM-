@@ -105,7 +105,7 @@ export const Billing: React.FC = () => {
   const admitPatientsList = patients.filter(p => admittedPatientIds.has(Number(p.id)));
   const currentTabPatients = activeTab === 'opd_patient'
     ? (opdPatientsList.length > 0 ? opdPatientsList : patients)
-    : (admitPatientsList.length > 0 ? admitPatientsList : patients);
+    : admitPatientsList;
 
   // Selected Patient Details
   const selectedPatientObj = patients.find(p => String(p.id) === String(selectedPatientId));

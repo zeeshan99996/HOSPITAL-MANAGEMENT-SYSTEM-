@@ -82,9 +82,9 @@ export const Pharmacy: React.FC = () => {
       const finalTodayList = todayList.length > 0 ? todayList : allPatients;
       setTodayPatients(finalTodayList);
 
-      // Filter Admitted Patients (IPD active admissions)
+      // Filter Admitted Patients (IPD active admissions only)
       const admittedList = admissionsList
-        .filter((adm: any) => adm && (adm.status === 'admitted' || !adm.dischargeDate))
+        .filter((adm: any) => adm && adm.status === 'admitted' && !adm.dischargeDate)
         .map((adm: any) => ({
           ...(adm.patient || {}),
           id: adm.patientId || adm.patient?.id,
@@ -96,8 +96,7 @@ export const Pharmacy: React.FC = () => {
           admissionId: adm.id
         }));
 
-      const finalAdmitList = admittedList.length > 0 ? admittedList : allPatients;
-      setAdmitPatients(finalAdmitList);
+      setAdmitPatients(admittedList);
 
       if (finalTodayList.length > 0 && !selectedPatientId) {
         setSelectedPatientId(finalTodayList[0].id.toString());
