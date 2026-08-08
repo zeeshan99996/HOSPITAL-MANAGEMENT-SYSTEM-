@@ -108,10 +108,10 @@ export const Laboratory: React.FC = () => {
           resultDetails: 'Cancelled / Removed by Receptionist'
         });
       } else {
-        // Create new lab request
+        const resolvedDocId = patient.doctorId || patient.tokens?.[0]?.doctorId || null;
         await apiClient.post('/lab/requests', {
           patientId: patient.id,
-          doctorId: patient.tokens?.[0]?.doctorId || null,
+          doctorId: resolvedDocId,
           testName: testNameStr,
           category: 'Pathology',
         });

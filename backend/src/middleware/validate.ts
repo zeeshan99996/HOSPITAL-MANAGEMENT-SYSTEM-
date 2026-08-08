@@ -159,8 +159,8 @@ export const validateLabRequest = (req: Request, res: Response, next: NextFuncti
   if (!isPositiveInt(patientId))
     errors.push({ field: 'patientId', message: 'A valid patient ID is required.' });
 
-  if (!isPositiveInt(doctorId))
-    errors.push({ field: 'doctorId', message: 'A valid requesting doctor ID is required.' });
+  if (doctorId !== undefined && doctorId !== null && !isPositiveInt(doctorId))
+    errors.push({ field: 'doctorId', message: 'Doctor ID must be a valid integer.' });
 
   if (!isNonEmptyString(testName))
     errors.push({ field: 'testName', message: 'Test name is required.' });

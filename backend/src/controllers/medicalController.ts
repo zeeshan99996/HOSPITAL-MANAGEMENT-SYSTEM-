@@ -242,9 +242,20 @@ export const createLabRequest = async (req: Request, res: Response) => {
   const transaction = await sequelize.transaction();
 
   try {
+    let finalDocId = doctorId ? Number(doctorId) : null;
+    if (!finalDocId) {
+      const activeToken = await (await import('../models')).TokenQueue.findOne({ where: { patientId }, transaction });
+      if (activeToken && activeToken.doctorId) {
+        finalDocId = activeToken.doctorId;
+      } else {
+        const defaultDoc = await Doctor.findOne({ transaction });
+        if (defaultDoc) finalDocId = defaultDoc.id;
+      }
+    }
+
     const labRequest = await LabRequest.create({
       patientId,
-      doctorId,
+      doctorId: finalDocId,
       testName,
       category: category || 'General',
       status: 'pending',
