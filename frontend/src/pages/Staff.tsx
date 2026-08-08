@@ -50,9 +50,9 @@ export const Staff: React.FC = () => {
         password,
         role,
         phone,
-        departmentId: Number(departmentId),
-        specialization,
-        consultationFee: Number(consultationFee),
+        departmentId: Number(departmentId) || 1,
+        specialization: specialization || 'General OPD',
+        consultationFee: Number(consultationFee) || 500,
       });
       setIsAddOpen(false);
       fetchStaffData();
@@ -61,8 +61,8 @@ export const Staff: React.FC = () => {
       setEmail('');
       setPhone('');
       setSpecialization('');
-    } catch (err) {
-      alert('Error creating staff member credentials.');
+    } catch (err: any) {
+      alert(err.message || 'Error creating staff member credentials.');
     }
   };
 
@@ -211,11 +211,15 @@ export const Staff: React.FC = () => {
                 <select
                   value={departmentId}
                   onChange={e => setDepartmentId(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-850 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100"
+                  className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-850 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
                 >
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
+                  {departments.length > 0 ? (
+                    departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))
+                  ) : (
+                    <option value="1">General OPD Department</option>
+                  )}
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

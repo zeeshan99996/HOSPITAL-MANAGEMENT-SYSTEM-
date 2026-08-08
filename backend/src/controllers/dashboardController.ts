@@ -308,9 +308,18 @@ export const createStaff = async (req: Request, res: Response) => {
     });
 
     if (role === 'doctor') {
+      let deptId = Number(departmentId);
+      if (!deptId || isNaN(deptId) || deptId <= 0) {
+        let defaultDept = await Department.findOne();
+        if (!defaultDept) {
+          defaultDept = await Department.create({ name: 'General OPD', description: 'General Outpatient Department' });
+        }
+        deptId = defaultDept.id;
+      }
+
       await Doctor.create({
         userId: user.id,
-        departmentId: departmentId || 1,
+        departmentId: deptId,
         specialization: specialization || 'General Practitioner',
         consultationFee: consultationFee || 50.00,
         status: 'active',
