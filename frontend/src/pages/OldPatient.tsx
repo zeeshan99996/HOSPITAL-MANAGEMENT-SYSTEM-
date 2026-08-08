@@ -73,32 +73,38 @@ export const OldPatient: React.FC = () => {
 
   const handleSelectPatient = (patient: any) => {
     setSelectedPatient(patient);
-    setSelectedDoctorId('');
-    setSelectedDoctor(null);
 
     // Calculate Last Visit Date and 5-Day Fee Rule
     let lastVisit: Date | null = null;
     let doctorName = 'N/A';
+    let assignedDocId: number | null = null;
 
     if (patient.token_queues && patient.token_queues.length > 0) {
       const sortedTokens = [...patient.token_queues].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       lastVisit = new Date(sortedTokens[0].createdAt);
+      assignedDocId = sortedTokens[0].doctorId || sortedTokens[0].doctor?.id || null;
       if (sortedTokens[0].doctor?.user?.name) {
         doctorName = sortedTokens[0].doctor.user.name;
+      } else if (sortedTokens[0].doctor?.name) {
+        doctorName = sortedTokens[0].doctor.name;
       }
     } else if (patient.appointments && patient.appointments.length > 0) {
       const sortedAppts = [...patient.appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
       lastVisit = new Date(sortedAppts[0].appointmentDate);
+      assignedDocId = sortedAppts[0].doctorId || sortedAppts[0].doctor?.id || null;
       if (sortedAppts[0].doctor?.user?.name) {
         doctorName = sortedAppts[0].doctor.user.name;
       }
     } else if (patient.createdAt) {
       lastVisit = new Date(patient.createdAt);
+      assignedDocId = patient.doctorId || patient.doctor?.id || null;
     }
 
     patient.computedLastVisitDate = lastVisit;
     patient.computedLastDoctor = doctorName;
 
+    // Determine 5-day fee exemption rule
+    let isWithin = false;
     if (lastVisit) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -108,18 +114,38 @@ export const OldPatient: React.FC = () => {
       const diffTime = Math.abs(today.getTime() - visitDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       setDaysDifference(diffDays);
-
-      if (diffDays <= 5) {
-        setIsWithin5Days(true);
-        setChargedFee(0);
-      } else {
-        setIsWithin5Days(false);
-        setChargedFee(1500); // Default, updated on doctor change
-      }
+      isWithin = diffDays <= 5;
+      setIsWithin5Days(isWithin);
     } else {
       setIsWithin5Days(false);
       setDaysDifference(999);
-      setChargedFee(1500);
+    }
+
+    // Auto pre-select assigned doctor or first available doctor by default
+    let matchedDoc = null;
+    if (assignedDocId) {
+      matchedDoc = doctors.find(d => Number(d.id) === Number(assignedDocId));
+    }
+    if (!matchedDoc && doctorName && doctorName !== 'N/A') {
+      const cleanDocName = doctorName.replace(/^Dr\.\s*/i, '').trim().toLowerCase();
+      matchedDoc = doctors.find(d => {
+        const uName = (d.user?.name || d.name || '').replace(/^Dr\.\s*/i, '').trim().toLowerCase();
+        return uName === cleanDocName;
+      });
+    }
+    if (!matchedDoc && doctors.length > 0) {
+      matchedDoc = doctors[0];
+    }
+
+    if (matchedDoc) {
+      setSelectedDoctorId(String(matchedDoc.id));
+      setSelectedDoctor(matchedDoc);
+      const fee = Number(matchedDoc.consultationFee) || 1500;
+      setChargedFee(isWithin ? 0 : fee);
+    } else {
+      setSelectedDoctorId('');
+      setSelectedDoctor(null);
+      setChargedFee(isWithin ? 0 : 1500);
     }
   };
 
