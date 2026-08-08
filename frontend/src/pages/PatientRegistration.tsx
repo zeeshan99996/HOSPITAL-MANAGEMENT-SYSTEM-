@@ -233,7 +233,10 @@ export const PatientRegistration: React.FC = () => {
     if (!target) return;
 
     const printWindow = window.open('', '_blank', 'width=380,height=600');
-    if (printWindow) {
+    if (!printWindow) {
+      alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print receipts automatically.');
+      return;
+    }
       printWindow.document.write(`
         <html>
         <head>

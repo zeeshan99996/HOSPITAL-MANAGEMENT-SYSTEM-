@@ -68,7 +68,10 @@ export const TokenQueue: React.FC = () => {
     const docObj = doctors.find(d => d.id === tokenObj.doctorId) || tokenObj.doctor;
 
     const printWindow = window.open('', '_blank', 'width=380,height=600');
-    if (printWindow) {
+    if (!printWindow) {
+      alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print token slips automatically.');
+      return;
+    }
       printWindow.document.write(`
         <html>
         <head>
