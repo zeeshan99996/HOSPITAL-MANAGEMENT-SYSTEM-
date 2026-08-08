@@ -63,39 +63,7 @@ export const createPatient = async (req: Request, res: Response) => {
 
     patientData.tokenNumber = maxToken + 1;
 
-    let patient: any;
-    try {
-      patient = await Patient.create(patientData);
-    } catch (dbErr: any) {
-      console.warn('[patientController] Primary Patient.create failed, dynamically fixing schema & retrying:', dbErr.message);
-
-      // Auto alter table columns & drop NOT NULL constraints on live DB
-      try {
-        const sequelize = (await import('../config/db')).default;
-        const columnsToEnsure = ['dob', 'age', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
-        
-        for (const col of columnsToEnsure) {
-          try {
-            await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
-          } catch (e) {}
-          try {
-            await sequelize.query(`ALTER TABLE "patients" ALTER COLUMN "${col}" DROP NOT NULL;`);
-          } catch (e) {}
-        }
-      } catch (alterErr) {
-        console.error('[patientController] Alter table error:', alterErr);
-      }
-
-      // Retry creating patient
-      try {
-        patient = await Patient.create(patientData);
-      } catch (retryErr: any) {
-        console.warn('[patientController] Second attempt failed, creating with fallback:', retryErr.message);
-        const coreData = { ...patientData };
-        if (!coreData.dob) coreData.dob = '1990-01-01';
-        patient = await Patient.create(coreData);
-      }
-    }
+    const patient = await Patient.create(patientData);
 
     if (patientData.mrNumber === tempUuid) {
       const year = new Date().getFullYear();
