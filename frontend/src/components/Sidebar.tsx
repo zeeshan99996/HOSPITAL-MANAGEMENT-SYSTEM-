@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Profile',
       path: '/profile',
       icon: User,
-      roles: ['admin', 'doctor', 'accountant'],
+      roles: ['admin', 'accountant'],
     },
     {
       name: 'Staff Registry',
