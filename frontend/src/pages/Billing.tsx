@@ -180,6 +180,143 @@ export const Billing: React.FC = () => {
   const totalPaidSoFar = patientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0);
   const netDueBalance = Math.max(0, netPayableTotal - totalPaidSoFar);
 
+  const handlePrintProfessionalBill = () => {
+    if (!selectedPatientObj) return;
+
+    const printWindow = window.open('', '_blank', 'width=780,height=900');
+    if (!printWindow) {
+      alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print billing receipts automatically.');
+      return;
+    }
+
+    const discountVal = Number(receptionistDiscount) || 0;
+    const grossSubtotal = computedItems.reduce((acc, item) => acc + item.amount, 0);
+    const netPayableTotal = Math.max(0, grossSubtotal - discountVal);
+    const totalPaidSoFar = patientInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0);
+    const netDueBalance = Math.max(0, netPayableTotal - totalPaidSoFar);
+
+    const itemsRows = computedItems.map((item) => `
+      <tr>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0;">
+          <strong style="color: #0f172a; font-size: 12px; display: block;">${item.title}</strong>
+          ${item.detail ? `<span style="font-size: 10px; color: #64748b; margin-top: 2px; display: block;">${item.detail}</span>` : ''}
+        </td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 11px; font-weight: 600; color: #475569;">${item.category}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 11px; font-weight: 600;">${item.qty}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 800; font-size: 12px; color: #0f172a;">Rs. ${item.amount.toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Medical Invoice - ${selectedPatientObj.mrNumber || 'MRN'}</title>
+        <style>
+          @page { size: auto; margin: 12mm; }
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 24px; max-width: 760px; margin: 0 auto; background: #ffffff; }
+          .header-table { width: 100%; border-bottom: 3px solid #0284c7; padding-bottom: 16px; margin-bottom: 20px; }
+          .hospital-name { font-size: 24px; font-weight: 900; color: #0284c7; letter-spacing: -0.5px; }
+          .hospital-sub { font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600; line-height: 1.4; }
+          .bill-title { text-align: right; font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          .patient-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; gap: 20px; }
+          .info-col { font-size: 11px; line-height: 1.8; flex: 1; }
+          .info-label { font-weight: 700; color: #475569; width: 115px; display: inline-block; }
+          .table-invoice { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+          .table-invoice th { background: #f1f5f9; color: #334155; font-size: 10px; text-transform: uppercase; font-weight: 800; padding: 10px 12px; text-align: left; border-bottom: 2px solid #cbd5e1; letter-spacing: 0.5px; }
+          .summary-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+          .notes-box { font-size: 10px; color: #64748b; max-width: 320px; line-height: 1.5; background: #f8fafc; padding: 12px; rounded: 8px; border: 1px solid #e2e8f0; }
+          .summary-box { width: 300px; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px; background: #fafafa; font-size: 11px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 5px 0; color: #334155; }
+          .summary-row.total { border-top: 2px solid #0284c7; font-weight: 900; font-size: 14px; color: #0284c7; padding-top: 8px; margin-top: 4px; }
+          .stamp-box { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; border-top: 1px dashed #cbd5e1; padding-top: 20px; font-size: 10px; color: #64748b; }
+          .stamp-line { border-top: 1.5px solid #334155; width: 160px; text-align: center; padding-top: 6px; font-weight: 800; color: #0f172a; font-size: 11px; }
+        </style>
+      </head>
+      <body>
+        <table class="header-table">
+          <tr>
+            <td>
+              <div class="hospital-name">LIFEFLOW MEDICAL CENTER</div>
+              <div class="hospital-sub">12-B, Main Boulevard, Gulberg III, Lahore, Pakistan</div>
+              <div class="hospital-sub">UAN: (042) 35889900 | Helpline: 0311-6353044 | Tax NTN: 4920194-7</div>
+            </td>
+            <td style="vertical-align: top;">
+              <div class="bill-title">MEDICAL INVOICE</div>
+              <div style="font-size: 11px; text-align: right; color: #475569; margin-top: 6px; line-height: 1.5;">
+                Statement Date: <strong>${new Date().toLocaleDateString()}</strong><br/>
+                Bill Ref: <strong>INV-${Date.now().toString().slice(-6)}</strong>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <div class="patient-box">
+          <div class="info-col">
+            <div><span class="info-label">Patient Name:</span> <strong style="color: #0f172a; font-size: 12px;">${selectedPatientObj.name}</strong></div>
+            <div><span class="info-label">MR Number:</span> <strong style="color: #0284c7;">${selectedPatientObj.mrNumber || 'MR-N/A'}</strong></div>
+            <div><span class="info-label">Age / Gender:</span> <span>${selectedPatientObj.age || 'N/A'} Yrs / ${(selectedPatientObj.gender || 'male').toUpperCase()}</span></div>
+            <div><span class="info-label">Phone Contact:</span> <span>${selectedPatientObj.phone}</span></div>
+          </div>
+          <div class="info-col">
+            <div><span class="info-label">Billing Category:</span> <strong>${activeTab === 'opd_patient' ? 'OPD Outpatient Visit' : 'IPD Inpatient Stay'}</strong></div>
+            ${selectedPatientAdmission ? `<div><span class="info-label">Ward / Bed:</span> <span>${selectedPatientAdmission.bed?.wardName || 'Ward'} (${selectedPatientAdmission.bed?.bedNumber})</span></div>` : ''}
+            <div><span class="info-label">Payment Status:</span> <strong style="color: ${netDueBalance <= 0 ? '#16a34a' : '#dc2626'}; font-size: 12px;">${netDueBalance <= 0 ? 'PAID IN FULL' : 'PARTIAL / BALANCE DUE'}</strong></div>
+          </div>
+        </div>
+
+        <table class="table-invoice">
+          <thead>
+            <tr>
+              <th>Description / Particulars</th>
+              <th style="text-align: center;">Service Category</th>
+              <th style="text-align: center;">Qty</th>
+              <th style="text-align: right;">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsRows}
+          </tbody>
+        </table>
+
+        <div class="summary-container">
+          <div class="notes-box">
+            <strong style="color: #0f172a; display: block; margin-bottom: 4px;">Terms & Authorization:</strong>
+            - Official computer-generated hospital statement.<br/>
+            - Valid for insurance reimbursement & health audit.<br/>
+            - Retain receipt for any refund or query.
+          </div>
+          <div class="summary-box">
+            <div class="summary-row"><span>Gross Subtotal:</span> <strong>Rs. ${grossSubtotal.toLocaleString()}</strong></div>
+            ${discountVal > 0 ? `<div class="summary-row" style="color: #dc2626;"><span>Receptionist Discount:</span> <strong>- Rs. ${discountVal.toLocaleString()}</strong></div>` : ''}
+            <div class="summary-row total"><span>Net Total Amount:</span> <span>Rs. ${netPayableTotal.toLocaleString()}</span></div>
+            <div class="summary-row" style="color: #16a34a;"><span>Total Amount Paid:</span> <strong>Rs. ${totalPaidSoFar.toLocaleString()}</strong></div>
+            <div class="summary-row" style="font-weight: 800; font-size: 12px; color: ${netDueBalance > 0 ? '#dc2626' : '#16a34a'}; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 4px;">
+              <span>Net Balance Due:</span> <span>Rs. ${netDueBalance.toLocaleString()} ${netDueBalance <= 0 ? '(CLEARED)' : ''}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stamp-box">
+          <div>
+            <div style="font-weight: 700; color: #334155;">Issued By: Reception Desk Cashier</div>
+            <div>Thank you for choosing LifeFlow Medical Center.</div>
+          </div>
+          <div class="stamp-line">Authorized Stamp & Sign</div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function(){ window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   // Settlement & Payment Submit
   const handlePayInvoiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -364,7 +501,7 @@ export const Billing: React.FC = () => {
                     </span>
                   </div>
 
-                  <Button onClick={() => setIsPrintReceiptOpen(true)} className="flex items-center gap-1.5 text-xs shadow-sm">
+                  <Button onClick={handlePrintProfessionalBill} className="flex items-center gap-1.5 text-xs shadow-sm">
                     <Printer className="h-4 w-4" /> Print Complete Bill Receipt
                   </Button>
                 </div>
@@ -614,7 +751,7 @@ export const Billing: React.FC = () => {
               </div>
             </div>
 
-            <Button onClick={() => window.print()} className="w-full flex items-center justify-center gap-2 mt-4">
+            <Button onClick={handlePrintProfessionalBill} className="w-full flex items-center justify-center gap-2 mt-4">
               <Printer className="h-4 w-4" /> Print Receipt Now
             </Button>
           </div>
