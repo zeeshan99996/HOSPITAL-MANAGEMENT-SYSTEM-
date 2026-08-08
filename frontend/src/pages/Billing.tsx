@@ -64,20 +64,25 @@ export const Billing: React.FC = () => {
     setLoading(true);
     try {
       const [invoicesData, admissionsData, patientsData, labReqsData, labTestsData, expData] = await Promise.all([
-        apiClient.get('/invoices'),
-        apiClient.get('/admissions'),
-        apiClient.get('/patients'),
-        apiClient.get('/lab/requests'),
-        apiClient.get('/lab/tests'),
+        apiClient.get('/invoices').catch(() => []),
+        apiClient.get('/admissions').catch(() => []),
+        apiClient.get('/patients').catch(() => []),
+        apiClient.get('/lab/requests').catch(() => []),
+        apiClient.get('/lab/tests').catch(() => []),
         apiClient.get('/expenses').catch(() => [])
       ]);
 
+      const pArr = Array.isArray(patientsData) ? patientsData : (patientsData?.patients || []);
       setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
       setAdmissions(Array.isArray(admissionsData) ? admissionsData : []);
-      setPatients(Array.isArray(patientsData) ? patientsData : (patientsData?.patients || []));
+      setPatients(pArr);
       setLabRequests(Array.isArray(labReqsData) ? labReqsData : []);
       setLabCatalog(Array.isArray(labTestsData) ? labTestsData : []);
       setExpenses(Array.isArray(expData) ? expData : []);
+
+      if (pArr.length > 0 && !selectedPatientId) {
+        setSelectedPatientId(pArr[0].id.toString());
+      }
     } catch (err) {
       console.error('Error fetching billing data', err);
     } finally {
@@ -92,13 +97,15 @@ export const Billing: React.FC = () => {
   // Filter Patients by Tab
   const admittedPatientIds = new Set(
     admissions
-      .filter((adm: any) => adm.status === 'admitted' || !adm.dischargeDate)
-      .map((adm: any) => adm.patientId)
+      .filter((adm: any) => adm && adm.status === 'admitted')
+      .map((adm: any) => Number(adm.patientId))
   );
 
-  const opdPatientsList = patients.filter(p => !admittedPatientIds.has(p.id));
-  const admitPatientsList = patients.filter(p => admittedPatientIds.has(p.id));
-  const currentTabPatients = activeTab === 'opd_patient' ? opdPatientsList : admitPatientsList;
+  const opdPatientsList = patients.filter(p => !admittedPatientIds.has(Number(p.id)));
+  const admitPatientsList = patients.filter(p => admittedPatientIds.has(Number(p.id)));
+  const currentTabPatients = activeTab === 'opd_patient'
+    ? (opdPatientsList.length > 0 ? opdPatientsList : patients)
+    : (admitPatientsList.length > 0 ? admitPatientsList : patients);
 
   // Selected Patient Details
   const selectedPatientObj = patients.find(p => String(p.id) === String(selectedPatientId));
