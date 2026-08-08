@@ -8,6 +8,7 @@ import { ThermalPrinter } from '../components/ThermalPrinter';
 export const Patients: React.FC = () => {
   const { user } = useAuth();
   const [patients, setPatients] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
   const [searchName, setSearchName] = useState('');
   const [searchPhone, setSearchPhone] = useState('');
   const [searchArea, setSearchArea] = useState('');
@@ -57,6 +58,9 @@ export const Patients: React.FC = () => {
       const queryString = params.toString();
       const data = await apiClient.get(`/patients${queryString ? `?${queryString}` : ''}`);
       setPatients(data);
+
+      const docsData = await apiClient.get('/doctors');
+      setDoctors(docsData || []);
     } catch (err) {
       console.error('Error fetching patients', err);
     } finally {
@@ -427,10 +431,12 @@ export const Patients: React.FC = () => {
                   const sortedTokens = [...tokens].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                   const topToken = sortedTokens[0];
                   latestTokenNum = topToken.tokenNumber;
-                  if (topToken.doctor?.user?.name) {
-                    doctorName = topToken.doctor.user.name.startsWith('Dr.') ? topToken.doctor.user.name : `Dr. ${topToken.doctor.user.name}`;
-                  } else if (topToken.doctor?.name) {
-                    doctorName = topToken.doctor.name.startsWith('Dr.') ? topToken.doctor.name : `Dr. ${topToken.doctor.name}`;
+
+                  const docObj = topToken.doctor || topToken.Doctor || doctors.find((d: any) => d.id === topToken.doctorId);
+                  const docUser = docObj?.user || docObj?.User;
+                  const rawName = docUser?.name || docObj?.name || docObj?.specialization;
+                  if (rawName) {
+                    doctorName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
                   }
 
                   if (topToken.status === 'waiting') {
@@ -447,8 +453,12 @@ export const Patients: React.FC = () => {
                   const sortedAppts = [...appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
                   const topAppt = sortedAppts[0];
                   latestTokenNum = topAppt.queueToken || 'Appt';
-                  if (topAppt.doctor?.user?.name) {
-                    doctorName = topAppt.doctor.user.name.startsWith('Dr.') ? topAppt.doctor.user.name : `Dr. ${topAppt.doctor.user.name}`;
+
+                  const docObj = topAppt.doctor || topAppt.Doctor || doctors.find((d: any) => d.id === topAppt.doctorId);
+                  const docUser = docObj?.user || docObj?.User;
+                  const rawName = docUser?.name || docObj?.name || docObj?.specialization;
+                  if (rawName) {
+                    doctorName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
                   }
                   liveStatus = topAppt.status;
                 } else {
@@ -456,8 +466,11 @@ export const Patients: React.FC = () => {
                   if (p.tokenNumber) {
                     latestTokenNum = `T-${String(p.tokenNumber).padStart(2, '0')}`;
                   }
-                  if (p.doctor?.user?.name) {
-                    doctorName = p.doctor.user.name.startsWith('Dr.') ? p.doctor.user.name : `Dr. ${p.doctor.user.name}`;
+                  const docObj = p.doctor || p.Doctor || (p.doctorId ? doctors.find((d: any) => d.id === p.doctorId) : null);
+                  const docUser = docObj?.user || docObj?.User;
+                  const rawName = docUser?.name || docObj?.name || docObj?.specialization;
+                  if (rawName) {
+                    doctorName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
                   }
                 }
 

@@ -219,7 +219,31 @@ export const getAllPatients = async (req: Request, res: Response) => {
         order: [['createdAt', 'DESC']],
       });
     }
-    return res.status(200).json(patients);
+
+    // Populate Doctor details if missing from nested token_queues
+    const resultList = await Promise.all(
+      patients.map(async (pat: any) => {
+        const pObj = pat.toJSON ? pat.toJSON() : pat;
+        const tokens = pObj.token_queues || [];
+        if (tokens.length > 0) {
+          for (const t of tokens) {
+            if (t.doctorId && (!t.doctor || !t.doctor.user)) {
+              try {
+                const docRecord = await Doctor.findByPk(t.doctorId, {
+                  include: [{ model: User, attributes: ['name', 'email'] }]
+                });
+                if (docRecord) {
+                  t.doctor = docRecord.toJSON ? docRecord.toJSON() : docRecord;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+        return pObj;
+      })
+    );
+
+    return res.status(200).json(resultList);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving patients.', error: error.message });
   }
