@@ -128,7 +128,6 @@ export const TokenQueue: React.FC = () => {
         </html>
       `);
       printWindow.document.close();
-    }
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
