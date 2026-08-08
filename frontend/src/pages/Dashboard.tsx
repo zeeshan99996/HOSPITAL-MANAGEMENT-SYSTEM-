@@ -37,16 +37,17 @@ import {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
     setLoading(true);
     try {
       const res = await apiClient.get('/admin/stats');
-      setStats(res);
+      setStats(res || {});
     } catch (err) {
       console.error('Error fetching dashboard stats', err);
+      setStats({});
     } finally {
       setLoading(false);
     }
@@ -82,6 +83,11 @@ export const Dashboard: React.FC = () => {
   }
 
   const COLORS = ['#0ea0ea', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const safeStats = stats?.stats || {};
+  const safeCharts = stats?.charts || { monthlyRevenue: [], departmentStats: [] };
+  const safeDoctorsQueue = stats?.liveDoctorsQueue || [];
+  const safeRecentActivity = stats?.recentActivity || [];
+
   const isDoctor = user?.role === 'doctor' || stats?.isDoctorView;
   const isReceptionist = user?.role === 'receptionist';
   const isAdmin = user?.role === 'admin';
@@ -121,7 +127,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">My Total Patients Today</p>
-              <h3 className="text-xl font-bold mt-0.5 text-slate-900 dark:text-white">{stats.stats.todayPatients || 0}</h3>
+              <h3 className="text-xl font-bold mt-0.5 text-slate-900 dark:text-white">{safeStats.todayPatients || 0}</h3>
             </div>
           </Card>
 
@@ -131,7 +137,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Checkup Completed</p>
-              <h3 className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{stats.stats.completedPatients || 0}</h3>
+              <h3 className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{safeStats.completedPatients || 0}</h3>
             </div>
           </Card>
 
@@ -141,7 +147,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Remaining / Waiting</p>
-              <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{stats.stats.remainingPatients || 0}</h3>
+              <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{safeStats.remainingPatients || 0}</h3>
             </div>
           </Card>
 
@@ -151,7 +157,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">My Admitted Patients</p>
-              <h3 className="text-xl font-bold mt-0.5 text-indigo-600 dark:text-indigo-400">{stats.stats.activeAdmissions || 0}</h3>
+              <h3 className="text-xl font-bold mt-0.5 text-indigo-600 dark:text-indigo-400">{safeStats.activeAdmissions || 0}</h3>
             </div>
           </Card>
         </div>
@@ -289,7 +295,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today Patient (OPD)</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.todayPatients || stats.stats.todayAppointments || 0}</h3>
+            <h3 className="text-xl font-bold mt-0.5">{safeStats.todayPatients || safeStats.todayAppointments || 0}</h3>
           </div>
         </Card>
 
@@ -299,7 +305,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Admit Patient (IPD)</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.activeAdmissions || 0}</h3>
+            <h3 className="text-xl font-bold mt-0.5">{safeStats.activeAdmissions || 0}</h3>
           </div>
         </Card>
 
@@ -309,7 +315,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending Checkups</p>
-            <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{stats.stats.pendingCheckups || 0}</h3>
+            <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{safeStats.pendingCheckups || 0}</h3>
           </div>
         </Card>
 
@@ -319,7 +325,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Registered Patients</p>
-            <h3 className="text-xl font-bold mt-0.5">{stats.stats.totalPatients}</h3>
+            <h3 className="text-xl font-bold mt-0.5">{safeStats.totalPatients || 0}</h3>
           </div>
         </Card>
       </div>
@@ -329,7 +335,7 @@ export const Dashboard: React.FC = () => {
         {!isReceptionist && (
           <div className="flex items-center gap-3 p-3 bg-amber-500/10 rounded-xl border border-amber-500/25">
             <AlertCircle className="h-5 w-5 text-amber-500" />
-            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{stats.stats.lowStockMeds} Medicines under Stock Alert</span>
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{safeStats.lowStockMeds || 0} Medicines under Stock Alert</span>
           </div>
         )}
         <div className="flex items-center gap-3 p-3 bg-brand-500/10 rounded-xl border border-brand-500/25">
@@ -339,7 +345,7 @@ export const Dashboard: React.FC = () => {
         {!isReceptionist && (
           <div className="flex items-center gap-3 p-3 bg-rose-500/10 rounded-xl border border-rose-500/25">
             <Inbox className="h-5 w-5 text-rose-500" />
-            <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">{stats.stats.pendingBills} Pending Unpaid Bills</span>
+            <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">{safeStats.pendingBills || 0} Pending Unpaid Bills</span>
           </div>
         )}
       </div>
@@ -352,7 +358,7 @@ export const Dashboard: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">Monthly Revenue Flow</h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.charts.monthlyRevenue}>
+                <AreaChart data={safeCharts.monthlyRevenue || []}>
                   <defs>
                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#0ea0ea" stopOpacity={0.25} />
@@ -418,14 +424,14 @@ export const Dashboard: React.FC = () => {
           <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-4">Department Distribution</h3>
           <div className="h-64 flex-1">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.charts.departmentStats}>
+              <BarChart data={safeCharts.departmentStats || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:hidden" />
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" className="hidden dark:block" />
                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} />
                 <YAxis stroke="#94a3b8" fontSize={10} />
                 <Tooltip />
                 <Bar dataKey="appointments" fill="#0ea0ea" radius={[4, 4, 0, 0]}>
-                  {stats.charts.departmentStats.map((entry: any, index: number) => (
+                  {(safeCharts.departmentStats || []).map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>
@@ -529,7 +535,7 @@ export const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                  {stats.recentActivity?.map((log: any) => (
+                  {(safeRecentActivity || []).map((log: any) => (
                     <tr key={log.id} className="text-slate-700 dark:text-slate-350 hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
                       <td className="py-3">
                         <span className="font-bold text-slate-900 dark:text-slate-100">{log.user?.name || 'Guest User'}</span>
