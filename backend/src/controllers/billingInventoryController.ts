@@ -21,15 +21,17 @@ import { Op } from 'sequelize';
 // ==========================================
 export const createInvoice = async (req: Request, res: Response) => {
   const { patientId, discount, items, admissionId } = req.body; // items: [{itemName, itemCategory, unitPrice, quantity}]
+  const transaction = await sequelize.transaction();
 
   try {
-    const patient = await Patient.findByPk(patientId);
+    const patient = await Patient.findByPk(patientId, { transaction });
     if (!patient) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Patient not found.' });
     }
 
     let total = 0;
-    const itemRecords = items.map((item: any) => {
+    const itemRecords = (items || []).map((item: any) => {
       const itemTotal = Number(item.unitPrice) * Number(item.quantity);
       total += itemTotal;
       return {
@@ -55,16 +57,18 @@ export const createInvoice = async (req: Request, res: Response) => {
       paidAmount: 0.00,
       status: 'unpaid',
       insuranceClaimed: false,
-    });
+    }, { transaction });
 
     const itemsToSave = itemRecords.map((item: any) => ({
       ...item,
       invoiceId: invoice.id,
     }));
-    await InvoiceItem.bulkCreate(itemsToSave);
+    await InvoiceItem.bulkCreate(itemsToSave, { transaction });
 
+    await transaction.commit();
     return res.status(201).json({ message: 'Invoice generated successfully.', invoice });
   } catch (error: any) {
+    await transaction.rollback();
     return res.status(500).json({ message: 'Error generating invoice.', error: error.message });
   }
 };

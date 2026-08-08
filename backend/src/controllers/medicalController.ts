@@ -170,26 +170,30 @@ export const updateAdmissionNotes = async (req: Request, res: Response) => {
 
 export const dischargePatient = async (req: Request, res: Response) => {
   const { id } = req.params;
+  const transaction = await sequelize.transaction();
 
   try {
-    const admission = await Admission.findByPk(id);
+    const admission = await Admission.findByPk(id, { transaction });
     if (!admission || admission.status === 'discharged') {
+      await transaction.rollback();
       return res.status(400).json({ message: 'Admission record not found or already discharged.' });
     }
 
-    const bed = await Bed.findByPk(admission.bedId);
+    const bed = await Bed.findByPk(admission.bedId, { transaction });
 
     await admission.update({
       status: 'discharged',
       dischargeDate: new Date(),
-    });
+    }, { transaction });
 
     if (bed) {
-      await bed.update({ status: 'available' });
+      await bed.update({ status: 'available' }, { transaction });
     }
 
+    await transaction.commit();
     return res.status(200).json({ message: 'Patient discharged successfully.', admission });
   } catch (error: any) {
+    await transaction.rollback();
     return res.status(500).json({ message: 'Error discharging patient.', error: error.message });
   }
 };
