@@ -119,17 +119,22 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const totalTodayTokens = await TokenQueue.count({
       where: {
         createdAt: { [Op.between]: [startOfDay, endOfDay] }
-      }
+      },
+      include: [{ model: Patient, required: true }]
     });
 
-    const pendingCheckups = await TokenQueue.count({
+    const pendingCheckupsCount = await TokenQueue.count({
       where: {
         status: 'waiting',
         createdAt: { [Op.between]: [startOfDay, endOfDay] }
-      }
+      },
+      include: [{ model: Patient, required: true }]
     });
 
-    const todayPatients = totalTodayTokens > 0 ? totalTodayTokens : todayAppointments;
+    // Ensure Today Patients cannot exceed total registered patients, and pending checkups cannot exceed today patients
+    const rawTodayCount = totalTodayTokens > 0 ? totalTodayTokens : todayAppointments;
+    const todayPatients = Math.min(totalPatients, rawTodayCount);
+    const pendingCheckups = Math.min(todayPatients, pendingCheckupsCount);
 
     // DOCTOR ROLE SPECIFIC DASHBOARD
     if (userRole === 'doctor') {
