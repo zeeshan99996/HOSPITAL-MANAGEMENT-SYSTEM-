@@ -75,6 +75,23 @@ export const createPatient = async (req: Request, res: Response) => {
       }
     }
 
+    // Auto-create TokenQueue entry if doctorId was provided in request
+    const assignedDocId = Number(req.body.doctorId || patientData.doctorId);
+    if (assignedDocId > 0) {
+      const tokenNoStr = `T-${String(patient.tokenNumber || 1).padStart(2, '0')}`;
+      try {
+        const TokenQueueModel = (await import('../models')).TokenQueue;
+        await TokenQueueModel.create({
+          patientId: patient.id,
+          doctorId: assignedDocId,
+          tokenNumber: tokenNoStr,
+          status: 'waiting',
+        });
+      } catch (tErr) {
+        console.warn('[patientController] Auto TokenQueue creation error:', tErr);
+      }
+    }
+
     return res.status(201).json({ message: 'Patient registered successfully.', patient });
   } catch (error: any) {
     console.error('[patientController] Error creating patient:', error);

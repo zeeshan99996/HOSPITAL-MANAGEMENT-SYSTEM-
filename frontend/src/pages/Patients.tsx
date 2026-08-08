@@ -420,12 +420,17 @@ export const Patients: React.FC = () => {
                 let liveStatus = 'Registered';
                 let statusBadgeType: 'info' | 'success' | 'warning' | 'error' = 'info';
 
-                if (p.token_queues && p.token_queues.length > 0) {
-                  const sortedTokens = [...p.token_queues].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                const tokens = p.token_queues || p.tokenQueues || p.TokenQueues || [];
+                const appointments = p.appointments || p.Appointments || [];
+
+                if (tokens.length > 0) {
+                  const sortedTokens = [...tokens].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                   const topToken = sortedTokens[0];
                   latestTokenNum = topToken.tokenNumber;
                   if (topToken.doctor?.user?.name) {
-                    doctorName = topToken.doctor.user.name;
+                    doctorName = topToken.doctor.user.name.startsWith('Dr.') ? topToken.doctor.user.name : `Dr. ${topToken.doctor.user.name}`;
+                  } else if (topToken.doctor?.name) {
+                    doctorName = topToken.doctor.name.startsWith('Dr.') ? topToken.doctor.name : `Dr. ${topToken.doctor.name}`;
                   }
 
                   if (topToken.status === 'waiting') {
@@ -438,13 +443,22 @@ export const Patients: React.FC = () => {
                     liveStatus = 'Consultation Completed';
                     statusBadgeType = 'success';
                   }
-                } else if (p.appointments && p.appointments.length > 0) {
-                  const sortedAppts = [...p.appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
-                  latestTokenNum = sortedAppts[0].queueToken || 'Appt';
-                  if (sortedAppts[0].doctor?.user?.name) {
-                    doctorName = sortedAppts[0].doctor.user.name;
+                } else if (appointments.length > 0) {
+                  const sortedAppts = [...appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
+                  const topAppt = sortedAppts[0];
+                  latestTokenNum = topAppt.queueToken || 'Appt';
+                  if (topAppt.doctor?.user?.name) {
+                    doctorName = topAppt.doctor.user.name.startsWith('Dr.') ? topAppt.doctor.user.name : `Dr. ${topAppt.doctor.user.name}`;
                   }
-                  liveStatus = sortedAppts[0].status;
+                  liveStatus = topAppt.status;
+                } else {
+                  // Direct Patient Model Fallback
+                  if (p.tokenNumber) {
+                    latestTokenNum = `T-${String(p.tokenNumber).padStart(2, '0')}`;
+                  }
+                  if (p.doctor?.user?.name) {
+                    doctorName = p.doctor.user.name.startsWith('Dr.') ? p.doctor.user.name : `Dr. ${p.doctor.user.name}`;
+                  }
                 }
 
                 // Check if patient is admitted
