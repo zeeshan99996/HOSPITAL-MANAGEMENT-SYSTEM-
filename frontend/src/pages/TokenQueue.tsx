@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Button, Badge, Input } from '../components/UI';
-import { ArrowRight, RotateCw, SkipForward, Play, CheckCircle, RefreshCcw, Ticket, Users, Stethoscope, Search, Check } from 'lucide-react';
+import { ArrowRight, RotateCw, SkipForward, Play, CheckCircle, RefreshCcw, Ticket, Users, Stethoscope, Search, Check, Printer } from 'lucide-react';
 import { apiClient } from '../services/api';
 
 export const TokenQueue: React.FC = () => {
@@ -63,21 +63,91 @@ export const TokenQueue: React.FC = () => {
     fetchDropdowns();
   }, []);
 
+  const handlePrintTokenSlip = (tokenObj: any) => {
+    const patObj = patients.find(p => p.id === tokenObj.patientId) || tokenObj.patient;
+    const docObj = doctors.find(d => d.id === tokenObj.doctorId) || tokenObj.doctor;
+
+    const printWindow = window.open('', '_blank', 'width=380,height=600');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>OPD Token Slip - ${tokenObj.tokenNumber}</title>
+          <style>
+            body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 12px; width: 280px; margin: 0 auto; color: #000; }
+            .text-center { text-align: center; }
+            .bold { font-weight: bold; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 2px; }
+            .hospital-info { font-size: 10px; color: #222; line-height: 1.3; }
+            .token-box { border: 2px solid #000; padding: 8px; margin: 10px 0; text-align: center; background-color: #f8f9fa; }
+            .token-label { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+            .token-number { font-size: 26px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+            .info-label { font-weight: bold; }
+            .footer-text { font-size: 9px; text-align: center; margin-top: 12px; font-weight: bold; line-height: 1.3; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center hospital-name">LIFEFLOW MEDICAL CENTER</div>
+          <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
+          <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
+          
+          <div class="divider"></div>
+
+          <div class="token-box">
+            <div class="token-label">OPD CONSULTATION TOKEN</div>
+            <div class="token-number">${tokenObj.tokenNumber}</div>
+            <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${patObj?.mrNumber || 'MR-N/A'}</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="info-row"><span class="info-label">Patient Name:</span> <span>${patObj?.name || 'Patient'}</span></div>
+          <div class="info-row"><span class="info-label">Doctor Name:</span> <span>${docObj?.user?.name || docObj?.name || 'General OPD'}</span></div>
+          <div class="info-row"><span class="info-label">Room / Ward:</span> <span>${docObj?.roomNumber || 'Room 101'}</span></div>
+          <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date(tokenObj.createdAt || Date.now()).toLocaleString()}</span></div>
+
+          <div class="divider"></div>
+
+          <div class="footer-text">
+            THANK YOU FOR VISITING LIFEFLOW MEDICAL CENTER<br/>
+            PLEASE RETAIN THIS TOKEN SLIP FOR YOUR TURN
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function(){ window.close(); }, 500);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientId) return;
     setSubmitting(true);
     try {
-      await apiClient.post('/tokens', {
+      const newTokenRes = await apiClient.post('/tokens', {
         type: tokenType,
         patientId: Number(selectedPatientId),
         doctorId: selectedDoctorId ? Number(selectedDoctorId) : null,
         detail: tokenDetail
       });
+      
       setSelectedPatientId('');
       setSelectedDoctorId('');
       setTokenDetail('');
       fetchQueue();
+
+      if (newTokenRes) {
+        handlePrintTokenSlip(newTokenRes);
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error generating token.');
     } finally {
@@ -151,6 +221,51 @@ export const TokenQueue: React.FC = () => {
         </div>
       )}
 
+      {/* ISSUE NEW TOKEN FORM CARD */}
+      <Card className="p-4 border border-brand-500/30 bg-gradient-to-r from-white via-slate-50/50 to-brand-500/[0.02] dark:from-dark-900 dark:to-dark-950">
+        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Ticket className="h-4 w-4 text-brand-500" /> Issue OPD Queue Token & Thermal Slip
+        </h3>
+
+        <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Patient *</label>
+            <select
+              required
+              value={selectedPatientId}
+              onChange={e => setSelectedPatientId(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+            >
+              <option value="">-- Choose Registered Patient --</option>
+              {patients.map(p => (
+                <option key={p.id} value={p.id}>{p.name} • (MRN: {p.mrNumber || 'N/A'})</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Assign Doctor OPD *</label>
+            <select
+              required
+              value={selectedDoctorId}
+              onChange={e => setSelectedDoctorId(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+            >
+              <option value="">-- Choose Doctor --</option>
+              {doctors.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.user?.name ? (d.user.name.startsWith('Dr.') ? d.user.name : `Dr. ${d.user.name}`) : `Dr. ${d.specialization || 'Physician'}`} ({d.specialization || 'General OPD'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Button type="submit" disabled={submitting} className="w-full flex items-center justify-center gap-1.5 text-xs shadow-sm">
+            <Ticket className="h-4 w-4" /> {submitting ? 'Generating...' : 'Issue Token & Print Slip'}
+          </Button>
+        </form>
+      </Card>
+
       {/* DOCTOR-WISE LIVE TOKEN QUEUE MONITOR CARDS */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
@@ -220,15 +335,26 @@ export const TokenQueue: React.FC = () => {
                 </div>
               </div>
 
-              {/* Call Next Button for Doctor */}
-              {doc.nextToken && (
-                <button
-                  onClick={() => handleStatusChange(doc.nextToken.id, 'processing')}
-                  className="w-full py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 mt-1"
-                >
-                  <Play className="h-3 w-3" /> Call Next ({doc.nextToken.tokenNumber})
-                </button>
-              )}
+              {/* Call Next & Print Slip Buttons */}
+              <div className="flex gap-2 pt-1">
+                {doc.nextToken && (
+                  <button
+                    onClick={() => handleStatusChange(doc.nextToken.id, 'processing')}
+                    className="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1"
+                  >
+                    <Play className="h-3 w-3" /> Call Next ({doc.nextToken.tokenNumber})
+                  </button>
+                )}
+                {doc.nextToken && (
+                  <button
+                    onClick={() => handlePrintTokenSlip(doc.nextToken)}
+                    title="Print Token Slip"
+                    className="px-2.5 py-1.5 bg-slate-100 dark:bg-dark-950 hover:bg-brand-500 hover:text-white rounded-lg text-slate-700 dark:text-slate-300 transition-all border border-slate-200 dark:border-slate-800 flex items-center justify-center"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </Card>
           ))}
         </div>

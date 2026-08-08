@@ -237,7 +237,7 @@ export const PatientRegistration: React.FC = () => {
       printWindow.document.write(`
         <html>
         <head>
-          <title>Receipt Ticket - \${target.mrNumber}</title>
+          <title>Receipt Ticket - ${target.mrNumber || 'MRN'}</title>
           <style>
             body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 12px; width: 280px; margin: 0 auto; color: #000; }
             .text-center { text-align: center; }
@@ -262,19 +262,19 @@ export const PatientRegistration: React.FC = () => {
 
           <div class="token-box">
             <div class="token-label">TODAY'S DAILY TOKEN</div>
-            <div class="token-number">TOKEN # \${target.tokenNumber || 1}</div>
-            <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: \${target.mrNumber}</div>
+            <div class="token-number">TOKEN # ${target.tokenNumber || 1}</div>
+            <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
           </div>
 
           <div class="divider"></div>
 
-          <div class="info-row"><span class="info-label">Patient Name:</span> <span>\${target.name}</span></div>
-          <div class="info-row"><span class="info-label">Age / Gender:</span> <span>\${target.age || 'N/A'} Yrs / \${(target.gender || 'male').toUpperCase()}</span></div>
-          <div class="info-row"><span class="info-label">Phone:</span> <span>\${target.phone}</span></div>
-          <div class="info-row"><span class="info-label">Area / Colony:</span> <span>\${target.area || 'N/A'}</span></div>
-          <div class="info-row"><span class="info-label">Payment Mode:</span> <span>\${target.paymentMethod || 'Initial Payment'}</span></div>
-          <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. \${target.paymentAmount || '1500'}</span></div>
-          <div class="info-row"><span class="info-label">Date & Time:</span> <span>\${new Date().toLocaleString()}</span></div>
+          <div class="info-row"><span class="info-label">Patient Name:</span> <span>${target.name}</span></div>
+          <div class="info-row"><span class="info-label">Age / Gender:</span> <span>${target.age || 'N/A'} Yrs / ${(target.gender || 'male').toUpperCase()}</span></div>
+          <div class="info-row"><span class="info-label">Phone:</span> <span>${target.phone}</span></div>
+          <div class="info-row"><span class="info-label">Area / Colony:</span> <span>${target.area || 'N/A'}</span></div>
+          <div class="info-row"><span class="info-label">Payment Mode:</span> <span>${target.paymentMethod || 'Initial Payment'}</span></div>
+          <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. ${target.paymentAmount || '1500'}</span></div>
+          <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleString()}</span></div>
 
           <div class="divider"></div>
 

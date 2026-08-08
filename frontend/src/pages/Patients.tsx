@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw, BedDouble, Scissors, Stethoscope, Clock } from 'lucide-react';
+import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw, BedDouble, Scissors, Stethoscope, Clock, Pill } from 'lucide-react';
 import { ThermalPrinter } from '../components/ThermalPrinter';
 
 export const Patients: React.FC = () => {
@@ -614,6 +614,36 @@ export const Patients: React.FC = () => {
               ) : (
                 <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
                   No vital signs logged for this patient yet.
+                </div>
+              )}
+            </div>
+
+            {/* Prescriptions & Dosage History */}
+            <div>
+              <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555 flex items-center gap-1.5">
+                  <Pill className="h-3.5 w-3.5 text-brand-500" /> Medicine Prescriptions & Dosage History
+                </span>
+              </div>
+              
+              {selectedPatient.invoices && selectedPatient.invoices.some((inv: any) => inv.items && inv.items.length > 0) ? (
+                <div className="space-y-2">
+                  {selectedPatient.invoices.flatMap((inv: any) => inv.items || []).map((item: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1 flex justify-between items-center">
+                      <div>
+                        <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">{item.itemName}</span>
+                        <span className="text-[10px] text-slate-500">Category: {item.itemCategory || 'Pharmacy'} • Qty: {item.quantity || 1}</span>
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="font-bold text-brand-600 dark:text-brand-400 block text-xs">Rs. {Number(item.totalPrice || item.unitPrice || 0).toLocaleString()}</span>
+                        <span className="text-[9px] text-slate-450">Item Total</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
+                  No medicine prescriptions logged for this patient yet.
                 </div>
               )}
             </div>
