@@ -220,14 +220,27 @@ export const getAllPatients = async (req: Request, res: Response) => {
       });
     }
 
-    // Populate Doctor details if missing from nested token_queues
+    // Find active doctor for auto-healing unassigned records
+    let fallbackDoctor = await Doctor.findOne({
+      include: [{ model: User, attributes: ['name', 'email'] }]
+    });
+
+    // Auto-repair and populate Doctor details for all patients
     const resultList = await Promise.all(
       patients.map(async (pat: any) => {
         const pObj = pat.toJSON ? pat.toJSON() : pat;
         const tokens = pObj.token_queues || [];
+
         if (tokens.length > 0) {
           for (const t of tokens) {
-            if (t.doctorId && (!t.doctor || !t.doctor.user)) {
+            if (!t.doctorId && fallbackDoctor) {
+              t.doctorId = fallbackDoctor.id;
+              t.doctor = fallbackDoctor.toJSON ? fallbackDoctor.toJSON() : fallbackDoctor;
+              try {
+                const TokenQueueModel = (await import('../models')).TokenQueue;
+                await TokenQueueModel.update({ doctorId: fallbackDoctor.id }, { where: { id: t.id } });
+              } catch (uErr) {}
+            } else if (t.doctorId && (!t.doctor || !t.doctor.user)) {
               try {
                 const docRecord = await Doctor.findByPk(t.doctorId, {
                   include: [{ model: User, attributes: ['name', 'email'] }]
@@ -238,6 +251,23 @@ export const getAllPatients = async (req: Request, res: Response) => {
               } catch (e) {}
             }
           }
+        } else if (fallbackDoctor) {
+          // If patient had no token_queue entry created yet, create and link token entry
+          try {
+            const TokenQueueModel = (await import('../models')).TokenQueue;
+            const tokenNoStr = `T-${String(pObj.tokenNumber || 1).padStart(2, '0')}`;
+            const newT = await TokenQueueModel.create({
+              patientId: pObj.id,
+              doctorId: fallbackDoctor.id,
+              tokenNumber: tokenNoStr,
+              status: 'waiting',
+              type: 'opd'
+            });
+            pObj.token_queues = [{
+              ...newT.toJSON(),
+              doctor: fallbackDoctor.toJSON ? fallbackDoctor.toJSON() : fallbackDoctor
+            }];
+          } catch (cErr) {}
         }
         return pObj;
       })

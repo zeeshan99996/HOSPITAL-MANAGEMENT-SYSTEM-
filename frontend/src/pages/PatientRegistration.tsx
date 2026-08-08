@@ -50,7 +50,13 @@ export const PatientRegistration: React.FC = () => {
         modes = [{ id: 'init-default', name: 'Initial Payment' }, ...modes];
       }
       setPaymentModes(modes);
-      setDoctors(rawDocs || []);
+      const docList = rawDocs || [];
+      setDoctors(docList);
+      if (docList.length > 0) {
+        setSelectedDoctorId(String(docList[0].id));
+        const initialFee = docList[0].consultationFee ? String(docList[0].consultationFee) : '1500';
+        setFormData(prev => ({ ...prev, paymentAmount: initialFee }));
+      }
 
       if (modes.length > 0) {
         setFormData(prev => ({ ...prev, paymentMethod: prev.paymentMethod || 'Initial Payment' }));
