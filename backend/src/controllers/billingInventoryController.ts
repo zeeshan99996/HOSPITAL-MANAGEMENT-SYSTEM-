@@ -175,10 +175,59 @@ export const payInvoice = async (req: Request, res: Response) => {
 // ==========================================
 export const getMedicines = async (req: Request, res: Response) => {
   try {
-    const medicines = await Medicine.findAll({
+    let medicines = await Medicine.findAll({
       include: [{ model: MedicineRate }],
       order: [['name', 'ASC']],
     });
+
+    if (medicines.length < 5) {
+      const famousMeds = [
+        { name: 'Panadol', category: 'Tablet', unit: '500 mg', stockLevel: 500, price: 35, lowStockThreshold: 50, batchNumber: 'PN-2026-A1', expiryDate: '2028-12-31' },
+        { name: 'Panadol Extra', category: 'Tablet', unit: '500/65 mg', stockLevel: 400, price: 45, lowStockThreshold: 40, batchNumber: 'PX-2026-B2', expiryDate: '2028-11-30' },
+        { name: 'Brufen', category: 'Tablet', unit: '400 mg', stockLevel: 350, price: 60, lowStockThreshold: 40, batchNumber: 'BR-2026-C3', expiryDate: '2028-10-15' },
+        { name: 'Augmentin', category: 'Tablet', unit: '625 mg', stockLevel: 200, price: 280, lowStockThreshold: 30, batchNumber: 'AG-2026-D4', expiryDate: '2027-09-20' },
+        { name: 'Augmentin 1g', category: 'Tablet', unit: '1000 mg', stockLevel: 150, price: 350, lowStockThreshold: 25, batchNumber: 'AG-2026-D5', expiryDate: '2027-08-10' },
+        { name: 'Risek', category: 'Capsule', unit: '20 mg', stockLevel: 300, price: 160, lowStockThreshold: 35, batchNumber: 'RK-2026-E1', expiryDate: '2028-06-30' },
+        { name: 'Risek 40mg', category: 'Capsule', unit: '40 mg', stockLevel: 250, price: 220, lowStockThreshold: 30, batchNumber: 'RK-2026-E2', expiryDate: '2028-05-15' },
+        { name: 'Flagyl', category: 'Tablet', unit: '400 mg', stockLevel: 400, price: 40, lowStockThreshold: 50, batchNumber: 'FG-2026-F1', expiryDate: '2028-07-20' },
+        { name: 'Arinac', category: 'Tablet', unit: '200/30 mg', stockLevel: 300, price: 70, lowStockThreshold: 35, batchNumber: 'AR-2026-G1', expiryDate: '2028-04-10' },
+        { name: 'Softin', category: 'Tablet', unit: '10 mg', stockLevel: 250, price: 90, lowStockThreshold: 30, batchNumber: 'SF-2026-H1', expiryDate: '2028-03-25' },
+        { name: 'Ponstan', category: 'Tablet', unit: '250 mg', stockLevel: 400, price: 50, lowStockThreshold: 45, batchNumber: 'PS-2026-I1', expiryDate: '2028-12-01' },
+        { name: 'Gravinate', category: 'Tablet', unit: '50 mg', stockLevel: 300, price: 30, lowStockThreshold: 35, batchNumber: 'GV-2026-J1', expiryDate: '2028-08-14' },
+        { name: 'Disprin', category: 'Tablet', unit: '300 mg', stockLevel: 500, price: 25, lowStockThreshold: 50, batchNumber: 'DS-2026-K1', expiryDate: '2028-11-05' },
+        { name: 'Calpol Syrup', category: 'Syrup', unit: '120mg/5ml', stockLevel: 150, price: 85, lowStockThreshold: 20, batchNumber: 'CP-2026-L1', expiryDate: '2027-10-30' },
+        { name: 'Flagyl Suspension', category: 'Syrup', unit: '100mg/5ml', stockLevel: 120, price: 75, lowStockThreshold: 20, batchNumber: 'FS-2026-M1', expiryDate: '2027-09-15' },
+        { name: 'Nuberol Forte', category: 'Tablet', unit: '650/35 mg', stockLevel: 350, price: 110, lowStockThreshold: 40, batchNumber: 'NF-2026-N1', expiryDate: '2028-01-20' },
+        { name: 'Cefspan', category: 'Capsule', unit: '400 mg', stockLevel: 180, price: 420, lowStockThreshold: 25, batchNumber: 'CS-2026-O1', expiryDate: '2027-12-10' },
+        { name: 'Ciprofloxacin', category: 'Tablet', unit: '500 mg', stockLevel: 200, price: 190, lowStockThreshold: 30, batchNumber: 'CP-2026-P1', expiryDate: '2028-02-28' },
+        { name: 'Voren', category: 'Tablet', unit: '50 mg', stockLevel: 300, price: 80, lowStockThreshold: 35, batchNumber: 'VR-2026-Q1', expiryDate: '2028-06-12' },
+        { name: 'Rigix', category: 'Tablet', unit: '10 mg', stockLevel: 300, price: 85, lowStockThreshold: 35, batchNumber: 'RX-2026-R1', expiryDate: '2028-09-18' },
+        { name: 'Normal Saline 0.9%', category: 'IV Drip', unit: '1000 ml', stockLevel: 100, price: 120, lowStockThreshold: 20, batchNumber: 'NS-2026-S1', expiryDate: '2029-01-01' },
+        { name: 'Dextrose 5%', category: 'IV Drip', unit: '1000 ml', stockLevel: 80, price: 130, lowStockThreshold: 15, batchNumber: 'DX-2026-T1', expiryDate: '2029-01-01' },
+        { name: 'Ringer Lactate', category: 'IV Drip', unit: '1000 ml', stockLevel: 90, price: 140, lowStockThreshold: 15, batchNumber: 'RL-2026-U1', expiryDate: '2029-01-01' },
+        { name: 'Clexane Injection', category: 'Injection', unit: '40 mg', stockLevel: 50, price: 1250, lowStockThreshold: 10, batchNumber: 'CX-2026-V1', expiryDate: '2027-11-30' },
+        { name: 'Solu-Cortef Injection', category: 'Injection', unit: '100 mg', stockLevel: 60, price: 380, lowStockThreshold: 10, batchNumber: 'SC-2026-W1', expiryDate: '2027-10-15' },
+      ];
+
+      for (const m of famousMeds) {
+        try {
+          const existing = await Medicine.findOne({ where: { name: m.name } });
+          if (!existing) {
+            const created = await Medicine.create(m as any);
+            await MedicineRate.create({
+              medicineId: created.id,
+              unitRate: created.price,
+            });
+          }
+        } catch (e) {}
+      }
+
+      medicines = await Medicine.findAll({
+        include: [{ model: MedicineRate }],
+        order: [['name', 'ASC']],
+      });
+    }
+
     return res.status(200).json(medicines);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving medicine inventory.', error: error.message });
