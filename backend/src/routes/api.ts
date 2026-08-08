@@ -310,12 +310,67 @@ router.put('/tokens/:id/status', authenticateToken, requireRoles(['admin', 'rece
 
 router.get('/doctors', authenticateToken, async (req, res) => {
   try {
+    // 1. Fetch all users with role 'doctor'
+    const doctorUsers = await User.findAll({ where: { role: 'doctor' } });
+
+    // 2. Ensure default department exists
+    let defaultDept = await Department.findOne();
+    if (!defaultDept) {
+      defaultDept = await Department.create({ name: 'General OPD', description: 'General Outpatient Clinic' });
+    }
+
+    // 3. Auto-sync missing Doctor records for any User with role 'doctor'
+    for (const docUser of doctorUsers) {
+      const existingDoc = await Doctor.findOne({ where: { userId: docUser.id } });
+      if (!existingDoc) {
+        await Doctor.create({
+          userId: docUser.id,
+          departmentId: defaultDept.id,
+          specialization: 'Consultant Physician',
+          consultationFee: 1500.00,
+          status: 'active'
+        });
+      }
+    }
+
+    // 4. If no doctor users exist, auto-seed default OPD doctors
+    if (doctorUsers.length === 0) {
+      const bcrypt = (await import('bcryptjs')).default;
+      const passHash = await bcrypt.hash('Password123', 10);
+      
+      const defaultDocs = [
+        { name: 'Dr. Sarah Khan', email: 'sarah.khan@lifeflow.com', spec: 'Cardiology' },
+        { name: 'Dr. Salman Malik', email: 'salman.malik@lifeflow.com', spec: 'General OPD' },
+        { name: 'Dr. Ayesha Ahmed', email: 'ayesha.ahmed@lifeflow.com', spec: 'Pediatrics' },
+      ];
+
+      for (const d of defaultDocs) {
+        const u = await User.create({
+          name: d.name,
+          email: d.email,
+          password: passHash,
+          role: 'doctor',
+          phone: '0300-1234567',
+          status: 'active'
+        });
+
+        await Doctor.create({
+          userId: u.id,
+          departmentId: defaultDept.id,
+          specialization: d.spec,
+          consultationFee: 1500.00,
+          status: 'active'
+        });
+      }
+    }
+
     const doctors = await Doctor.findAll({
       include: [
-        { model: User, attributes: ['id', 'name', 'email', 'phone'] },
+        { model: User, attributes: ['id', 'name', 'email', 'phone', 'status'] },
         { model: Department, attributes: ['id', 'name'] }
       ]
     });
+
     return res.status(200).json(doctors);
   } catch (err: any) {
     return res.status(500).json({ message: 'Error fetching doctors', error: err.message });
