@@ -129,9 +129,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   ];
 
   // Role based filtering logic
+  const isDoctor = user.role === 'doctor';
   const isPharmacist = user.role === 'pharmacist';
   const isReceptionist = user.role === 'receptionist';
   const filteredItems = menuItems.filter(item => {
+    if (isDoctor) {
+      return item.path === '/dashboard';
+    }
     if (isPharmacist) {
       return item.path === '/pharmacy';
     }
