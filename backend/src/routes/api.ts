@@ -151,8 +151,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
       docSeq = countToday + 1;
     }
 
-    const docShortName = doctorName.replace(/^Dr\.\s*/i, '');
-    const tokenId = `${docShortName} #${String(docSeq).padStart(2, '0')}`;
+    const tokenId = `T-${String(docSeq).padStart(2, '0')}`;
 
     const token = await TokenQueue.create({
       tokenNumber: tokenId,

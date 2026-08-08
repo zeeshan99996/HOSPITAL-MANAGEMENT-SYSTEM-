@@ -164,6 +164,77 @@ export const OldPatient: React.FC = () => {
     }
   };
 
+  const handlePrintSlip = (tokenObj: any) => {
+    const targetDoc = selectedDoctor || doctors.find(d => Number(d.id) === Number(selectedDoctorId));
+    const docName = targetDoc?.user?.name || targetDoc?.name || 'General OPD';
+    const docTitle = docName.startsWith('Dr.') ? docName : `Dr. ${docName}`;
+
+    const printWindow = window.open('', '_blank', 'width=380,height=600');
+    if (!printWindow) {
+      alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print token slips automatically.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>OPD Token Ticket - ${tokenObj.tokenNumber || 'TOKEN'}</title>
+        <style>
+          body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 12px; width: 280px; margin: 0 auto; color: #000; }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .divider { border-top: 1px dashed #000; margin: 8px 0; }
+          .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 2px; }
+          .hospital-info { font-size: 10px; color: #222; line-height: 1.3; }
+          .token-box { border: 2px solid #000; padding: 8px; margin: 10px 0; text-align: center; background-color: #f8f9fa; }
+          .token-label { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+          .token-number { font-size: 26px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
+          .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+          .info-label { font-weight: bold; }
+          .footer-text { font-size: 9px; text-align: center; margin-top: 12px; font-weight: bold; line-height: 1.3; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center hospital-name">LIFEFLOW MEDICAL CENTER</div>
+        <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
+        <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
+        
+        <div class="divider"></div>
+
+        <div class="token-box">
+          <div class="token-label">OPD RE-VISIT TOKEN</div>
+          <div class="token-number">${tokenObj.tokenNumber || 'T-01'}</div>
+          <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${selectedPatient?.mrNumber || 'MR-N/A'}</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="info-row"><span class="info-label">Patient Name:</span> <span>${selectedPatient?.name || 'Patient'}</span></div>
+        <div class="info-row"><span class="info-label">Assigned Doctor:</span> <span>${docTitle}</span></div>
+        <div class="info-row"><span class="info-label">Phone:</span> <span>${selectedPatient?.phone || 'N/A'}</span></div>
+        <div class="info-row"><span class="info-label">Visit Type:</span> <span>${isWithin5Days ? '5-Day Free Re-visit' : 'Regular OPD Visit'}</span></div>
+        <div class="info-row"><span class="info-label">Fee Charged:</span> <span>Rs. ${chargedFee}</span></div>
+        <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleString()}</span></div>
+
+        <div class="divider"></div>
+
+        <div class="footer-text">
+          THANK YOU FOR VISITING LIFEFLOW MEDICAL CENTER<br/>
+          PLEASE RETAIN THIS TOKEN SLIP FOR YOUR TURN
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function(){ window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handleGenerateToken = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatient || !selectedDoctorId) {
@@ -182,6 +253,10 @@ export const OldPatient: React.FC = () => {
 
       setGeneratedToken(tokenRes);
       setIsTokenModalOpen(true);
+
+      setTimeout(() => {
+        handlePrintSlip(tokenRes);
+      }, 150);
     } catch (err: any) {
       alert(err.message || 'Failed to generate token for Old Patient.');
     }

@@ -78,9 +78,17 @@ export const createPatient = async (req: Request, res: Response) => {
     // Auto-create TokenQueue entry if doctorId was provided in request
     const assignedDocId = Number(req.body.doctorId || patientData.doctorId);
     if (assignedDocId > 0) {
-      const tokenNoStr = `T-${String(patient.tokenNumber || 1).padStart(2, '0')}`;
       try {
         const TokenQueueModel = (await import('../models')).TokenQueue;
+        const countToday = await TokenQueueModel.count({
+          where: {
+            doctorId: assignedDocId,
+            createdAt: { [Op.between]: [startOfDay, endOfDay] }
+          }
+        });
+        const docSeq = countToday + 1;
+        const tokenNoStr = `T-${String(docSeq).padStart(2, '0')}`;
+
         await TokenQueueModel.create({
           patientId: patient.id,
           doctorId: assignedDocId,
