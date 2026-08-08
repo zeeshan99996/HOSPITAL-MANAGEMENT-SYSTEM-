@@ -237,7 +237,8 @@ export const PatientRegistration: React.FC = () => {
       alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print receipts automatically.');
       return;
     }
-      printWindow.document.write(`
+
+    printWindow.document.write(`
         <html>
         <head>
           <title>Receipt Ticket - ${target.mrNumber || 'MRN'}</title>
@@ -295,8 +296,7 @@ export const PatientRegistration: React.FC = () => {
         </body>
         </html>
       `);
-      printWindow.document.close();
-    }
+    printWindow.document.close();
   };
 
   return (
