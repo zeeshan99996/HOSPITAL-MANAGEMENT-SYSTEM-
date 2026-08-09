@@ -259,23 +259,6 @@ export const getAllPatients = async (req: Request, res: Response) => {
               } catch (e) {}
             }
           }
-        } else if (fallbackDoctor) {
-          // If patient had no token_queue entry created yet, create and link token entry
-          try {
-            const TokenQueueModel = (await import('../models')).TokenQueue;
-            const tokenNoStr = `T-${String(pObj.tokenNumber || 1).padStart(2, '0')}`;
-            const newT = await TokenQueueModel.create({
-              patientId: pObj.id,
-              doctorId: fallbackDoctor.id,
-              tokenNumber: tokenNoStr,
-              status: 'waiting',
-              type: 'opd'
-            });
-            pObj.token_queues = [{
-              ...newT.toJSON(),
-              doctor: fallbackDoctor.toJSON ? fallbackDoctor.toJSON() : fallbackDoctor
-            }];
-          } catch (cErr) {}
         }
         return pObj;
       })

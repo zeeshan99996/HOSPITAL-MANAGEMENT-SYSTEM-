@@ -155,8 +155,18 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         include: [{ model: Patient, attributes: ['id', 'name', 'mrNumber', 'phone', 'gender', 'age', 'bloodGroup', 'address', 'area'] }]
       }) : [];
 
-      const docCompleted = docTodayTokens.filter(t => t.status === 'completed').length;
-      const docRemaining = docTodayTokens.filter(t => t.status === 'waiting' || t.status === 'processing').length;
+      // Deduplicate tokens by unique patient ID to eliminate duplicate token entries
+      const uniqueTokensMap = new Map<number, any>();
+      docTodayTokens.forEach(t => {
+        const pId = t.patientId || t.id;
+        if (!uniqueTokensMap.has(pId) || t.status === 'processing' || t.status === 'completed') {
+          uniqueTokensMap.set(pId, t);
+        }
+      });
+      const uniqueDocTokens = Array.from(uniqueTokensMap.values());
+
+      const docCompleted = uniqueDocTokens.filter(t => t.status === 'completed').length;
+      const docRemaining = uniqueDocTokens.filter(t => t.status === 'waiting' || t.status === 'processing').length;
       const docAdmitted = targetDocId ? await Admission.count({ where: { doctorId: targetDocId, status: 'admitted' } }) : 0;
 
       return res.status(200).json({
@@ -168,14 +178,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           roomNumber: docObj?.roomNumber || `Room 10${docObj?.id || 1}`,
         },
         stats: {
-          totalPatients: docTodayTokens.length,
-          todayPatients: docTodayTokens.length,
+          totalPatients: uniqueDocTokens.length,
+          todayPatients: uniqueDocTokens.length,
           completedPatients: docCompleted,
           remainingPatients: docRemaining,
           activeAdmissions: docAdmitted,
           pendingCheckups: docRemaining,
         },
-        doctorQueueList: docTodayTokens,
+        doctorQueueList: uniqueDocTokens,
         liveDoctorsQueue,
         recentActivity: []
       });
