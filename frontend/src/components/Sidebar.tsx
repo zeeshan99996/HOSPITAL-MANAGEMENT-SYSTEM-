@@ -33,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const [showConfirmLogout, setShowConfirmLogout] = useState(false);
 
-  if (!user) return null;
+  if (!user || user.role === 'doctor') return null;
 
   // Define sidebar navigation items and their role access list (removed patient and nurse)
   const menuItems = [

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Menu, Sun, Moon, Bell, Search, HeartPulse, User } from 'lucide-react';
+import { Menu, Sun, Moon, Bell, Search, HeartPulse, User, LogOut } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 interface TopNavProps {
@@ -33,12 +33,14 @@ export const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/50 dark:border-slate-800/60 bg-white/70 dark:bg-dark-900/60 backdrop-blur-md px-6">
       {/* Mobile Toggle & Path Title */}
       <div className="flex items-center gap-4">
-        <button
-          onClick={onMenuClick}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        {user.role !== 'doctor' && (
+          <button
+            onClick={onMenuClick}
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
         <div>
           <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</span>
           <span className="hidden sm:inline mx-2 text-slate-400 text-xs">/</span>
@@ -99,6 +101,17 @@ export const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
             </div>
           )}
         </div>
+
+        {/* Direct Logout for Doctor or User Dropdown */}
+        {user.role === 'doctor' && (
+          <button
+            onClick={logout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-lg transition-all"
+            title="Logout Doctor Session"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Logout
+          </button>
+        )}
 
         {/* User Dropdown */}
         <div className="relative">

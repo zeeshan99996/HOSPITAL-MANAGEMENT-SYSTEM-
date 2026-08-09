@@ -60,13 +60,15 @@ const App: React.FC = () => {
     return <Login />;
   }
 
+  const isDoctor = user.role === 'doctor';
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100">
-      {/* Sidebar Layout */}
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      {/* Sidebar Layout — Hidden for Doctor role */}
+      {!isDoctor && <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
 
       {/* Main Panel Content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden w-full">
         {/* Top Navbar */}
         <TopNav onMenuClick={() => setSidebarOpen(true)} />
 
@@ -75,23 +77,23 @@ const App: React.FC = () => {
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
               <Route path="/dashboard" element={user.role === 'pharmacist' ? <Navigate to="/pharmacy" replace /> : <Dashboard />} />
-              <Route path="/patient-registration" element={<PatientRegistration />} />
-              <Route path="/old-patient" element={<OldPatient />} />
-              <Route path="/patients" element={<Patients />} />
+              <Route path="/patient-registration" element={isDoctor ? <Navigate to="/dashboard" replace /> : <PatientRegistration />} />
+              <Route path="/old-patient" element={isDoctor ? <Navigate to="/dashboard" replace /> : <OldPatient />} />
+              <Route path="/patients" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Patients />} />
               <Route path="/appointments" element={<Navigate to="/token-queue" replace />} />
-              <Route path="/token-queue" element={<TokenQueue />} />
-              <Route path="/doctors-schedule" element={<DoctorsSchedule />} />
-              <Route path="/admissions" element={<Admissions />} />
-              <Route path="/laboratory" element={<Laboratory />} />
-              <Route path="/pharmacy" element={<Pharmacy />} />
-              <Route path="/billing" element={<Billing />} />
-              <Route path="/expenses" element={<ClinicExpenses />} />
-              <Route path="/reports" element={<Reports />} />;
-              <Route path="/profile" element={user.role === 'receptionist' || user.role === 'pharmacist' || user.role === 'doctor' ? <Navigate to="/dashboard" replace /> : <Profile />} />
-              <Route path="/security" element={<SecurityManagement />} />
-              <Route path="/staff" element={<Staff />} />
-              <Route path="/logs" element={<Logs />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/token-queue" element={isDoctor ? <Navigate to="/dashboard" replace /> : <TokenQueue />} />
+              <Route path="/doctors-schedule" element={isDoctor ? <Navigate to="/dashboard" replace /> : <DoctorsSchedule />} />
+              <Route path="/admissions" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Admissions />} />
+              <Route path="/laboratory" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Laboratory />} />
+              <Route path="/pharmacy" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Pharmacy />} />
+              <Route path="/billing" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Billing />} />
+              <Route path="/expenses" element={isDoctor ? <Navigate to="/dashboard" replace /> : <ClinicExpenses />} />
+              <Route path="/reports" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Reports />} />
+              <Route path="/profile" element={isDoctor || user.role === 'receptionist' || user.role === 'pharmacist' ? <Navigate to="/dashboard" replace /> : <Profile />} />
+              <Route path="/security" element={isDoctor ? <Navigate to="/dashboard" replace /> : <SecurityManagement />} />
+              <Route path="/staff" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Staff />} />
+              <Route path="/logs" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Logs />} />
+              <Route path="/settings" element={isDoctor ? <Navigate to="/dashboard" replace /> : <Settings />} />
               <Route path="*" element={<Navigate to={user.role === 'pharmacist' ? "/pharmacy" : "/dashboard"} replace />} />
             </Routes>
           </Suspense>
