@@ -559,6 +559,16 @@ export const createDailyExpense = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteDailyExpense = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    await DailyExpense.destroy({ where: { id } });
+    return res.status(200).json({ message: 'Expense entry removed successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error removing expense entry.', error: error.message });
+  }
+};
+
 // ==========================================
 // STAFF PAYROLL & SALARY FORECASTS
 // ==========================================

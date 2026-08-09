@@ -58,6 +58,7 @@ import {
   saveMedicineRate,
   getDailyExpenses,
   createDailyExpense,
+  deleteDailyExpense,
   getStaffPayroll,
   generatePayrollForecast,
   payStaffPayroll
@@ -270,8 +271,9 @@ router.get('/invoices', authenticateToken, getInvoices);
 router.put('/invoices/:id/pay', authenticateToken, requireRoles(['admin', 'accountant', 'patient']), payInvoice);
 
 // PETTY CASH daily expenses ledger
-router.get('/expenses', authenticateToken, requireRoles(['admin', 'accountant']), getDailyExpenses);
-router.post('/expenses', authenticateToken, requireRoles(['admin', 'accountant']), createDailyExpense);
+router.get('/expenses', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), getDailyExpenses);
+router.post('/expenses', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), createDailyExpense);
+router.delete('/expenses/:id', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), deleteDailyExpense);
 
 // MONTHLY PAYROLL SYSTEM & forecasts
 router.get('/payroll', authenticateToken, requireRoles(['admin', 'accountant']), getStaffPayroll);

@@ -20,7 +20,8 @@ import {
   FileText,
   User,
   ShieldCheck,
-  Pill
+  Pill,
+  Coffee
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -88,6 +89,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Billing & Invoices',
       path: '/billing',
       icon: Receipt,
+      roles: ['admin', 'receptionist', 'accountant'],
+    },
+    {
+      name: 'Clinic Expenses',
+      path: '/expenses',
+      icon: Coffee,
       roles: ['admin', 'receptionist', 'accountant'],
     },
     {

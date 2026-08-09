@@ -23,6 +23,7 @@ const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Pro
 const SecurityManagement = lazy(() => import('./pages/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const Staff = lazy(() => import('./pages/Staff').then(m => ({ default: m.Staff })));
 const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
+const ClinicExpenses = lazy(() => import('./pages/ClinicExpenses').then(m => ({ default: m.ClinicExpenses })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 const LoadingSpinner: React.FC = () => (
@@ -84,7 +85,8 @@ const App: React.FC = () => {
               <Route path="/laboratory" element={<Laboratory />} />
               <Route path="/pharmacy" element={<Pharmacy />} />
               <Route path="/billing" element={<Billing />} />
-              <Route path="/reports" element={<Reports />} />
+              <Route path="/expenses" element={<ClinicExpenses />} />
+              <Route path="/reports" element={<Reports />} />;
               <Route path="/profile" element={user.role === 'receptionist' || user.role === 'pharmacist' || user.role === 'doctor' ? <Navigate to="/dashboard" replace /> : <Profile />} />
               <Route path="/security" element={<SecurityManagement />} />
               <Route path="/staff" element={<Staff />} />
