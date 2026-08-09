@@ -551,35 +551,58 @@ export const Patients: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Action Queue Tokens Generator */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-550 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">
-                Thermal Print Tokens Desk
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <button
-                  onClick={() => triggerTokenGeneration('opd', 'OPD Ticket Intake')}
-                  className="flex flex-col items-center justify-center p-2 rounded-lg border border-brand-200 bg-brand-500/5 hover:bg-brand-500/10 text-brand-600 dark:text-brand-400 text-[10px] font-bold transition-all"
+            {/* Doctor Clinical Quick Action Toolbar */}
+            <div className="bg-slate-100/60 dark:bg-dark-950/60 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-850 space-y-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">Doctor Clinical Actions</span>
+              <div className="flex flex-wrap gap-2">
+                {user?.role !== 'accountant' && (
+                  <button
+                    onClick={() => setIsVitalsOpen(true)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-brand-500/30 bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Thermometer className="h-4 w-4" /> Log Patient Vitals
+                  </button>
+                )}
+                <a
+                  href="/laboratory"
+                  className="flex-1 px-3 py-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                 >
-                  <Ticket className="h-4.5 w-4.5 mb-1" />
-                  OPD Ticket
-                </button>
-                <button
-                  onClick={() => triggerTokenGeneration('lab', 'Laboratory Diagnostics Scan')}
-                  className="flex flex-col items-center justify-center p-2 rounded-lg border border-violet-200 bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[10px] font-bold transition-all"
-                >
-                  <Activity className="h-4.5 w-4.5 mb-1" />
-                  Lab Ticket
-                </button>
-                <button
-                  onClick={() => triggerTokenGeneration('bill', 'IPD Deposit Counter')}
-                  className="flex flex-col items-center justify-center p-2 rounded-lg border border-emerald-200 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold transition-all"
-                >
-                  <Ticket className="h-4.5 w-4.5 mb-1" />
-                  Bill Slip
-                </button>
+                  <Activity className="h-4 w-4" /> Request Lab Test
+                </a>
               </div>
             </div>
+
+            {/* Current Vitals Snapshot Banner */}
+            {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                  Current Vital Signs Snapshot
+                </span>
+                {(() => {
+                  const latest = selectedPatient.patient_vitals[0];
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="p-2.5 bg-brand-500/10 border border-brand-500/20 rounded-xl text-center">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase block">BP</span>
+                        <span className="text-sm font-black text-brand-600 dark:text-brand-400 font-mono">{latest.bp || '120/80'}</span>
+                      </div>
+                      <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase block">Temp</span>
+                        <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">{latest.temperature || 98.6} °F</span>
+                      </div>
+                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase block">Pulse</span>
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">{latest.pulse || 72} bpm</span>
+                      </div>
+                      <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-center">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase block">SpO2</span>
+                        <span className="text-sm font-black text-purple-600 dark:text-purple-400 font-mono">{latest.spo2 || 98}%</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Demographics Block */}
             <div>
