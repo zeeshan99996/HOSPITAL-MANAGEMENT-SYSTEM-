@@ -192,8 +192,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <HeartPulse className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">LifeFlow</span>
-            <span className="text-[10px] block font-medium uppercase tracking-wider text-brand-500 -mt-1 font-semibold">Hospital EMR</span>
+            <span className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Dr. Talha</span>
+            <span className="text-[10px] block font-medium uppercase tracking-wider text-brand-500 -mt-1 font-semibold">Clinic EMR</span>
           </div>
         </div>
 

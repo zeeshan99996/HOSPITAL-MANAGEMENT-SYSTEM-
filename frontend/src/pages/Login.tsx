@@ -56,8 +56,8 @@ export const Login: React.FC = () => {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-lg shadow-brand-500/30 mb-3">
             <HeartPulse className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">LifeFlow Medical Center</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Enterprise Hospital Information Portal</p>
+          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dr. Talha Clinic</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Clinical Medical EMR Portal</p>
         </div>
 
         {/* Auth Forms Card */}
