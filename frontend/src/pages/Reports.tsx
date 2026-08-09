@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, AreaChart, Area, Legend
+  ResponsiveContainer, AreaChart, Area, Legend, LineChart, Line, ComposedChart
 } from 'recharts';
 
 const escapeCsv = (val: any): string => {
@@ -172,41 +172,65 @@ export const Reports: React.FC = () => {
   }, 0);
 
   // ----------------------------------------------------
-  // GRAPH DATA SETUP
+  // GRAPH 1: DAY-WISE TREND DATA FOR SELECTED MONTH & YEAR
   // ----------------------------------------------------
-  const financialComparisonData = [
-    {
-      name: 'Today',
-      'Revenue Collected': todayRevenue,
-      'Clinic Expenses': todayExpensesTotal,
-      'Pending Balance Due': todayUnpaidDue
-    },
-    {
-      name: 'This Month',
-      'Revenue Collected': monthRevenue,
-      'Clinic Expenses': monthExpensesTotal,
-      'Pending Balance Due': monthUnpaidDue
-    }
-  ];
+  const daysInSelectedMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  const dailyMonthTrendData = Array.from({ length: daysInSelectedMonth }).map((_, i) => {
+    const dayNum = i + 1;
+    const dayStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    const dayLabel = `${dayNum} ${selectedMonthName.substring(0, 3)}`;
 
-  // Daily Trends for last 7 days
-  const last7DaysData = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
-    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const dayTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(dayStr)).map(t => Number(t.patientId)));
+    const dayPatientsList = patients.filter(p => (p.createdAt && p.createdAt.startsWith(dayStr)) || dayTokenPatientIds.has(Number(p.id)));
+    const dayOpd = dayPatientsList.length;
 
-    const dayOpd = patients.filter(p => p.createdAt && p.createdAt.startsWith(dateStr)).length;
-    const dayIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(dateStr)).length;
-    const dayRev = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(dateStr)).reduce((a, b) => a + Number(b.paidAmount || 0), 0);
-    const dayExp = expenses.filter(e => e.expenseDate === dateStr).reduce((a, b) => a + Number(b.amount || 0), 0);
+    const dayIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(dayStr)).length;
+
+    const dayInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(dayStr));
+    const dayInvoicePaid = dayInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
+    const dayRegistrationPaid = dayPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
+    const dayRev = dayInvoicePaid + dayRegistrationPaid;
+
+    const dayExp = expenses.filter(e => e.expenseDate === dayStr).reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
     return {
       day: dayLabel,
-      'OPD Patients': dayOpd,
-      'IPD Admissions': dayIpd,
       'Revenue (Rs.)': dayRev,
-      'Expenses (Rs.)': dayExp
+      'Expenses (Rs.)': dayExp,
+      'OPD Patients': dayOpd,
+      'IPD Admissions': dayIpd
+    };
+  });
+
+  // ----------------------------------------------------
+  // GRAPH 2: MONTH-WISE TREND DATA FOR SELECTED YEAR
+  // ----------------------------------------------------
+  const monthlyYearTrendData = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ].map((mName, i) => {
+    const mNum = i + 1;
+    const mStr = `${selectedYear}-${String(mNum).padStart(2, '0')}`;
+
+    const mTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(mStr)).map(t => Number(t.patientId)));
+    const mPatientsList = patients.filter(p => (p.createdAt && p.createdAt.startsWith(mStr)) || mTokenPatientIds.has(Number(p.id)));
+    const mOpd = mPatientsList.length;
+
+    const mIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(mStr)).length;
+
+    const mInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(mStr));
+    const mInvoicePaid = mInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
+    const mRegistrationPaid = mPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
+    const mRev = mInvoicePaid + mRegistrationPaid;
+
+    const mExp = expenses.filter(e => e.expenseDate && e.expenseDate.startsWith(mStr)).reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+    return {
+      month: `${mName} ${selectedYear}`,
+      'Revenue (Rs.)': mRev,
+      'Expenses (Rs.)': mExp,
+      'OPD Patients': mOpd,
+      'IPD Admissions': mIpd
     };
   });
 
@@ -706,75 +730,77 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* SECTION 3: VISUAL ANALYTICS & INTERACTIVE CHARTS     */}
+      {/* SECTION 3: VISUAL ANALYTICS & DUAL TREND CHARTS     */}
       {/* ---------------------------------------------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1: Financial Comparison (Revenue vs Expenses vs Pending Due) */}
+        {/* Chart 1: Day-Wise Trend Graph for Selected Month */}
         <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-emerald-500" /> Financial Analytics Comparison
+                <DollarSign className="h-4 w-4 text-emerald-500" /> Day-Wise Trends ({selectedMonthName.toUpperCase()} {selectedYear})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Compare Revenue Collected vs Clinic Expenses vs Pending Due Balances</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Daily breakdown for {selectedMonthName} {selectedYear} (Revenue & Expenses Bars + OPD & IPD Volume Lines)</p>
             </div>
-            <Badge type="info">Financial Graph</Badge>
+            <Badge type="info">Daily Graph ({selectedMonthName})</Badge>
           </div>
 
-          <div className="h-64 w-full pt-2">
+          <div className="h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={financialComparisonData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+              <ComposedChart data={dailyMonthTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 'bold' }} />
-                <YAxis tick={{ fontSize: 10 }} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fontWeight: 'bold' }} interval={daysInSelectedMonth > 20 ? 1 : 0} />
+                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
-                  formatter={(value: any) => [`Rs. ${Number(value).toLocaleString()}`, '']}
+                  formatter={(value: any, name: any) => [
+                    name.includes('Rs.') ? `Rs. ${Number(value).toLocaleString()}` : `${value} Patients`,
+                    name
+                  ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="Revenue Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Clinic Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Pending Balance Due" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Bar yAxisId="left" dataKey="Revenue (Rs.)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="Expenses (Rs.)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="OPD Patients" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line yAxisId="right" type="monotone" dataKey="IPD Admissions" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 3 }} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        {/* Chart 2: Daily Patient Volume & Financial Trend */}
+        {/* Chart 2: Month-Wise Trend Graph for Selected Year */}
         <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Activity className="h-4 w-4 text-brand-500" /> 7-Day Patient Volume & Revenue Trend
+                <Activity className="h-4 w-4 text-brand-500" /> Month-Wise Annual Trends ({selectedYear})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Daily trend analysis of OPD visits, IPD admissions, and revenue</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Monthly breakdown for all 12 months of {selectedYear} (Monthly Revenue & Expenses Bars + Monthly Patient Lines)</p>
             </div>
-            <Badge type="info">Volume Trend</Badge>
+            <Badge type="info">Annual Graph ({selectedYear})</Badge>
           </div>
 
-          <div className="h-64 w-full pt-2">
+          <div className="h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={last7DaysData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0284c7" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#0284c7" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+              <ComposedChart data={monthlyYearTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
+                  formatter={(value: any, name: any) => [
+                    name.includes('Rs.') ? `Rs. ${Number(value).toLocaleString()}` : `${value} Patients`,
+                    name
+                  ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Area type="monotone" dataKey="Revenue (Rs.)" stroke="#0284c7" fillOpacity={1} fill="url(#colorRev)" />
-                <Area type="monotone" dataKey="Expenses (Rs.)" stroke="#f59e0b" fillOpacity={1} fill="url(#colorExp)" />
-              </AreaChart>
+                <Bar yAxisId="left" dataKey="Revenue (Rs.)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="Expenses (Rs.)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Line yAxisId="right" type="monotone" dataKey="OPD Patients" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 4 }} />
+                <Line yAxisId="right" type="monotone" dataKey="IPD Admissions" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 4 }} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </Card>
