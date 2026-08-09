@@ -321,7 +321,15 @@ router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivit
 // ==========================================
 router.get('/tokens', authenticateToken, async (req, res) => {
   try {
+    const now = new Date();
+    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
+    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
+
     const tokens = await TokenQueue.findAll({
+      where: {
+        createdAt: { [Op.between]: [startOfDay, endOfDay] }
+      },
       include: [
         { model: Patient, attributes: ['name', 'mrNumber'] },
         { model: Doctor, include: [{ model: User, attributes: ['name'] }] }

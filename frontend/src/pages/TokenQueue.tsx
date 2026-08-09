@@ -172,7 +172,27 @@ export const TokenQueue: React.FC = () => {
       ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`)
       : `Dr. Physician #${doc.id}`;
     
-    const docTokens = tokens.filter(t => t.doctorId === doc.id || (t.doctor && t.doctor.id === doc.id));
+    const rawDocTokens = tokens.filter(t => t.doctorId === doc.id || (t.doctor && t.doctor.id === doc.id));
+    
+    // Deduplicate tokens by unique patient ID, prioritizing status: completed > processing > waiting
+    const uniqueTokensMap = new Map<number, any>();
+    const statusWeight: Record<string, number> = { completed: 3, processing: 2, waiting: 1 };
+
+    rawDocTokens.forEach(t => {
+      const pId = t.patientId || t.id;
+      const existing = uniqueTokensMap.get(pId);
+      if (!existing) {
+        uniqueTokensMap.set(pId, t);
+      } else {
+        const currentWeight = statusWeight[t.status] || 0;
+        const existingWeight = statusWeight[existing.status] || 0;
+        if (currentWeight > existingWeight) {
+          uniqueTokensMap.set(pId, t);
+        }
+      }
+    });
+    const docTokens = Array.from(uniqueTokensMap.values());
+
     const active = docTokens.find(t => t.status === 'processing');
     const waiting = docTokens.filter(t => t.status === 'waiting');
     const completed = docTokens.filter(t => t.status === 'completed');
