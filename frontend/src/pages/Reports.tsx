@@ -42,6 +42,11 @@ export const Reports: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
 
+  // Daily Date Selector State
+  const [selectedDailyDay, setSelectedDailyDay] = useState<number>(() => new Date().getDate());
+  const [selectedDailyMonth, setSelectedDailyMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [selectedDailyYear, setSelectedDailyYear] = useState<number>(() => new Date().getFullYear());
+
   // Month & Year Selector State
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
@@ -67,6 +72,13 @@ export const Reports: React.FC = () => {
 
     setStartDate(firstDayStr);
     setEndDate(lastDayStr);
+  };
+
+  const handleResetToToday = () => {
+    const now = new Date();
+    setSelectedDailyDay(now.getDate());
+    setSelectedDailyMonth(now.getMonth() + 1);
+    setSelectedDailyYear(now.getFullYear());
   };
 
   const fetchReportsData = async () => {
@@ -99,28 +111,33 @@ export const Reports: React.FC = () => {
   // Dates Formatting Helpers (Strict Local Date Reset)
   const localNow = new Date();
   const todayStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+  
+  const selectedDailyDateStr = `${selectedDailyYear}-${String(selectedDailyMonth).padStart(2, '0')}-${String(selectedDailyDay).padStart(2, '0')}`;
+  const selectedDailyLabel = `${selectedDailyMonth}/${selectedDailyDay}/${selectedDailyYear}`;
+  const isTodaySelected = selectedDailyDateStr === todayStr;
+
   const targetMonthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
   const selectedMonthName = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('en-US', { month: 'long' });
 
   // ----------------------------------------------------
-  // TODAY'S (DAILY) CALCULATIONS
+  // DAILY (SELECTED DAY, MONTH & YEAR) CALCULATIONS
   // ----------------------------------------------------
-  const todayTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(todayStr)).map(t => Number(t.patientId)));
+  const todayTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(selectedDailyDateStr)).map(t => Number(t.patientId)));
   const todayPatientsList = patients.filter(p => {
-    const isToday = p.createdAt && p.createdAt.startsWith(todayStr);
+    const isToday = p.createdAt && p.createdAt.startsWith(selectedDailyDateStr);
     return isToday || todayTokenPatientIds.has(Number(p.id));
   });
   const todayOpdCount = todayPatientsList.length;
 
-  const todayAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(todayStr));
+  const todayAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(selectedDailyDateStr));
   const todayIpdCount = todayAdmissionsList.length;
 
-  const todayInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(todayStr));
+  const todayInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(selectedDailyDateStr));
   const todayInvoicePaid = todayInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
   const todayRegistrationPaid = todayPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
   const todayRevenue = todayInvoicePaid + todayRegistrationPaid;
 
-  const todayExpensesList = expenses.filter(e => e.expenseDate === todayStr);
+  const todayExpensesList = expenses.filter(e => e.expenseDate === selectedDailyDateStr);
   const todayExpensesTotal = todayExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
   const todayUnpaidDue = todayInvoices.reduce((acc, inv) => {
@@ -458,14 +475,80 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* SECTION 1: DAILY (TODAY'S) EXECUTIVE SUMMARY CARDS   */}
+      {/* SECTION 1: DAILY EXECUTIVE SUMMARY CARDS (DAY/MON/YR) */}
       {/* ---------------------------------------------------- */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-            <Clock className="h-4 w-4 text-brand-500" /> Today's Real-Time Daily Summary ({new Date().toLocaleDateString()})
-          </span>
-          <Badge type="info">Daily Realtime</Badge>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3 bg-slate-100/80 dark:bg-dark-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-850">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-brand-500" />
+            <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+              Daily Summary ({selectedDailyLabel})
+            </span>
+          </div>
+
+          {/* Day, Month, Year Selectors for Daily Summary */}
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Select Date:</span>
+            
+            {/* Day Dropdown */}
+            <select
+              value={selectedDailyDay}
+              onChange={e => setSelectedDailyDay(Number(e.target.value))}
+              className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
+            >
+              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                <option key={d} value={d}>Day {d}</option>
+              ))}
+            </select>
+
+            {/* Month Dropdown */}
+            <select
+              value={selectedDailyMonth}
+              onChange={e => setSelectedDailyMonth(Number(e.target.value))}
+              className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
+            >
+              {[
+                { val: 1, name: 'Jan' },
+                { val: 2, name: 'Feb' },
+                { val: 3, name: 'Mar' },
+                { val: 4, name: 'Apr' },
+                { val: 5, name: 'May' },
+                { val: 6, name: 'Jun' },
+                { val: 7, name: 'Jul' },
+                { val: 8, name: 'Aug' },
+                { val: 9, name: 'Sep' },
+                { val: 10, name: 'Oct' },
+                { val: 11, name: 'Nov' },
+                { val: 12, name: 'Dec' },
+              ].map(m => (
+                <option key={m.val} value={m.val}>{m.name}</option>
+              ))}
+            </select>
+
+            {/* Year Dropdown */}
+            <select
+              value={selectedDailyYear}
+              onChange={e => setSelectedDailyYear(Number(e.target.value))}
+              className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
+            >
+              {[2024, 2025, 2026, 2027, 2028].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+
+            {!isTodaySelected && (
+              <button
+                onClick={handleResetToToday}
+                className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-[10px] font-extrabold transition-all shadow-sm"
+              >
+                Reset Today
+              </button>
+            )}
+
+            <Badge type={isTodaySelected ? 'info' : 'warning'}>
+              {isTodaySelected ? 'Daily Realtime' : 'Historical Day'}
+            </Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
