@@ -8,6 +8,16 @@ import {
   Search, Pill, Beaker, FileText, UserCheck, HeartPulse
 } from 'lucide-react';
 
+const escapeHtml = (str: any): string => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 export const Billing: React.FC = () => {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -137,11 +147,12 @@ export const Billing: React.FC = () => {
       if (Array.isArray(itemsList) && itemsList.length > 0) {
         itemsList.forEach((item: any) => {
           // Avoid duplicating consultation registration fee
-          if (item.itemCategory === 'Consultation' || item.itemName.toLowerCase().includes('registration fee')) {
+          const iName = item.itemName ? String(item.itemName) : 'Pharmacy Item';
+          if (item.itemCategory === 'Consultation' || iName.toLowerCase().includes('registration fee')) {
             return;
           }
           computedItems.push({
-            title: item.itemName,
+            title: iName,
             category: item.itemCategory || 'Pharmacy',
             amount: Number(item.totalPrice || item.unitPrice || 0),
             qty: Number(item.quantity || 1),
@@ -190,11 +201,12 @@ export const Billing: React.FC = () => {
   }
 
   // Subtotal & Net Total Math
-  const grossSubtotal = computedItems.reduce((sum, item) => sum + item.amount, 0);
-  const discountVal = Number(receptionistDiscount || 0);
-  const netPayableTotal = Math.max(0, grossSubtotal - discountVal);
-  const totalPaidSoFar = patientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0);
-  const netDueBalance = Math.max(0, netPayableTotal - totalPaidSoFar);
+  const grossSubtotal = Math.round(computedItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) * 100) / 100;
+  const rawDisc = Number(receptionistDiscount);
+  const discountVal = Math.max(0, isNaN(rawDisc) ? 0 : rawDisc);
+  const netPayableTotal = Math.round(Math.max(0, grossSubtotal - discountVal) * 100) / 100;
+  const totalPaidSoFar = Math.round((patientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0)) * 100) / 100;
+  const netDueBalance = Math.round(Math.max(0, netPayableTotal - totalPaidSoFar) * 100) / 100;
 
   const handlePrintProfessionalBill = () => {
     if (!selectedPatientObj) return;
@@ -214,11 +226,11 @@ export const Billing: React.FC = () => {
     const itemsRows = computedItems.map((item) => `
       <tr>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0;">
-          <strong style="color: #0f172a; font-size: 12px; display: block;">${item.title}</strong>
-          ${item.detail ? `<span style="font-size: 10px; color: #64748b; margin-top: 2px; display: block;">${item.detail}</span>` : ''}
+          <strong style="color: #0f172a; font-size: 12px; display: block;">${escapeHtml(item.title)}</strong>
+          ${item.detail ? `<span style="font-size: 10px; color: #64748b; margin-top: 2px; display: block;">${escapeHtml(item.detail)}</span>` : ''}
         </td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 11px; font-weight: 600; color: #475569;">${item.category}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 11px; font-weight: 600;">${item.qty}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 11px; font-weight: 600; color: #475569;">${escapeHtml(item.category)}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 11px; font-weight: 600;">${escapeHtml(item.qty)}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 800; font-size: 12px; color: #0f172a;">Rs. ${item.amount.toLocaleString()}</td>
       </tr>
     `).join('');
@@ -269,14 +281,14 @@ export const Billing: React.FC = () => {
 
         <div class="patient-box">
           <div class="info-col">
-            <div><span class="info-label">Patient Name:</span> <strong style="color: #0f172a; font-size: 12px;">${selectedPatientObj.name}</strong></div>
-            <div><span class="info-label">MR Number:</span> <strong style="color: #0284c7;">${selectedPatientObj.mrNumber || 'MR-N/A'}</strong></div>
-            <div><span class="info-label">Age / Gender:</span> <span>${selectedPatientObj.age || 'N/A'} Yrs / ${(selectedPatientObj.gender || 'male').toUpperCase()}</span></div>
-            <div><span class="info-label">Phone Contact:</span> <span>${selectedPatientObj.phone}</span></div>
+            <div><span class="info-label">Patient Name:</span> <strong style="color: #0f172a; font-size: 12px;">${escapeHtml(selectedPatientObj.name)}</strong></div>
+            <div><span class="info-label">MR Number:</span> <strong style="color: #0284c7;">${escapeHtml(selectedPatientObj.mrNumber || 'MR-N/A')}</strong></div>
+            <div><span class="info-label">Age / Gender:</span> <span>${escapeHtml(selectedPatientObj.age || 'N/A')} Yrs / ${escapeHtml((selectedPatientObj.gender || 'male').toUpperCase())}</span></div>
+            <div><span class="info-label">Phone Contact:</span> <span>${escapeHtml(selectedPatientObj.phone)}</span></div>
           </div>
           <div class="info-col">
             <div><span class="info-label">Billing Category:</span> <strong>${activeTab === 'opd_patient' ? 'OPD Outpatient Visit' : 'IPD Inpatient Stay'}</strong></div>
-            ${selectedPatientAdmission ? `<div><span class="info-label">Ward / Bed:</span> <span>${selectedPatientAdmission.bed?.wardName || 'Ward'} (${selectedPatientAdmission.bed?.bedNumber})</span></div>` : ''}
+            ${selectedPatientAdmission ? `<div><span class="info-label">Ward / Bed:</span> <span>${escapeHtml(selectedPatientAdmission.bed?.wardName || 'Ward')} (${escapeHtml(selectedPatientAdmission.bed?.bedNumber)})</span></div>` : ''}
             <div><span class="info-label">Payment Status:</span> <strong style="color: ${netDueBalance <= 0 ? '#16a34a' : '#dc2626'}; font-size: 12px;">${netDueBalance <= 0 ? 'PAID IN FULL' : 'PARTIAL / BALANCE DUE'}</strong></div>
           </div>
         </div>

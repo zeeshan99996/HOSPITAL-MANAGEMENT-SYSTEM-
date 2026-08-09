@@ -50,7 +50,10 @@ export const admitPatient = async (req: Request, res: Response) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const bed = await Bed.findByPk(bedId, { transaction });
+    const bed = await Bed.findByPk(bedId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
     if (!bed || bed.status !== 'available') {
       await transaction.rollback();
       return res.status(400).json({ message: 'Bed is not available for admission.' });

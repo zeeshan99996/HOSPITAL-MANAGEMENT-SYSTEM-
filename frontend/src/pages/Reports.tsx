@@ -12,6 +12,25 @@ import {
   ResponsiveContainer, AreaChart, Area, Legend
 } from 'recharts';
 
+const escapeCsv = (val: any): string => {
+  if (val === null || val === undefined) return '""';
+  let str = String(val);
+  if (str.startsWith('=') || str.startsWith('+') || str.startsWith('-') || str.startsWith('@')) {
+    str = "'" + str;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+};
+
+const escapeHtml = (str: any): string => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 export const Reports: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -263,7 +282,7 @@ export const Reports: React.FC = () => {
     }
     const headers = 'ID,Date,Particulars,Patient/Staff,MRN,Category,Total Amount,Paid Amount,Due Amount,Status\n';
     const rows = filteredRecords.map(r => 
-      `"${r.id}","${r.date}","${r.particulars}","${r.patientName}","${r.mrn}","${r.category}",${r.amount},${r.paidAmount},${r.dueAmount},"${r.status}"`
+      `${escapeCsv(r.id)},${escapeCsv(r.date)},${escapeCsv(r.particulars)},${escapeCsv(r.patientName)},${escapeCsv(r.mrn)},${escapeCsv(r.category)},${r.amount},${r.paidAmount},${r.dueAmount},${escapeCsv(r.status)}`
     ).join('\n');
 
     const blob = new Blob([headers + rows], { type: 'text/csv' });
@@ -284,11 +303,11 @@ export const Reports: React.FC = () => {
 
     const tableRows = filteredRecords.map(r => `
       <tr>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: bold;">${r.id}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${r.date}</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;"><strong>${r.particulars}</strong></td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${r.patientName} (${r.mrn})</td>
-        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: center;"><span style="font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; font-size: 10px;">${r.category}</span></td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: bold;">${escapeHtml(r.id)}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(r.date)}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;"><strong>${escapeHtml(r.particulars)}</strong></td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(r.patientName)} (${escapeHtml(r.mrn)})</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: center;"><span style="font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; font-size: 10px;">${escapeHtml(r.category)}</span></td>
         <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold;">Rs. ${Number(r.amount).toLocaleString()}</td>
         <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #16a34a; font-weight: bold;">Rs. ${Number(r.paidAmount).toLocaleString()}</td>
         <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: ${r.dueAmount > 0 ? '#dc2626' : '#16a34a'}; font-weight: bold;">Rs. ${Number(r.dueAmount).toLocaleString()}</td>

@@ -32,21 +32,24 @@ export const createInvoice = async (req: Request, res: Response) => {
 
     let total = 0;
     const itemRecords = (items || []).map((item: any) => {
-      const itemTotal = Number(item.unitPrice) * Number(item.quantity);
+      const uPrice = Math.max(0, Number(item.unitPrice) || 0);
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const itemTotal = Math.round((uPrice * qty) * 100) / 100;
       total += itemTotal;
       return {
         itemName: item.itemName,
         itemCategory: item.itemCategory || 'General',
-        unitPrice: item.unitPrice,
-        quantity: item.quantity,
+        unitPrice: uPrice,
+        quantity: qty,
         totalPrice: itemTotal,
       };
     });
 
-    const discAmt = Number(discount) || 0;
+    total = Math.round(total * 100) / 100;
+    const discAmt = Math.min(Math.max(0, Number(discount) || 0), total);
     const taxableAmount = Math.max(0, total - discAmt);
     const taxAmt = 0;
-    const grandTotal = taxableAmount;
+    const grandTotal = Math.round(taxableAmount * 100) / 100;
 
     const invoice = await Invoice.create({
       patientId,
@@ -111,7 +114,12 @@ export const payInvoice = async (req: Request, res: Response) => {
 
     const currentPaid = Number(invoice.paidAmount);
     const paying = Number(amount) || 0;
-    const newPaid = currentPaid + paying;
+    if (paying <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Payment amount must be a positive number greater than zero.' });
+    }
+
+    const newPaid = Math.round((currentPaid + paying) * 100) / 100;
     const targetTotal = Number(invoice.grandTotal);
 
     let status: 'unpaid' | 'partially_paid' | 'paid' = 'unpaid';
@@ -305,17 +313,26 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
     let subtotal = 0;
 
     for (const item of items) {
-      const medicine = await Medicine.findByPk(item.medicineId, { transaction });
+      const qty = Number(item.quantity);
+      if (isNaN(qty) || qty <= 0) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Medicine quantity must be a positive number greater than zero.' });
+      }
+
+      const medicine = await Medicine.findByPk(item.medicineId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
       if (!medicine) {
         throw new Error(`Medicine with ID ${item.medicineId} not found.`);
       }
 
-      if (medicine.stockLevel < item.quantity) {
+      if (medicine.stockLevel < qty) {
         throw new Error(`Insufficient stock for ${medicine.name}. Only ${medicine.stockLevel} units remaining.`);
       }
 
-      // Deduct stock
-      const newStock = medicine.stockLevel - item.quantity;
+      // Deduct stock safely
+      const newStock = medicine.stockLevel - qty;
       await medicine.update({ stockLevel: newStock }, { transaction });
 
       // Low Stock Alert
@@ -332,23 +349,24 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
       const medRate = await MedicineRate.findOne({ where: { medicineId: medicine.id }, transaction });
       const rate = medRate ? Number(medRate.unitRate) : Number(medicine.price);
 
-      const totalItemPrice = rate * item.quantity;
+      const totalItemPrice = Math.round((rate * qty) * 100) / 100;
       subtotal += totalItemPrice;
 
       invoiceItems.push({
         itemName: `${medicine.name} (Pharmacy Dispense)`,
         itemCategory: 'Pharmacy',
         unitPrice: rate,
-        quantity: item.quantity,
+        quantity: qty,
         totalPrice: totalItemPrice,
       });
     }
 
+    subtotal = Math.round(subtotal * 100) / 100;
     // Apply discount correctly before computing tax
-    const discAmt = Math.min(Number(discount) || 0, subtotal); // clamp discount to subtotal
+    const discAmt = Math.min(Math.max(0, Number(discount) || 0), subtotal); // clamp discount to subtotal
     const taxable = Math.max(0, subtotal - discAmt);
     const tax = 0;
-    const grandTotal = taxable;
+    const grandTotal = Math.round(taxable * 100) / 100;
 
     // Create Invoice
     const invoice = await Invoice.create({

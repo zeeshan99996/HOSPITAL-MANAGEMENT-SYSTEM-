@@ -7,6 +7,16 @@ import {
   FileText, Search, Printer, Check, Sparkles, TrendingUp, AlertCircle
 } from 'lucide-react';
 
+const escapeHtml = (str: any): string => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 export const ClinicExpenses: React.FC = () => {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -123,11 +133,11 @@ export const ClinicExpenses: React.FC = () => {
         </div>
 
         <div class="box">
-          <div class="row"><span class="label">Voucher Ref:</span> <span>EXP-#${exp.id}</span></div>
-          <div class="row"><span class="label">Date:</span> <span>${exp.expenseDate}</span></div>
-          <div class="row"><span class="label">Category:</span> <span>${exp.category}</span></div>
-          <div class="row"><span class="label">Logged By:</span> <span>${exp.spentBy || 'Staff'}</span></div>
-          <div class="row" style="margin-top: 8px;"><span class="label">Description:</span> <span>${exp.description}</span></div>
+          <div class="row"><span class="label">Voucher Ref:</span> <span>EXP-#${escapeHtml(exp.id)}</span></div>
+          <div class="row"><span class="label">Date:</span> <span>${escapeHtml(exp.expenseDate)}</span></div>
+          <div class="row"><span class="label">Category:</span> <span>${escapeHtml(exp.category)}</span></div>
+          <div class="row"><span class="label">Logged By:</span> <span>${escapeHtml(exp.spentBy || 'Staff')}</span></div>
+          <div class="row" style="margin-top: 8px;"><span class="label">Description:</span> <span>${escapeHtml(exp.description)}</span></div>
           
           <div class="amount">Rs. ${Number(exp.amount).toLocaleString()}</div>
         </div>

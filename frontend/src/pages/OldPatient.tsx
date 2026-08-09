@@ -3,6 +3,16 @@ import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import { Search, UserCheck, Calendar, Phone, MapPin, Printer, Ticket, CheckCircle, Stethoscope, AlertCircle, Clock } from 'lucide-react';
 
+const escapeHtml = (str: any): string => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 export const OldPatient: React.FC = () => {
   // Search Inputs (Image 02)
   const [searchName, setSearchName] = useState('');
@@ -103,16 +113,17 @@ export const OldPatient: React.FC = () => {
     patient.computedLastVisitDate = lastVisit;
     patient.computedLastDoctor = doctorName;
 
-    // Determine 5-day fee exemption rule
+    // Determine 5-day fee exemption rule cleanly using calendar date differences
     let isWithin = false;
     if (lastVisit) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const visitDate = new Date(lastVisit);
-      visitDate.setHours(0, 0, 0, 0);
 
-      const diffTime = Math.abs(today.getTime() - visitDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const vDateStr = typeof lastVisit === 'string' ? lastVisit.split('T')[0] : new Date(lastVisit).toISOString().split('T')[0];
+      const visitDate = new Date(`${vDateStr}T00:00:00.000`);
+
+      const diffTime = Math.max(0, today.getTime() - visitDate.getTime());
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
       setDaysDifference(diffDays);
       isWithin = diffDays <= 5;
       setIsWithin5Days(isWithin);
@@ -203,18 +214,18 @@ export const OldPatient: React.FC = () => {
 
         <div class="token-box">
           <div class="token-label">OPD RE-VISIT TOKEN</div>
-          <div class="token-number">${tokenObj.tokenNumber || 'T-01'}</div>
-          <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${selectedPatient?.mrNumber || 'MR-N/A'}</div>
+          <div class="token-number">${escapeHtml(tokenObj.tokenNumber || 'T-01')}</div>
+          <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${escapeHtml(selectedPatient?.mrNumber || 'MR-N/A')}</div>
         </div>
 
         <div class="divider"></div>
 
-        <div class="info-row"><span class="info-label">Patient Name:</span> <span>${selectedPatient?.name || 'Patient'}</span></div>
-        <div class="info-row"><span class="info-label">Assigned Doctor:</span> <span>${docTitle}</span></div>
-        <div class="info-row"><span class="info-label">Phone:</span> <span>${selectedPatient?.phone || 'N/A'}</span></div>
+        <div class="info-row"><span class="info-label">Patient Name:</span> <span>${escapeHtml(selectedPatient?.name || 'Patient')}</span></div>
+        <div class="info-row"><span class="info-label">Assigned Doctor:</span> <span>${escapeHtml(docTitle)}</span></div>
+        <div class="info-row"><span class="info-label">Phone:</span> <span>${escapeHtml(selectedPatient?.phone || 'N/A')}</span></div>
         <div class="info-row"><span class="info-label">Visit Type:</span> <span>${isWithin5Days ? '5-Day Free Re-visit' : 'Regular OPD Visit'}</span></div>
-        <div class="info-row"><span class="info-label">Fee Charged:</span> <span>Rs. ${chargedFee}</span></div>
-        <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleString()}</span></div>
+        <div class="info-row"><span class="info-label">Fee Charged:</span> <span>Rs. ${escapeHtml(chargedFee)}</span></div>
+        <div class="info-row"><span class="info-label">Date & Time:</span> <span>${escapeHtml(new Date().toLocaleString())}</span></div>
 
         <div class="divider"></div>
 

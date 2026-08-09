@@ -114,18 +114,26 @@ router.post('/appointments/prescription', authenticateToken, requireRoles(['admi
 // THERMAL PRINTER & QUEUE TOKEN GENERATION (DOCTOR-SPECIFIC DAILY SEQUENCE)
 router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']), async (req, res) => {
   const { type, patientId, doctorId, detail, fee } = req.body;
+  const transaction = await sequelize.transaction();
+
   try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
+    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
 
     // Validate Patient ID
     let validPatientId = Number(patientId);
-    let patObj = await Patient.findByPk(validPatientId);
+    let patObj = await Patient.findByPk(validPatientId, { transaction });
     if (!patObj) {
-      const fallbackPat = await Patient.findOne();
-      if (fallbackPat) validPatientId = fallbackPat.id;
+      const fallbackPat = await Patient.findOne({ transaction });
+      if (fallbackPat) {
+        validPatientId = fallbackPat.id;
+        patObj = fallbackPat;
+      } else {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Valid patient required for token generation.' });
+      }
     }
 
     // Validate Doctor ID
@@ -135,14 +143,15 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     if (doctorId) {
       const numDocId = Number(doctorId);
       let docObj = await Doctor.findByPk(numDocId, {
-        include: [{ model: User, attributes: ['name'] }]
+        include: [{ model: User, attributes: ['name'] }],
+        transaction
       });
 
       if (!docObj) {
-        // Fallback: check if doctorId was passed as User.id
         docObj = await Doctor.findOne({
           where: { userId: numDocId },
-          include: [{ model: User, attributes: ['name'] }]
+          include: [{ model: User, attributes: ['name'] }],
+          transaction
         });
       }
 
@@ -154,7 +163,8 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 
     if (!validDocId) {
       const fallbackDoc = await Doctor.findOne({
-        include: [{ model: User, attributes: ['name'] }]
+        include: [{ model: User, attributes: ['name'] }],
+        transaction
       });
       if (fallbackDoc) {
         validDocId = fallbackDoc.id;
@@ -163,27 +173,19 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     }
 
     let docSeq = 1;
+    const whereCondition: any = {
+      createdAt: {
+        [Op.between]: [startOfDay, endOfDay]
+      }
+    };
     if (validDocId) {
-      const countToday = await TokenQueue.count({
-        where: {
-          doctorId: validDocId,
-          createdAt: {
-            [Op.between]: [startOfDay, endOfDay]
-          }
-        }
-      });
-      docSeq = countToday + 1;
+      whereCondition.doctorId = validDocId;
     } else {
-      const countToday = await TokenQueue.count({
-        where: {
-          doctorId: null,
-          createdAt: {
-            [Op.between]: [startOfDay, endOfDay]
-          }
-        }
-      });
-      docSeq = countToday + 1;
+      whereCondition.doctorId = null;
     }
+
+    const countToday = await TokenQueue.count({ where: whereCondition, transaction });
+    docSeq = countToday + 1;
 
     const tokenId = `T-${String(docSeq).padStart(2, '0')}`;
 
@@ -194,15 +196,15 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
       doctorId: validDocId,
       status: 'waiting',
       waitingTime: Math.floor(5 + Math.random() * 20),
-      detail: detail || ''
-    });
+      detail: detail || `OPD Consultation with ${doctorName}`
+    }, { transaction });
 
     // If fee > 0, generate consultation invoice
-    const numericFee = Number(fee) || 0;
+    const numericFee = Math.max(0, Number(fee) || 0);
     if (numericFee > 0) {
       try {
         const invoice = await Invoice.create({
-          patientId,
+          patientId: validPatientId,
           totalAmount: numericFee,
           discount: 0.00,
           tax: 0.00,
@@ -211,7 +213,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
           status: 'paid',
           insuranceClaimed: false,
           paymentMethod: 'cash'
-        });
+        }, { transaction });
 
         await InvoiceItem.create({
           invoiceId: invoice.id,
@@ -220,11 +222,13 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
           unitPrice: numericFee,
           quantity: 1,
           totalPrice: numericFee,
-        });
+        }, { transaction });
       } catch (invErr) {
         console.warn('Invoice generation warning:', invErr);
       }
     }
+
+    await transaction.commit();
 
     // Populate associations
     const populated = await TokenQueue.findByPk(token.id, {
@@ -236,7 +240,8 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 
     return res.status(201).json(populated);
   } catch (err: any) {
-    return res.status(500).json({ message: 'Error generating token record', error: err.message });
+    await transaction.rollback();
+    return res.status(500).json({ message: 'Error generating token.', error: err.message });
   }
 });
 
