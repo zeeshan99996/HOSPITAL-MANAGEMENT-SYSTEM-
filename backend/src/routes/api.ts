@@ -334,7 +334,7 @@ router.get('/tokens', authenticateToken, async (req, res) => {
   }
 });
 
-router.put('/tokens/:id/status', authenticateToken, requireRoles(['admin', 'receptionist']), async (req, res) => {
+router.put('/tokens/:id/status', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor']), async (req, res) => {
   const { status } = req.body;
   try {
     const token = await TokenQueue.findByPk(req.params.id);
