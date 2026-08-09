@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
-import { Card, Button, Badge } from '../components/UI';
+import { Card, Button, Badge, Drawer } from '../components/UI';
 import {
   Users,
   Calendar,
@@ -20,7 +20,9 @@ import {
   Play,
   Eye,
   Pill,
-  Stethoscope
+  Stethoscope,
+  Thermometer,
+  MapPin
 } from 'lucide-react';
 import {
   AreaChart,
@@ -39,6 +41,25 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
+
+  // EMR Drawer State
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+
+  const handleOpenEMR = async (patientId: number) => {
+    if (!patientId) return;
+    setIsDrawerOpen(true);
+    setDrawerLoading(true);
+    try {
+      const data = await apiClient.get(`/patients/${patientId}`);
+      setSelectedPatient(data);
+    } catch (err) {
+      console.error('Error fetching patient EMR details', err);
+    } finally {
+      setDrawerLoading(false);
+    }
+  };
 
   const fetchStats = async () => {
     setLoading(true);
@@ -251,7 +272,7 @@ export const Dashboard: React.FC = () => {
                             )}
 
                             <button
-                              onClick={() => window.location.href = `/patients`}
+                              onClick={() => handleOpenEMR(pat.id || t.patientId)}
                               className="px-2 py-1.5 bg-slate-100 dark:bg-dark-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg transition-all text-xs font-bold flex items-center gap-1 border border-slate-200 dark:border-slate-800"
                             >
                               <Eye className="h-3.5 w-3.5" /> EMR Record
@@ -266,6 +287,154 @@ export const Dashboard: React.FC = () => {
             </table>
           </div>
         </Card>
+
+        {/* Doctor Patient EMR Record Drawer */}
+        <Drawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          title={selectedPatient ? `Patient EMR File: ${selectedPatient.name}` : 'Loading EMR File...'}
+        >
+          {drawerLoading ? (
+            <div className="space-y-4 animate-pulse">
+              <div className="h-28 bg-slate-200 dark:bg-dark-950 rounded-xl" />
+              <div className="h-40 bg-slate-200 dark:bg-dark-950 rounded-xl" />
+            </div>
+          ) : selectedPatient ? (
+            <div className="space-y-6 text-slate-700 dark:text-slate-350 max-h-[85vh] overflow-y-auto pr-1">
+              {/* Profile Card */}
+              <div className="flex items-center gap-4 bg-slate-150/40 dark:bg-dark-950/40 p-4 border border-slate-200/40 dark:border-slate-850 rounded-xl">
+                <div className="h-12 w-12 rounded-full bg-brand-500 text-white flex items-center justify-center font-bold text-lg select-none shadow-sm shadow-brand-500/25">
+                  {selectedPatient.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <span className="font-mono text-[9px] font-bold bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 px-2 py-0.5 rounded border border-brand-200/30">
+                    {selectedPatient.mrNumber}
+                  </span>
+                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mt-1">{selectedPatient.name}</h4>
+                  <p className="text-[10px] text-slate-500 font-medium">{selectedPatient.phone} • Blood Type {selectedPatient.bloodGroup}</p>
+                </div>
+              </div>
+
+              {/* Current Vitals Snapshot Banner */}
+              {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                    Current Vital Signs Snapshot
+                  </span>
+                  {(() => {
+                    const latest = selectedPatient.patient_vitals[0];
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="p-2.5 bg-brand-500/10 border border-brand-500/20 rounded-xl text-center">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">BP</span>
+                          <span className="text-sm font-black text-brand-600 dark:text-brand-400 font-mono">{latest.bp || '120/80'}</span>
+                        </div>
+                        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Temp</span>
+                          <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">{latest.temperature || 98.6} °F</span>
+                        </div>
+                        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Pulse</span>
+                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">{latest.pulse || 72} bpm</span>
+                        </div>
+                        <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-center">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase block">SpO2</span>
+                          <span className="text-sm font-black text-purple-600 dark:text-purple-400 font-mono">{latest.spo2 || 98}%</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Demographics Block */}
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Demographics</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Date of Birth</span>
+                    <span className="font-semibold text-slate-850 dark:text-slate-200">{selectedPatient.dob}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Biological Gender</span>
+                    <span className="font-semibold text-slate-850 dark:text-slate-200 capitalize">{selectedPatient.gender}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block"><MapPin className="inline h-3 w-3 mr-0.5" /> Address</span>
+                    <span className="font-semibold text-slate-850 dark:text-slate-200 leading-relaxed">{selectedPatient.address}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Registered Date & Time</span>
+                    <span className="font-semibold text-slate-850 dark:text-slate-200 font-mono text-[11px]">
+                      {selectedPatient.createdAt ? new Date(selectedPatient.createdAt).toLocaleString() : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vitals History Tracking */}
+              <div>
+                <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555">Vitals History Tracker</span>
+                </div>
+                
+                {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedPatient.patient_vitals.map((v: any) => (
+                      <div key={v.id} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px] text-slate-450 border-b border-slate-200/40 dark:border-slate-850 pb-1">
+                          <span>{new Date(v.createdAt).toLocaleString()}</span>
+                          <span>Logged by: {v.logger?.name || 'Staff Nurse'}</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-2xs font-semibold pt-0.5">
+                          <div>BP: <strong className="text-slate-900 dark:text-slate-100">{v.bp}</strong></div>
+                          <div>Temp: <strong className="text-slate-900 dark:text-slate-100">{v.temperature} °F</strong></div>
+                          <div>Pulse: <strong className="text-slate-900 dark:text-slate-100">{v.pulse} bpm</strong></div>
+                          <div>SpO2: <strong className="text-slate-900 dark:text-slate-100">{v.spo2}%</strong></div>
+                        </div>
+                        {v.notes && <p className="text-[10px] text-slate-500 italic">Notes: {v.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
+                    No vital signs logged for this patient yet.
+                  </div>
+                )}
+              </div>
+
+              {/* Prescriptions & Dosage History */}
+              <div>
+                <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555 flex items-center gap-1.5">
+                    <Pill className="h-3.5 w-3.5 text-brand-500" /> Medicine Prescriptions & Dosage History
+                  </span>
+                </div>
+                
+                {selectedPatient.invoices && selectedPatient.invoices.some((inv: any) => inv.items && inv.items.length > 0) ? (
+                  <div className="space-y-2">
+                    {selectedPatient.invoices.flatMap((inv: any) => inv.items || []).map((item: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1 flex justify-between items-center">
+                        <div>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">{item.itemName}</span>
+                          <span className="text-[10px] text-slate-500">Category: {item.itemCategory || 'Pharmacy'} • Qty: {item.quantity || 1}</span>
+                        </div>
+                        <div className="text-right font-mono">
+                          <span className="font-bold text-brand-600 dark:text-brand-400 block text-xs">Rs. {Number(item.totalPrice || item.unitPrice || 0).toLocaleString()}</span>
+                          <span className="text-[9px] text-slate-450">Item Total</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
+                    No medicine prescriptions logged for this patient yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </Drawer>
       </div>
     );
   }

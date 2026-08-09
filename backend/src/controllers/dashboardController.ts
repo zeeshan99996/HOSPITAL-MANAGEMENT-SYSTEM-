@@ -155,12 +155,21 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         include: [{ model: Patient, attributes: ['id', 'name', 'mrNumber', 'phone', 'gender', 'age', 'bloodGroup', 'address', 'area'] }]
       }) : [];
 
-      // Deduplicate tokens by unique patient ID to eliminate duplicate token entries
+      // Deduplicate tokens by unique patient ID, prioritizing status: completed > processing > waiting
       const uniqueTokensMap = new Map<number, any>();
+      const statusWeight: Record<string, number> = { completed: 3, processing: 2, waiting: 1 };
+
       docTodayTokens.forEach(t => {
         const pId = t.patientId || t.id;
-        if (!uniqueTokensMap.has(pId) || t.status === 'processing' || t.status === 'completed') {
+        const existing = uniqueTokensMap.get(pId);
+        if (!existing) {
           uniqueTokensMap.set(pId, t);
+        } else {
+          const currentWeight = statusWeight[t.status] || 0;
+          const existingWeight = statusWeight[existing.status] || 0;
+          if (currentWeight > existingWeight) {
+            uniqueTokensMap.set(pId, t);
+          }
         }
       });
       const uniqueDocTokens = Array.from(uniqueTokensMap.values());
