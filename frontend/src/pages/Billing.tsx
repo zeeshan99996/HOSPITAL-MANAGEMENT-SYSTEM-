@@ -32,6 +32,7 @@ export const Billing: React.FC = () => {
 
   // Selected Patient for Comprehensive Statement Calculation
   const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [mrSearch, setMrSearch] = useState('');
   const [receptionistDiscount, setReceptionistDiscount] = useState<number | ''>('');
 
   // Printable Bill Receipt Modal
@@ -116,6 +117,46 @@ export const Billing: React.FC = () => {
   const currentTabPatients = activeTab === 'opd_patient'
     ? (opdPatientsList.length > 0 ? opdPatientsList : patients)
     : admitPatientsList;
+
+  // Real-time MR Number & Patient Search Filter
+  const filteredTabPatients = currentTabPatients.filter(p => {
+    if (!mrSearch.trim()) return true;
+    const q = mrSearch.trim().toLowerCase();
+    const mr = (p.mrNumber || '').toLowerCase();
+    const name = (p.name || '').toLowerCase();
+    const phone = (p.phone || '').toLowerCase();
+    return mr.includes(q) || name.includes(q) || phone.includes(q);
+  });
+
+  const handleMrSearchChange = (val: string) => {
+    setMrSearch(val);
+    const q = val.trim().toLowerCase();
+    if (!q) return;
+
+    // Exact MR Number or tail sequence match (e.g. MR-2026-0020 or 0020 or 20)
+    const exactMatch = currentTabPatients.find(p => {
+      const mr = (p.mrNumber || '').toLowerCase();
+      const seqOnly = mr.replace(/[^0-9]/g, '');
+      return mr === q || (seqOnly.length > 0 && seqOnly.endsWith(q));
+    });
+
+    if (exactMatch) {
+      setSelectedPatientId(String(exactMatch.id));
+      return;
+    }
+
+    // Single result search match
+    const matches = currentTabPatients.filter(p => {
+      const mr = (p.mrNumber || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      const phone = (p.phone || '').toLowerCase();
+      return mr.includes(q) || name.includes(q) || phone.includes(q);
+    });
+
+    if (matches.length === 1) {
+      setSelectedPatientId(String(matches[0].id));
+    }
+  };
 
   // Selected Patient Details
   const selectedPatientObj = patients.find(p => String(p.id) === String(selectedPatientId));
@@ -498,23 +539,56 @@ export const Billing: React.FC = () => {
               <Badge type="info">{activeTab === 'opd_patient' ? 'OPD Billing' : 'IPD Admission Billing'}</Badge>
             </div>
 
-            {/* PATIENT SELECTION DROPDOWN */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                Select Registered {activeTab === 'opd_patient' ? 'OPD' : 'Admitted IPD'} Patient File *
-              </label>
-              <select
-                value={selectedPatientId}
-                onChange={e => setSelectedPatientId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
-              >
-                <option value="">-- Choose Patient to View Complete Fee Breakdown --</option>
-                {currentTabPatients.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} • (MRN: {p.mrNumber || 'N/A'}) • {p.phone}
-                  </option>
-                ))}
-              </select>
+            {/* PATIENT SELECTION DROPDOWN & REAL-TIME MR NUMBER SEARCH */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* MR Number Direct Search Box */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                  <span>Type / Search MR Number *</span>
+                  <span className="text-[10px] text-brand-600 dark:text-brand-400 font-normal">e.g. MR-2026-0020 or 0020</span>
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Type MR Number (e.g. MR-2026-0020 or 0020)..."
+                    value={mrSearch}
+                    onChange={e => handleMrSearchChange(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-brand-500/40 dark:border-brand-500/30 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
+                  />
+                  {mrSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMrSearch('');
+                        setSelectedPatientId('');
+                      }}
+                      className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Patient Dropdown Select */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Select Registered {activeTab === 'opd_patient' ? 'OPD' : 'Admitted IPD'} Patient File *
+                </label>
+                <select
+                  value={selectedPatientId}
+                  onChange={e => setSelectedPatientId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
+                >
+                  <option value="">-- Choose Patient to View Complete Fee Breakdown --</option>
+                  {filteredTabPatients.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} • (MRN: {p.mrNumber || 'N/A'}) • {p.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* ITEMIZED STATEMENT TABLE IF PATIENT SELECTED */}
