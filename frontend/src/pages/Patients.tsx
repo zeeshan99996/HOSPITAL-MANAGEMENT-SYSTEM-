@@ -333,7 +333,9 @@ export const Patients: React.FC = () => {
                 <th className="px-6 py-3.5">Alotted Bed & Ward</th>
                 <th className="px-6 py-3.5">Attending Doctor</th>
                 <th className="px-6 py-3.5">Condition / Diagnosis</th>
-                <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
+                {(user?.role === 'doctor' || user?.role === 'admin') && (
+                  <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -388,14 +390,16 @@ export const Patients: React.FC = () => {
                     <td className="px-6 py-4">
                       <span className="font-semibold text-slate-800 dark:text-slate-200">{activeAdmission?.condition || 'Under Observation'}</span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handlePatientClick(p.id)}
-                        className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
-                      >
-                        <Eye className="h-3 w-3" /> EMR File
-                      </button>
-                    </td>
+                    {(user?.role === 'doctor' || user?.role === 'admin') && (
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handlePatientClick(p.id)}
+                          className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
+                        >
+                          <Eye className="h-3 w-3" /> EMR File
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -414,7 +418,9 @@ export const Patients: React.FC = () => {
                 <th className="px-6 py-3.5">Token Number</th>
                 <th className="px-6 py-3.5">Doctor Name</th>
                 <th className="px-6 py-3.5">Live Status</th>
-                <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
+                {(user?.role === 'doctor' || user?.role === 'admin') && (
+                  <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -508,14 +514,16 @@ export const Patients: React.FC = () => {
                         {liveStatus}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handlePatientClick(p.id)}
-                        className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
-                      >
-                        <Eye className="h-3 w-3" /> EMR File
-                      </button>
-                    </td>
+                    {(user?.role === 'doctor' || user?.role === 'admin') && (
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handlePatientClick(p.id)}
+                          className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
+                        >
+                          <Eye className="h-3 w-3" /> EMR File
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
