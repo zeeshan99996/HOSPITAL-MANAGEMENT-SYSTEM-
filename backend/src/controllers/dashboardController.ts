@@ -26,11 +26,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     const activeAdmissions = await Admission.count({ where: { status: 'admitted' } });
     
-    // Live Doctor Token Queue Monitor
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    // Live Doctor Token Queue Monitor (Strict 12:00 AM Midnight Reset)
+    const now = new Date();
+    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
+    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
 
     const doctorsList = await Doctor.findAll({
       include: [

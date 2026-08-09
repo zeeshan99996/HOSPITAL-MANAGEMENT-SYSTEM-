@@ -42,6 +42,10 @@ export const Reports: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
 
+  // Month & Year Selector State
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+
   // Filter & Category State
   const [reportCategory, setReportCategory] = useState('summary');
   const [startDate, setStartDate] = useState(() => {
@@ -51,6 +55,19 @@ export const Reports: React.FC = () => {
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleMonthYearChange = (month: number, year: number) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+
+    const monthStr = String(month).padStart(2, '0');
+    const firstDayStr = `${year}-${monthStr}-01`;
+    const lastDayNum = new Date(year, month, 0).getDate();
+    const lastDayStr = `${year}-${monthStr}-${String(lastDayNum).padStart(2, '0')}`;
+
+    setStartDate(firstDayStr);
+    setEndDate(lastDayStr);
+  };
 
   const fetchReportsData = async () => {
     setLoading(true);
@@ -79,9 +96,11 @@ export const Reports: React.FC = () => {
     fetchReportsData();
   }, []);
 
-  // Dates Formatting Helpers
-  const todayStr = new Date().toISOString().split('T')[0];
-  const thisMonthStr = todayStr.substring(0, 7);
+  // Dates Formatting Helpers (Strict Local Date Reset)
+  const localNow = new Date();
+  const todayStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+  const targetMonthStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+  const selectedMonthName = new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('en-US', { month: 'long' });
 
   // ----------------------------------------------------
   // TODAY'S (DAILY) CALCULATIONS
@@ -110,24 +129,24 @@ export const Reports: React.FC = () => {
   }, 0);
 
   // ----------------------------------------------------
-  // MONTHLY (THIS MONTH) CALCULATIONS
+  // MONTHLY (SELECTED MONTH & YEAR) CALCULATIONS
   // ----------------------------------------------------
-  const monthTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(thisMonthStr)).map(t => Number(t.patientId)));
+  const monthTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(targetMonthStr)).map(t => Number(t.patientId)));
   const monthPatientsList = patients.filter(p => {
-    const isMonth = p.createdAt && p.createdAt.startsWith(thisMonthStr);
+    const isMonth = p.createdAt && p.createdAt.startsWith(targetMonthStr);
     return isMonth || monthTokenPatientIds.has(Number(p.id));
   });
   const monthOpdCount = monthPatientsList.length;
 
-  const monthAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(thisMonthStr));
+  const monthAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(targetMonthStr));
   const monthIpdCount = monthAdmissionsList.length;
 
-  const monthInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(thisMonthStr));
+  const monthInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(targetMonthStr));
   const monthInvoicePaid = monthInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
   const monthRegistrationPaid = monthPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
   const monthRevenue = monthInvoicePaid + monthRegistrationPaid;
 
-  const monthExpensesList = expenses.filter(e => e.expenseDate && e.expenseDate.startsWith(thisMonthStr));
+  const monthExpensesList = expenses.filter(e => e.expenseDate && e.expenseDate.startsWith(targetMonthStr));
   const monthExpensesTotal = monthExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
   const monthUnpaidDue = monthInvoices.reduce((acc, inv) => {
@@ -509,14 +528,54 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* SECTION 2: MONTHLY (THIS MONTH'S) SUMMARY CARDS      */}
+      {/* SECTION 2: MONTHLY (SELECTED MONTH & YEAR) SUMMARY  */}
       {/* ---------------------------------------------------- */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-brand-500" /> Monthly Summary ({new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })})
-          </span>
-          <Badge type="info">Monthly Overview</Badge>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3 bg-slate-100/80 dark:bg-dark-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-850">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-brand-500" />
+            <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+              Monthly Summary ({selectedMonthName.toUpperCase()} {selectedYear})
+            </span>
+          </div>
+
+          {/* Month & Year Selectors */}
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Select Month/Year:</span>
+            <select
+              value={selectedMonth}
+              onChange={e => handleMonthYearChange(Number(e.target.value), selectedYear)}
+              className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
+            >
+              {[
+                { val: 1, name: 'January' },
+                { val: 2, name: 'February' },
+                { val: 3, name: 'March' },
+                { val: 4, name: 'April' },
+                { val: 5, name: 'May' },
+                { val: 6, name: 'June' },
+                { val: 7, name: 'July' },
+                { val: 8, name: 'August' },
+                { val: 9, name: 'September' },
+                { val: 10, name: 'October' },
+                { val: 11, name: 'November' },
+                { val: 12, name: 'December' },
+              ].map(m => (
+                <option key={m.val} value={m.val}>{m.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={e => handleMonthYearChange(selectedMonth, Number(e.target.value))}
+              className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
+            >
+              {[2024, 2025, 2026, 2027, 2028].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <Badge type="info">{selectedMonthName} {selectedYear}</Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
