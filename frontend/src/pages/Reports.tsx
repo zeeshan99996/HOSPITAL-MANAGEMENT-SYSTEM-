@@ -1,197 +1,726 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { apiClient } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { Card, Button, Badge } from '../components/UI';
-import { Download, FileText, Calendar, Filter, Printer, Database } from 'lucide-react';
+import {
+  Download, FileText, Calendar, Filter, Printer,
+  Users, BedDouble, DollarSign, TrendingUp, TrendingDown,
+  Coffee, AlertCircle, Sparkles, Receipt, Activity, Clock
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, AreaChart, Area, Legend
+} from 'recharts';
 
 export const Reports: React.FC = () => {
-  const [reportType, setReportType] = useState('billing');
-  const [startDate, setStartDate] = useState('2026-07-01');
-  const [endDate, setEndDate] = useState('2026-07-31');
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
 
-  // Static/Mock report records matching receptionist scopes
-  const reportsData: Record<string, any[]> = {
-    registrations: [
-      { id: 1, date: '2026-07-13', patient: 'Alice Brown', mrn: 'MR-2026-0001', gender: 'Female', phone: '555-0199', registrar: 'Emily Davis' },
-      { id: 2, date: '2026-07-13', patient: 'Bob Jackson', mrn: 'MR-2026-0002', gender: 'Male', phone: '555-888-9999', registrar: 'Emily Davis' },
-      { id: 3, date: '2026-07-12', patient: 'Charlie Green', mrn: 'MR-2026-0003', gender: 'Male', phone: '555-1234', registrar: 'Emily Davis' }
-    ],
-    appointments: [
-      { id: 1, date: '2026-07-13', patient: 'Alice Brown', doctor: 'Dr. Jane Smith', department: 'Cardiology', time: '10:00 AM', status: 'completed' },
-      { id: 2, date: '2026-07-13', patient: 'Bob Jackson', doctor: 'Dr. Jane Smith', department: 'Cardiology', time: '11:30 AM', status: 'pending' },
-      { id: 3, date: '2026-07-13', patient: 'Charlie Green', doctor: 'Dr. Jane Smith', department: 'Cardiology', time: '02:00 PM', status: 'cancelled' }
-    ],
-    billing: [
-      { id: 1, date: '2026-07-13', invoice: 'INV-2026-101', patient: 'Alice Brown', amount: 650.00, method: 'Cash', status: 'paid' },
-      { id: 2, date: '2026-07-13', invoice: 'INV-2026-102', patient: 'Bob Jackson', amount: 150.00, method: 'Card', status: 'unpaid' },
-      { id: 3, date: '2026-07-12', invoice: 'INV-2026-103', patient: 'Charlie Green', amount: 500.00, method: 'Online', status: 'paid' }
-    ]
+  // Raw API Data
+  const [patients, setPatients] = useState<any[]>([]);
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [admissions, setAdmissions] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+
+  // Filter & Category State
+  const [reportCategory, setReportCategory] = useState('summary');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1); // First day of current month
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchReportsData = async () => {
+    setLoading(true);
+    try {
+      const [patientsRes, tokensRes, admissionsRes, invoicesRes, expensesRes] = await Promise.all([
+        apiClient.get('/patients').catch(() => []),
+        apiClient.get('/tokens').catch(() => []),
+        apiClient.get('/admissions').catch(() => []),
+        apiClient.get('/invoices').catch(() => []),
+        apiClient.get('/expenses').catch(() => [])
+      ]);
+
+      setPatients(Array.isArray(patientsRes) ? patientsRes : (patientsRes?.patients || []));
+      setTokens(Array.isArray(tokensRes) ? tokensRes : []);
+      setAdmissions(Array.isArray(admissionsRes) ? admissionsRes : []);
+      setInvoices(Array.isArray(invoicesRes) ? invoicesRes : []);
+      setExpenses(Array.isArray(expensesRes) ? expensesRes : []);
+    } catch (err) {
+      console.error('Error fetching reports data', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchReportsData();
+  }, []);
+
+  // Dates Formatting Helpers
+  const todayStr = new Date().toISOString().split('T')[0];
+  const thisMonthStr = todayStr.substring(0, 7);
+
+  // ----------------------------------------------------
+  // TODAY'S (DAILY) CALCULATIONS
+  // ----------------------------------------------------
+  const todayTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(todayStr)).map(t => Number(t.patientId)));
+  const todayPatientsList = patients.filter(p => {
+    const isToday = p.createdAt && p.createdAt.startsWith(todayStr);
+    return isToday || todayTokenPatientIds.has(Number(p.id));
+  });
+  const todayOpdCount = todayPatientsList.length;
+
+  const todayAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(todayStr));
+  const todayIpdCount = todayAdmissionsList.length;
+
+  const todayInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(todayStr));
+  const todayInvoicePaid = todayInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
+  const todayRegistrationPaid = todayPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
+  const todayRevenue = todayInvoicePaid + todayRegistrationPaid;
+
+  const todayExpensesList = expenses.filter(e => e.expenseDate === todayStr);
+  const todayExpensesTotal = todayExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+  const todayUnpaidDue = todayInvoices.reduce((acc, inv) => {
+    const due = Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0);
+    return acc + Math.max(0, due);
+  }, 0);
+
+  // ----------------------------------------------------
+  // MONTHLY (THIS MONTH) CALCULATIONS
+  // ----------------------------------------------------
+  const monthTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(thisMonthStr)).map(t => Number(t.patientId)));
+  const monthPatientsList = patients.filter(p => {
+    const isMonth = p.createdAt && p.createdAt.startsWith(thisMonthStr);
+    return isMonth || monthTokenPatientIds.has(Number(p.id));
+  });
+  const monthOpdCount = monthPatientsList.length;
+
+  const monthAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(thisMonthStr));
+  const monthIpdCount = monthAdmissionsList.length;
+
+  const monthInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(thisMonthStr));
+  const monthInvoicePaid = monthInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
+  const monthRegistrationPaid = monthPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
+  const monthRevenue = monthInvoicePaid + monthRegistrationPaid;
+
+  const monthExpensesList = expenses.filter(e => e.expenseDate && e.expenseDate.startsWith(thisMonthStr));
+  const monthExpensesTotal = monthExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+  const monthUnpaidDue = monthInvoices.reduce((acc, inv) => {
+    const due = Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0);
+    return acc + Math.max(0, due);
+  }, 0);
+
+  // ----------------------------------------------------
+  // GRAPH DATA SETUP
+  // ----------------------------------------------------
+  const financialComparisonData = [
+    {
+      name: 'Today',
+      'Revenue Collected': todayRevenue,
+      'Clinic Expenses': todayExpensesTotal,
+      'Pending Balance Due': todayUnpaidDue
+    },
+    {
+      name: 'This Month',
+      'Revenue Collected': monthRevenue,
+      'Clinic Expenses': monthExpensesTotal,
+      'Pending Balance Due': monthUnpaidDue
+    }
+  ];
+
+  // Daily Trends for last 7 days
+  const last7DaysData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().split('T')[0];
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    const dayOpd = patients.filter(p => p.createdAt && p.createdAt.startsWith(dateStr)).length;
+    const dayIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(dateStr)).length;
+    const dayRev = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(dateStr)).reduce((a, b) => a + Number(b.paidAmount || 0), 0);
+    const dayExp = expenses.filter(e => e.expenseDate === dateStr).reduce((a, b) => a + Number(b.amount || 0), 0);
+
+    return {
+      day: dayLabel,
+      'OPD Patients': dayOpd,
+      'IPD Admissions': dayIpd,
+      'Revenue (Rs.)': dayRev,
+      'Expenses (Rs.)': dayExp
+    };
+  });
+
+  // ----------------------------------------------------
+  // FILTERED TABLE REGISTER DATA
+  // ----------------------------------------------------
+  const getFilteredRecords = () => {
+    let records: any[] = [];
+
+    if (reportCategory === 'billing') {
+      records = invoices.map(inv => ({
+        id: `INV-#${inv.id}`,
+        date: inv.createdAt ? inv.createdAt.split('T')[0] : 'N/A',
+        particulars: `Patient Invoice #${inv.id}`,
+        patientName: inv.patient?.name || `Patient #${inv.patientId}`,
+        mrn: inv.patient?.mrNumber || 'MR-N/A',
+        category: 'Billing Invoice',
+        amount: Number(inv.grandTotal || 0),
+        paidAmount: Number(inv.paidAmount || 0),
+        dueAmount: Math.max(0, Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0)),
+        status: inv.status || 'unpaid'
+      }));
+    } else if (reportCategory === 'expenses') {
+      records = expenses.map(e => ({
+        id: `EXP-#${e.id}`,
+        date: e.expenseDate,
+        particulars: e.description,
+        patientName: e.spentBy || 'Staff',
+        mrn: '-',
+        category: e.category || 'Clinic Expense',
+        amount: Number(e.amount || 0),
+        paidAmount: Number(e.amount || 0),
+        dueAmount: 0,
+        status: 'completed'
+      }));
+    } else if (reportCategory === 'pending') {
+      records = invoices.filter(inv => Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0) > 0).map(inv => ({
+        id: `DUE-#${inv.id}`,
+        date: inv.createdAt ? inv.createdAt.split('T')[0] : 'N/A',
+        particulars: `Pending Balance Invoice #${inv.id}`,
+        patientName: inv.patient?.name || `Patient #${inv.patientId}`,
+        mrn: inv.patient?.mrNumber || 'MR-N/A',
+        category: 'Unpaid Balance',
+        amount: Number(inv.grandTotal || 0),
+        paidAmount: Number(inv.paidAmount || 0),
+        dueAmount: Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0),
+        status: 'UNPAID'
+      }));
+    } else if (reportCategory === 'intake') {
+      records = patients.map(p => ({
+        id: `PAT-#${p.id}`,
+        date: p.createdAt ? p.createdAt.split('T')[0] : 'N/A',
+        particulars: `Patient Intake & OPD Registration`,
+        patientName: p.name,
+        mrn: p.mrNumber || 'MR-N/A',
+        category: 'OPD Patient',
+        amount: Number(p.paymentAmount || 100),
+        paidAmount: Number(p.paymentAmount || 100),
+        dueAmount: 0,
+        status: 'registered'
+      }));
+    } else {
+      // Summary / All Records
+      records = [
+        ...invoices.map(inv => ({
+          id: `INV-#${inv.id}`,
+          date: inv.createdAt ? inv.createdAt.split('T')[0] : 'N/A',
+          particulars: `Billing Invoice #${inv.id}`,
+          patientName: inv.patient?.name || `Patient #${inv.patientId}`,
+          mrn: inv.patient?.mrNumber || 'MR-N/A',
+          category: 'Billing',
+          amount: Number(inv.grandTotal || 0),
+          paidAmount: Number(inv.paidAmount || 0),
+          dueAmount: Math.max(0, Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0)),
+          status: inv.status
+        })),
+        ...expenses.map(e => ({
+          id: `EXP-#${e.id}`,
+          date: e.expenseDate,
+          particulars: e.description,
+          patientName: e.spentBy || 'Staff',
+          mrn: '-',
+          category: 'Expense',
+          amount: Number(e.amount || 0),
+          paidAmount: Number(e.amount || 0),
+          dueAmount: 0,
+          status: 'expense'
+        }))
+      ];
+    }
+
+    return records.filter(r => {
+      const matchesDate = (!startDate || r.date >= startDate) && (!endDate || r.date <= endDate);
+      const matchesQuery = r.particulars.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           r.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           r.mrn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           r.id.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesDate && matchesQuery;
+    });
+  };
+
+  const filteredRecords = getFilteredRecords();
+
+  // Export Handlers
   const handleExportCSV = () => {
-    alert(`CSV Data file successfully compiled and dispatched to download directory: hms_report_${reportType}.csv`);
+    if (filteredRecords.length === 0) {
+      alert('No report records to export.');
+      return;
+    }
+    const headers = 'ID,Date,Particulars,Patient/Staff,MRN,Category,Total Amount,Paid Amount,Due Amount,Status\n';
+    const rows = filteredRecords.map(r => 
+      `"${r.id}","${r.date}","${r.particulars}","${r.patientName}","${r.mrn}","${r.category}",${r.amount},${r.paidAmount},${r.dueAmount},"${r.status}"`
+    ).join('\n');
+
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hospital_report_${reportCategory}_${startDate}_to_${endDate}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleExportPDF = () => {
-    alert(`PDF Report successfully formatted and compiled: hms_report_${reportType}.pdf`);
-  };
+    const printWindow = window.open('', '_blank', 'width=850,height=900');
+    if (!printWindow) {
+      alert('Pop-up window blocked. Please allow pop-ups for LifeFlow EMR to print executive reports.');
+      return;
+    }
 
-  const currentReport = reportsData[reportType] || [];
+    const tableRows = filteredRecords.map(r => `
+      <tr>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: bold;">${r.id}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${r.date}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;"><strong>${r.particulars}</strong></td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">${r.patientName} (${r.mrn})</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: center;"><span style="font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #f1f5f9; font-size: 10px;">${r.category}</span></td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold;">Rs. ${Number(r.amount).toLocaleString()}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #16a34a; font-weight: bold;">Rs. ${Number(r.paidAmount).toLocaleString()}</td>
+        <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: ${r.dueAmount > 0 ? '#dc2626' : '#16a34a'}; font-weight: bold;">Rs. ${Number(r.dueAmount).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Executive Operational Report - ${startDate} to ${endDate}</title>
+        <style>
+          @page { size: auto; margin: 12mm; }
+          body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 20px; max-width: 800px; margin: 0 auto; }
+          .header { border-bottom: 3px solid #0284c7; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .title { font-size: 22px; font-weight: 900; color: #0284c7; }
+          .subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
+          .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+          .kpi-card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #f8fafc; text-align: center; }
+          .kpi-title { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+          .kpi-val { font-size: 16px; font-weight: 900; color: #0f172a; margin-top: 4px; }
+          .table-report { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+          .table-report th { background: #f1f5f9; color: #334155; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 8px; text-align: left; border-bottom: 2px solid #cbd5e1; }
+          .footer { margin-top: 30px; border-top: 1px dashed #cbd5e1; padding-top: 12px; font-size: 10px; text-align: center; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">LIFEFLOW MEDICAL CENTER</div>
+            <div class="subtitle">Operational & Financial Analytics Executive Report</div>
+          </div>
+          <div style="text-align: right; font-size: 11px;">
+            <div>Report Date: <strong>${new Date().toLocaleDateString()}</strong></div>
+            <div>Period: <strong>${startDate} to ${endDate}</strong></div>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-title">Today's OPD / IPD</div>
+            <div class="kpi-val">${todayOpdCount} OPD • ${todayIpdCount} IPD</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Today's Revenue</div>
+            <div class="kpi-val" style="color: #16a34a;">Rs. ${todayRevenue.toLocaleString()}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Today's Expenses</div>
+            <div class="kpi-val" style="color: #d97706;">Rs. ${todayExpensesTotal.toLocaleString()}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Today's Pending Due</div>
+            <div class="kpi-val" style="color: #dc2626;">Rs. ${todayUnpaidDue.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div class="kpi-grid" style="margin-top: -10px;">
+          <div class="kpi-card">
+            <div class="kpi-title">Monthly OPD / IPD</div>
+            <div class="kpi-val">${monthOpdCount} OPD • ${monthIpdCount} IPD</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Monthly Revenue</div>
+            <div class="kpi-val" style="color: #16a34a;">Rs. ${monthRevenue.toLocaleString()}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Monthly Expenses</div>
+            <div class="kpi-val" style="color: #d97706;">Rs. ${monthExpensesTotal.toLocaleString()}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Monthly Pending Due</div>
+            <div class="kpi-val" style="color: #dc2626;">Rs. ${monthUnpaidDue.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <table class="table-report">
+          <thead>
+            <tr>
+              <th>Ref ID</th>
+              <th>Date</th>
+              <th>Particulars</th>
+              <th>Patient / Staff</th>
+              <th style="text-align: center;">Category</th>
+              <th style="text-align: right;">Total (Rs.)</th>
+              <th style="text-align: right;">Paid (Rs.)</th>
+              <th style="text-align: right;">Due (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Official Computer Generated Executive Summary Report • LifeFlow EMR System
+        </div>
+
+        <script>
+          window.onload = function() { window.print(); setTimeout(function(){ window.close(); }, 500); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <FileText className="h-5 w-5 text-brand-500" /> Operational Reporting Desk
+            <FileText className="h-6 w-6 text-brand-500" /> Operational & Financial Reporting Desk
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Compile front desk statistics, registration tallies, and bill logs.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Real-time daily & monthly executive stats, patient volume tallies, revenue collections, clinic expenses, and outstanding balance ledgers.
+          </p>
         </div>
+
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button onClick={handleExportCSV} variant="secondary" className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center">
+          <Button onClick={handleExportCSV} variant="secondary" className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center shadow-sm">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
-          <Button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center">
-            <Printer className="h-4 w-4" /> Export PDF
+          <Button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center shadow-sm">
+            <Printer className="h-4 w-4" /> Export / Print Report
           </Button>
         </div>
       </div>
 
-      {/* Filter panel */}
-      <Card className="p-4 flex flex-col sm:flex-row gap-4 items-end bg-white dark:bg-dark-900 border border-slate-200/60 dark:border-slate-850 shadow-sm">
-        <div className="flex-1 w-full">
-          <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Report Category</label>
-          <select
-            value={reportType}
-            onChange={e => setReportType(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
-          >
-            <option value="billing">Daily Billing Collection Log</option>
-          </select>
+      {/* ---------------------------------------------------- */}
+      {/* SECTION 1: DAILY (TODAY'S) EXECUTIVE SUMMARY CARDS   */}
+      {/* ---------------------------------------------------- */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+            <Clock className="h-4 w-4 text-brand-500" /> Today's Real-Time Daily Summary ({new Date().toLocaleDateString()})
+          </span>
+          <Badge type="info">Daily Realtime</Badge>
         </div>
 
-        <div className="w-full sm:w-auto">
-          <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">From Date</label>
-          <div className="relative">
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 pl-9 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900"
-            />
-            <Calendar className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Today OPD Patients */}
+          <Card className="p-3.5 border border-brand-500/20 bg-gradient-to-br from-white to-brand-500/[0.03] dark:from-dark-900 dark:to-dark-950">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today OPD Patients</span>
+              <Users className="h-4 w-4 text-brand-500" />
+            </div>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-2 block font-mono">{todayOpdCount}</span>
+            <span className="text-[10px] text-slate-400 mt-1 block">OPD consultations today</span>
+          </Card>
+
+          {/* Today IPD Admissions */}
+          <Card className="p-3.5 border border-purple-500/20 bg-gradient-to-br from-white to-purple-500/[0.03] dark:from-dark-900 dark:to-dark-950">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today IPD Admit</span>
+              <BedDouble className="h-4 w-4 text-purple-500" />
+            </div>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-2 block font-mono">{todayIpdCount}</span>
+            <span className="text-[10px] text-slate-400 mt-1 block">Ward bed admissions today</span>
+          </Card>
+
+          {/* Today Revenue Collected */}
+          <Card className="p-3.5 border border-emerald-500/20 bg-gradient-to-br from-white to-emerald-500/[0.03] dark:from-dark-900 dark:to-dark-950">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today Revenue</span>
+              <TrendingUp className="h-4 w-4 text-emerald-500" />
+            </div>
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2 block font-mono">
+              Rs. {todayRevenue.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-emerald-500 mt-1 block font-semibold">Cash collected today</span>
+          </Card>
+
+          {/* Today Clinic Expenses */}
+          <Card className="p-3.5 border border-amber-500/20 bg-gradient-to-br from-white to-amber-500/[0.03] dark:from-dark-900 dark:to-dark-950">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today Expenses</span>
+              <Coffee className="h-4 w-4 text-amber-500" />
+            </div>
+            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-2 block font-mono">
+              Rs. {todayExpensesTotal.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-amber-500 mt-1 block font-semibold">Petty cash spent today</span>
+          </Card>
+
+          {/* Today Pending Due Balance */}
+          <Card className="p-3.5 border border-rose-500/20 bg-gradient-to-br from-white to-rose-500/[0.03] dark:from-dark-900 dark:to-dark-950">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today Pending Due</span>
+              <TrendingDown className="h-4 w-4 text-rose-500" />
+            </div>
+            <span className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-2 block font-mono">
+              Rs. {todayUnpaidDue.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-rose-500 mt-1 block font-semibold">Uncollected balance today</span>
+          </Card>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------- */}
+      {/* SECTION 2: MONTHLY (THIS MONTH'S) SUMMARY CARDS      */}
+      {/* ---------------------------------------------------- */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-brand-500" /> Monthly Summary ({new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })})
+          </span>
+          <Badge type="info">Monthly Overview</Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Monthly OPD Patients */}
+          <Card className="p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Monthly OPD Patients</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-2 block font-mono">{monthOpdCount}</span>
+            <span className="text-[10px] text-slate-400 mt-1 block">Total OPD visits this month</span>
+          </Card>
+
+          {/* Monthly IPD Admissions */}
+          <Card className="p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Monthly IPD Admit</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-white mt-2 block font-mono">{monthIpdCount}</span>
+            <span className="text-[10px] text-slate-400 mt-1 block">Total ward admissions this month</span>
+          </Card>
+
+          {/* Monthly Revenue Collected */}
+          <Card className="p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Monthly Revenue</span>
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2 block font-mono">
+              Rs. {monthRevenue.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-emerald-500 mt-1 block font-semibold">Total cash collected this month</span>
+          </Card>
+
+          {/* Monthly Expenses Total */}
+          <Card className="p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Monthly Expenses</span>
+            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-2 block font-mono">
+              Rs. {monthExpensesTotal.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-amber-500 mt-1 block font-semibold">Total clinic expenses this month</span>
+          </Card>
+
+          {/* Monthly Pending Due Balance */}
+          <Card className="p-3.5 border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Monthly Pending Due</span>
+            <span className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-2 block font-mono">
+              Rs. {monthUnpaidDue.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-rose-500 mt-1 block font-semibold">Total outstanding due balance</span>
+          </Card>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------- */}
+      {/* SECTION 3: VISUAL ANALYTICS & INTERACTIVE CHARTS     */}
+      {/* ---------------------------------------------------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chart 1: Financial Comparison (Revenue vs Expenses vs Pending Due) */}
+        <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-500" /> Financial Analytics Comparison
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-0.5">Compare Revenue Collected vs Clinic Expenses vs Pending Due Balances</p>
+            </div>
+            <Badge type="info">Financial Graph</Badge>
+          </div>
+
+          <div className="h-64 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={financialComparisonData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 'bold' }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
+                  formatter={(value: any) => [`Rs. ${Number(value).toLocaleString()}`, '']}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Bar dataKey="Revenue Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Clinic Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Pending Balance Due" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Chart 2: Daily Patient Volume & Financial Trend */}
+        <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Activity className="h-4 w-4 text-brand-500" /> 7-Day Patient Volume & Revenue Trend
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-0.5">Daily trend analysis of OPD visits, IPD admissions, and revenue</p>
+            </div>
+            <Badge type="info">Volume Trend</Badge>
+          </div>
+
+          <div className="h-64 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={last7DaysData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0284c7" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#0284c7" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Area type="monotone" dataKey="Revenue (Rs.)" stroke="#0284c7" fillOpacity={1} fill="url(#colorRev)" />
+                <Area type="monotone" dataKey="Expenses (Rs.)" stroke="#f59e0b" fillOpacity={1} fill="url(#colorExp)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+
+      {/* ---------------------------------------------------- */}
+      {/* SECTION 4: FILTERABLE REPORTS REGISTER TABLE         */}
+      {/* ---------------------------------------------------- */}
+      <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+        {/* Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-4 items-end justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="w-full md:w-72">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Report Category</label>
+            <select
+              value={reportCategory}
+              onChange={e => setReportCategory(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="summary">📊 Daily & Monthly Executive Summary</option>
+              <option value="billing">💵 Daily Billing Collection Log</option>
+              <option value="expenses">☕ Daily & Monthly Clinic Expenses Log</option>
+              <option value="pending">📉 Outstanding Pending Balances Ledger</option>
+              <option value="intake">📋 Patient Registration & Intake Log</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-end">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">From Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">To Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Search</label>
+              <input
+                type="text"
+                placeholder="Search ref ID, patient, MRN..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-semibold"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="w-full sm:w-auto">
-          <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">To Date</label>
-          <div className="relative">
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 pl-9 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900"
-            />
-            <Calendar className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-          </div>
-        </div>
-
-        <Button variant="secondary" className="w-full sm:w-auto flex items-center gap-1 !py-2.5 justify-center">
-          <Filter className="h-3.5 w-3.5" /> Apply
-        </Button>
-      </Card>
-
-      {/* Reports Table Grid */}
-      <Card className="p-0 overflow-hidden border border-slate-200/60 dark:border-slate-850 shadow-sm">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-dark-950/20 flex justify-between items-center">
-          <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
-            <Database className="h-4 w-4 text-brand-500" /> Compiled Records ({currentReport.length})
-          </h3>
-          <span className="text-[10px] text-slate-450 dark:text-slate-550 font-semibold">{startDate} to {endDate}</span>
-        </div>
-
-        <div className="overflow-x-auto">
+        {/* Table Content */}
+        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
           <table className="w-full text-left text-xs border-collapse">
-            {reportType === 'billing' && (
-              <>
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px]">
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">Invoice ID</th>
-                    <th className="px-5 py-3">Patient</th>
-                    <th className="px-5 py-3">Amount</th>
-                    <th className="px-5 py-3">Method</th>
-                    <th className="px-5 py-3">Status</th>
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/60 dark:bg-dark-950/60 text-slate-450 uppercase tracking-wider text-[10px] font-bold">
+                <th className="px-4 py-3">Ref ID</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Particulars / Details</th>
+                <th className="px-4 py-3">Patient / Staff</th>
+                <th className="px-4 py-3 text-center">Category</th>
+                <th className="px-4 py-3 text-right">Total (Rs.)</th>
+                <th className="px-4 py-3 text-right">Paid (Rs.)</th>
+                <th className="px-4 py-3 text-right">Due (Rs.)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400">Loading operational report data...</td>
+                </tr>
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400">No report records found matching the selected date range and filter criteria.</td>
+                </tr>
+              ) : (
+                filteredRecords.map((row: any, idx: number) => (
+                  <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 transition-colors text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">{row.id}</td>
+                    <td className="px-4 py-3 font-mono text-slate-500 whitespace-nowrap">{row.date}</td>
+                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.particulars}</td>
+                    <td className="px-4 py-3 font-semibold">
+                      {row.patientName} <span className="text-[10px] text-slate-400 block font-mono">{row.mrn}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-dark-900 text-slate-700 dark:text-slate-300">
+                        {row.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold">Rs. {Number(row.amount).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">Rs. {Number(row.paidAmount).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                      Rs. {Number(row.dueAmount).toLocaleString()}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                  {currentReport.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
-                      <td className="px-5 py-3.5">{r.date}</td>
-                      <td className="px-5 py-3.5 font-bold font-mono">{r.invoice}</td>
-                      <td className="px-5 py-3.5">{r.patient}</td>
-                      <td className="px-5 py-3.5 font-mono">Rs. {r.amount.toFixed(2)}</td>
-                      <td className="px-5 py-3.5">{r.method}</td>
-                      <td className="px-5 py-3.5"><Badge type={r.status === 'paid' ? 'success' : 'warning'}>{r.status.toUpperCase()}</Badge></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </>
-            )}
-
-            {reportType === 'registrations' && (
-              <>
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px]">
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">MRN Number</th>
-                    <th className="px-5 py-3">Patient Name</th>
-                    <th className="px-5 py-3">Gender</th>
-                    <th className="px-5 py-3">Phone</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                  {currentReport.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
-                      <td className="px-5 py-3.5">{r.date}</td>
-                      <td className="px-5 py-3.5 font-bold font-mono">{r.mrn}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-100">{r.patient}</td>
-                      <td className="px-5 py-3.5">{r.gender}</td>
-                      <td className="px-5 py-3.5">{r.phone}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </>
-            )}
-
-            {reportType === 'appointments' && (
-              <>
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px]">
-                    <th className="px-5 py-3">Date</th>
-                    <th className="px-5 py-3">Patient Name</th>
-                    <th className="px-5 py-3">Physician</th>
-                    <th className="px-5 py-3">Department</th>
-                    <th className="px-5 py-3">Time</th>
-                    <th className="px-5 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                  {currentReport.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
-                      <td className="px-5 py-3.5">{r.date}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-100">{r.patient}</td>
-                      <td className="px-5 py-3.5">{r.doctor}</td>
-                      <td className="px-5 py-3.5">{r.department}</td>
-                      <td className="px-5 py-3.5 font-mono">{r.time}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge type={r.status === 'completed' ? 'success' : r.status === 'cancelled' ? 'error' : 'warning'}>
-                          {r.status.toUpperCase()}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </>
-            )}
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </Card>
