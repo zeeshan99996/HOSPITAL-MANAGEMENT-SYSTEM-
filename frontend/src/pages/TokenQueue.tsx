@@ -92,7 +92,7 @@ export const TokenQueue: React.FC = () => {
           </style>
         </head>
         <body>
-          <div class="text-center hospital-name">LIFEFLOW MEDICAL CENTER</div>
+          <div class="text-center hospital-name">DR. TALHA CLINIC</div>
           <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
           <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
           
@@ -114,7 +114,7 @@ export const TokenQueue: React.FC = () => {
           <div class="divider"></div>
 
           <div class="footer-text">
-            THANK YOU FOR VISITING LIFEFLOW MEDICAL CENTER<br/>
+            THANK YOU FOR VISITING DR. TALHA CLINIC<br/>
             PLEASE RETAIN THIS TOKEN SLIP FOR YOUR TURN
           </div>
 

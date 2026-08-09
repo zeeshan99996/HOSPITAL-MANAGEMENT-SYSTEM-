@@ -128,7 +128,7 @@ export const ClinicExpenses: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <div class="title">LIFEFLOW MEDICAL CENTER</div>
+          <div class="title">DR. TALHA CLINIC</div>
           <div class="subtitle">PETTY CASH & CLINIC EXPENSE VOUCHER</div>
         </div>
 

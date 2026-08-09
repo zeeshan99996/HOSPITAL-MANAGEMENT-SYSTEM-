@@ -337,7 +337,7 @@ export const Reports: React.FC = () => {
       <body>
         <div class="header">
           <div>
-            <div class="title">LIFEFLOW MEDICAL CENTER</div>
+            <div class="title">DR. TALHA CLINIC</div>
             <div class="subtitle">Operational & Financial Analytics Executive Report</div>
           </div>
           <div style="text-align: right; font-size: 11px;">

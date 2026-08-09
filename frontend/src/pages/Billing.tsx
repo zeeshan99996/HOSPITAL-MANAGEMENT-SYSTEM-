@@ -306,7 +306,7 @@ export const Billing: React.FC = () => {
         <table class="header-table">
           <tr>
             <td>
-              <div class="hospital-name">LIFEFLOW MEDICAL CENTER</div>
+              <div class="hospital-name">DR. TALHA CLINIC</div>
               <div class="hospital-sub">12-B, Main Boulevard, Gulberg III, Lahore, Pakistan</div>
               <div class="hospital-sub">UAN: (042) 35889900 | Helpline: 0311-6353044 | Tax NTN: 4920194-7</div>
             </td>
@@ -369,7 +369,7 @@ export const Billing: React.FC = () => {
         <div class="stamp-box">
           <div>
             <div style="font-weight: 700; color: #334155;">Issued By: Reception Desk Cashier</div>
-            <div>Thank you for choosing LifeFlow Medical Center.</div>
+            <div>Thank you for choosing Dr. Talha Clinic.</div>
           </div>
           <div class="stamp-line">Authorized Stamp & Sign</div>
         </div>
@@ -763,7 +763,7 @@ export const Billing: React.FC = () => {
             <div className="text-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex justify-center items-center gap-2 mb-1">
                 <HeartPulse className="h-6 w-6 text-brand-500" />
-                <h2 className="text-base font-extrabold tracking-tight">LifeFlow Medical Center</h2>
+                <h2 className="text-base font-extrabold tracking-tight">Dr. Talha Clinic</h2>
               </div>
               <p className="text-[10px] text-slate-500">Enterprise Hospital EMR & Diagnostic Billing Center</p>
               <p className="text-[9px] text-slate-400 font-mono">Date: {new Date().toLocaleString()}</p>
@@ -846,7 +846,7 @@ export const Billing: React.FC = () => {
             <div className="flex justify-between items-end pt-8 border-t border-slate-200 dark:border-slate-800 text-[10px]">
               <div>
                 <span className="block font-semibold">Issued By: Reception Desk Staff</span>
-                <span className="text-slate-400">Thank you for choosing LifeFlow Hospital.</span>
+                <span className="text-slate-400">Thank you for choosing Dr. Talha Clinic.</span>
               </div>
               <div className="text-center border-t border-slate-400 w-32 pt-1 font-semibold">
                 Authorized Stamp

@@ -69,7 +69,7 @@ export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose,
             </style>
           </head>
           <body onload="window.print(); window.close();">
-            <div class="center bold header">LIFEFLOW CLINIC</div>
+            <div class="center bold header">DR. TALHA CLINIC</div>
             <div class="center subheader">123 Health Ave, EMR City<br>Tel: +91 98765 43210</div>
             <div class="dashed-line"></div>
             <div class="center bold" style="font-size: 11px;">${typeLabel}</div>
@@ -100,7 +100,7 @@ export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose,
             
             <div class="dashed-line"></div>
             <div class="center footer bold">
-              Thank you for choosing LifeFlow.<br>
+              Thank you for choosing Dr. Talha Clinic.<br>
               Please wait for your token to be called.
             </div>
           </body>
@@ -138,7 +138,7 @@ export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose,
         {/* Paper Container Mockup */}
         <div className="p-6 bg-slate-50 dark:bg-slate-950 flex justify-center">
           <div className="w-[72mm] bg-white border border-slate-300 shadow-inner p-4 text-black text-xs font-mono select-none leading-normal">
-            <div className="text-center font-extrabold text-sm tracking-tight mb-0.5">LIFEFLOW CLINIC</div>
+            <div className="text-center font-extrabold text-sm tracking-tight mb-0.5">DR. TALHA CLINIC</div>
             <div className="text-center text-[9px] text-slate-500 font-bold leading-tight mb-2">
               123 Health Ave, EMR City<br />Tel: +91 98765 43210
             </div>
@@ -188,7 +188,7 @@ export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose,
 
             <div className="border-b border-dashed border-slate-400 my-2"></div>
             <div className="text-center text-[8px] font-bold text-slate-500 leading-tight mt-2">
-              Thank you for choosing LifeFlow.<br />
+              Thank you for choosing Dr. Talha Clinic.<br />
               Please wait for your token to be called.
             </div>
           </div>

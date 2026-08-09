@@ -206,7 +206,7 @@ export const OldPatient: React.FC = () => {
         </style>
       </head>
       <body>
-        <div class="text-center hospital-name">LIFEFLOW MEDICAL CENTER</div>
+        <div class="text-center hospital-name">DR. TALHA CLINIC</div>
         <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
         <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
         
@@ -230,7 +230,7 @@ export const OldPatient: React.FC = () => {
         <div class="divider"></div>
 
         <div class="footer-text">
-          THANK YOU FOR VISITING LIFEFLOW MEDICAL CENTER<br/>
+          THANK YOU FOR VISITING DR. TALHA CLINIC<br/>
           PLEASE RETAIN THIS TOKEN SLIP FOR YOUR TURN
         </div>
 
@@ -501,7 +501,7 @@ export const OldPatient: React.FC = () => {
           <div className="space-y-4 font-mono text-xs">
             <div className="p-5 bg-white text-slate-900 rounded-xl border border-slate-300 shadow-inner space-y-3 text-center">
               <div className="border-b border-slate-200 pb-2">
-                <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-900">LifeFlow Medical Center</h3>
+                <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-900">Dr. Talha Clinic</h3>
                 <p className="text-[10px] text-slate-500">Enterprise OPD Queue Ticket</p>
               </div>
 

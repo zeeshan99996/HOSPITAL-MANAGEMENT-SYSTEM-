@@ -11,7 +11,7 @@ export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'core' | 'areas' | 'payments'>('core');
 
   // Settings configs states
-  const [hospitalName, setHospitalName] = useState('LifeFlow Medical Center');
+  const [hospitalName, setHospitalName] = useState('Dr. Talha Clinic');
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(true);
   const [fileStorage, setFileStorage] = useState('local');
