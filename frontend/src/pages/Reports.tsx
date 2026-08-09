@@ -172,8 +172,24 @@ export const Reports: React.FC = () => {
   }, 0);
 
   // ----------------------------------------------------
-  // GRAPH 1: DAY-WISE TREND DATA FOR SELECTED MONTH & YEAR
+  // CHART DATA SETUP
   // ----------------------------------------------------
+  const financialComparisonData = [
+    {
+      name: `Today (${selectedDailyLabel})`,
+      'Revenue Collected': todayRevenue,
+      'Clinic Expenses': todayExpensesTotal,
+      'Pending Balance Due': todayUnpaidDue
+    },
+    {
+      name: `${selectedMonthName.substring(0, 3)} ${selectedYear}`,
+      'Revenue Collected': monthRevenue,
+      'Clinic Expenses': monthExpensesTotal,
+      'Pending Balance Due': monthUnpaidDue
+    }
+  ];
+
+  // Day-Wise Trends for Selected Month
   const daysInSelectedMonth = new Date(selectedYear, selectedMonth, 0).getDate();
   const dailyMonthTrendData = Array.from({ length: daysInSelectedMonth }).map((_, i) => {
     const dayNum = i + 1;
@@ -195,10 +211,10 @@ export const Reports: React.FC = () => {
 
     return {
       day: dayLabel,
-      'Revenue (Rs.)': dayRev,
-      'Expenses (Rs.)': dayExp,
       'OPD Patients': dayOpd,
-      'IPD Admissions': dayIpd
+      'IPD Admissions': dayIpd,
+      'Revenue (Rs.)': dayRev,
+      'Expenses (Rs.)': dayExp
     };
   });
 
@@ -730,64 +746,58 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* SECTION 3: VISUAL ANALYTICS & DUAL TREND CHARTS     */}
+      {/* SECTION 3: VISUAL ANALYTICS & DUAL SEPARATE CHARTS  */}
       {/* ---------------------------------------------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1: Day-Wise Trend Graph for Selected Month */}
+        {/* Chart 1: Financial Analytics Comparison (Bar Chart) */}
         <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-emerald-500" /> Day-Wise Trends ({selectedMonthName.toUpperCase()} {selectedYear})
+                <DollarSign className="h-4 w-4 text-emerald-500" /> Financial Analytics Comparison
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Daily breakdown for {selectedMonthName} {selectedYear} (Revenue & Expenses Bars + OPD & IPD Volume Lines)</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Compare Revenue Collected vs Clinic Expenses vs Pending Due Balances</p>
             </div>
-            <Badge type="info">Daily Graph ({selectedMonthName})</Badge>
+            <Badge type="info">Financial Bar Graph</Badge>
           </div>
 
-          <div className="h-72 w-full pt-2">
+          <div className="h-64 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dailyMonthTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <BarChart data={financialComparisonData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fontWeight: 'bold' }} interval={daysInSelectedMonth > 20 ? 1 : 0} />
-                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 'bold' }} />
+                <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
-                  formatter={(value: any, name: any) => [
-                    name.includes('Rs.') ? `Rs. ${Number(value).toLocaleString()}` : `${value} Patients`,
-                    name
-                  ]}
+                  formatter={(value: any) => [`Rs. ${Number(value).toLocaleString()}`, '']}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar yAxisId="left" dataKey="Revenue (Rs.)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="left" dataKey="Expenses (Rs.)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="right" type="monotone" dataKey="OPD Patients" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line yAxisId="right" type="monotone" dataKey="IPD Admissions" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 3 }} />
-              </ComposedChart>
+                <Bar dataKey="Revenue Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Clinic Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Pending Balance Due" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        {/* Chart 2: Month-Wise Trend Graph for Selected Year */}
+        {/* Chart 2: Day-Wise Patient Volume & Financial Trend (Line Chart) */}
         <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Activity className="h-4 w-4 text-brand-500" /> Month-Wise Annual Trends ({selectedYear})
+                <Activity className="h-4 w-4 text-brand-500" /> Patient Volume & Revenue Trend ({selectedMonthName} {selectedYear})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Monthly breakdown for all 12 months of {selectedYear} (Monthly Revenue & Expenses Bars + Monthly Patient Lines)</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Daily trend analysis of OPD visits, IPD admissions, and revenue</p>
             </div>
-            <Badge type="info">Annual Graph ({selectedYear})</Badge>
+            <Badge type="info">Patient Line Graph ({selectedMonthName})</Badge>
           </div>
 
-          <div className="h-72 w-full pt-2">
+          <div className="h-64 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={monthlyYearTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <LineChart data={dailyMonthTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fontWeight: 'bold' }} interval={daysInSelectedMonth > 20 ? 1 : 0} />
+                <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
                   formatter={(value: any, name: any) => [
@@ -796,11 +806,11 @@ export const Reports: React.FC = () => {
                   ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar yAxisId="left" dataKey="Revenue (Rs.)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="left" dataKey="Expenses (Rs.)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                <Line yAxisId="right" type="monotone" dataKey="OPD Patients" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 4 }} />
-                <Line yAxisId="right" type="monotone" dataKey="IPD Admissions" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 4 }} />
-              </ComposedChart>
+                <Line type="monotone" dataKey="OPD Patients" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="IPD Admissions" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="Revenue (Rs.)" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Expenses (Rs.)" stroke="#f59e0b" strokeWidth={2} dot={false} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
