@@ -55,6 +55,16 @@ const startServer = async () => {
     await sequelize.sync({ force: false });
     console.log('[Database] Models synchronized with the database.');
 
+    // Safe DB column migrations for PostgreSQL
+    try {
+      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "admissionCategory" VARCHAR DEFAULT 'medical';`);
+      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "stayType" VARCHAR DEFAULT 'short';`);
+      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "surgeryDetails" TEXT;`);
+      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "treatmentPlan" TEXT;`);
+    } catch (mErr) {
+      console.warn('[DB Migration Warning]:', mErr);
+    }
+
     // Seed mock data if empty
     await seedDatabase();
 

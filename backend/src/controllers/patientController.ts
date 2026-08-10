@@ -224,6 +224,13 @@ export const getAllPatients = async (req: Request, res: Response) => {
       console.warn('[getAllPatients] Association include fallback triggered:', includeErr);
       patients = await Patient.findAll({
         where: whereClause,
+        include: [
+          {
+            model: TokenQueue,
+            include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+            required: false
+          }
+        ],
         order: [['createdAt', 'DESC']],
       });
     }
