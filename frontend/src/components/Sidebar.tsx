@@ -139,12 +139,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const isDoctor = user.role === 'doctor';
   const isPharmacist = user.role === 'pharmacist';
   const isReceptionist = user.role === 'receptionist';
+  const isAccountant = user.role === 'accountant';
   const filteredItems = menuItems.filter(item => {
     if (isDoctor) {
       return item.path === '/dashboard';
     }
     if (isPharmacist) {
       return item.path === '/pharmacy';
+    }
+    if (isAccountant) {
+      return item.path === '/billing' || item.path === '/expenses';
     }
     if (isReceptionist) {
       const allowedPaths = [
