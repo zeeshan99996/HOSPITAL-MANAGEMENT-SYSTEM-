@@ -438,7 +438,7 @@ export const Patients: React.FC = () => {
                   const topToken = sortedTokens[0];
                   latestTokenNum = topToken.tokenNumber;
 
-                  const docObj = topToken.doctor || topToken.Doctor || doctors.find((d: any) => d.id === topToken.doctorId);
+                  const docObj = topToken.doctor || topToken.Doctor || doctors.find((d: any) => Number(d.id) === Number(topToken.doctorId) || Number(d.userId) === Number(topToken.doctorId));
                   const docUser = docObj?.user || docObj?.User;
                   const rawName = docUser?.name || docObj?.name || docObj?.specialization;
                   if (rawName) {
@@ -472,9 +472,18 @@ export const Patients: React.FC = () => {
                   if (p.tokenNumber) {
                     latestTokenNum = `T-${String(p.tokenNumber).padStart(2, '0')}`;
                   }
-                  const docObj = p.doctor || p.Doctor || (p.doctorId ? doctors.find((d: any) => d.id === p.doctorId) : null);
+                  const docObj = p.doctor || p.Doctor || (p.doctorId ? doctors.find((d: any) => Number(d.id) === Number(p.doctorId) || Number(d.userId) === Number(p.doctorId)) : null);
                   const docUser = docObj?.user || docObj?.User;
                   const rawName = docUser?.name || docObj?.name || docObj?.specialization;
+                  if (rawName) {
+                    doctorName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
+                  }
+                }
+
+                if (doctorName === 'Unassigned') {
+                  const docId = p.doctorId || (tokens.length > 0 ? tokens[0].doctorId : null);
+                  const matchedDoc = doctors.find((d: any) => Number(d.id) === Number(docId) || Number(d.userId) === Number(docId));
+                  const rawName = matchedDoc?.user?.name || matchedDoc?.name || (doctors.length > 0 ? (doctors[0].user?.name || doctors[0].name) : '');
                   if (rawName) {
                     doctorName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
                   }

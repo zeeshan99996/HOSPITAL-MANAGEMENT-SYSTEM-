@@ -171,6 +171,7 @@ export const PatientRegistration: React.FC = () => {
     try {
       const response = await apiClient.post('/patients', {
         ...formData,
+        doctorId: selectedDoctorId ? Number(selectedDoctorId) : null,
         emergencyContactName: formData.emergencyContactName || 'N/A',
         emergencyContactPhone: formData.emergencyContactPhone || 'N/A'
       });
