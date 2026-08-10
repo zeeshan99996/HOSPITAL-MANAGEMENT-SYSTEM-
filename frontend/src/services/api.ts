@@ -17,7 +17,14 @@ const getHeaders = () => {
 
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
-    let errorMessage = 'Authentication or network request failed.';
+    if (response.status === 401) {
+      localStorage.removeItem('hms_token');
+      localStorage.removeItem('hms_user');
+      if (window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
+        window.location.href = '/';
+      }
+    }
+    let errorMessage = 'Request failed. Please try again.';
     try {
       const data = await response.json();
       errorMessage = data.message || data.error || errorMessage;

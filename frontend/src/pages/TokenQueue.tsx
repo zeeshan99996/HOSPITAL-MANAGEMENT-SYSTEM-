@@ -28,7 +28,9 @@ export const TokenQueue: React.FC = () => {
       setErrorMsg('');
     } catch (err: any) {
       console.error('Token fetch error:', err);
-      setErrorMsg(err?.message || 'Failed to load queue registry.');
+      if (localStorage.getItem('hms_token')) {
+        setErrorMsg(err?.message || 'Failed to load queue registry.');
+      }
     } finally {
       setLoading(false);
     }
