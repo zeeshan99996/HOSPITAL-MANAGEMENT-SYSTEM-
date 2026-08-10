@@ -287,22 +287,42 @@ export const Pharmacy: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Metrics Badges Bar */}
+          {/* Quick Metrics & Store Register Shifted Button */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[110px]">
+            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[100px]">
               <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Stock Types</span>
               <span className="text-lg font-black font-mono text-white">{medicines.length} Items</span>
             </div>
 
-            <div className="px-4 py-2.5 bg-amber-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl text-center min-w-[110px]">
+            <div className="px-4 py-2.5 bg-amber-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl text-center min-w-[100px]">
               <span className="text-[10px] text-amber-200 font-bold uppercase tracking-wider block">Low Stock Alert</span>
               <span className="text-lg font-black font-mono text-amber-300">{lowStockMeds.length} Low</span>
             </div>
 
-            <div className="px-4 py-2.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 rounded-xl text-center min-w-[110px]">
+            <div className="px-4 py-2.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 rounded-xl text-center min-w-[100px]">
               <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">Today OPD/IPD</span>
               <span className="text-lg font-black font-mono text-emerald-300">{todayPatients.length + admitPatients.length} Active</span>
             </div>
+
+            {/* SHIFTED DEDICATED STORE INVENTORY REGISTER BUTTON */}
+            <button
+              onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-lg border ${
+                mainTab === 'store'
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/30'
+                  : 'bg-brand-500 hover:bg-brand-600 text-white border-brand-400 shadow-brand-500/30'
+              }`}
+            >
+              {mainTab === 'patient' ? (
+                <>
+                  <Package className="h-4 w-4" /> Store Inventory Register ({medicines.length})
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-4 w-4" /> ← Back to Dispensing Console
+                </>
+              )}
+            </button>
 
             {isSysAdmin && mainTab === 'store' && (
               <Button onClick={() => setIsAddMedOpen(true)} className="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-500/30 text-xs">
@@ -313,44 +333,26 @@ export const Pharmacy: React.FC = () => {
         </div>
       </div>
 
-      {/* SLEEK SEGMENTED NAVIGATION BAR */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-dark-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        {/* Main Tab Pills */}
-        <div className="flex bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
-          <button
-            onClick={() => setMainTab('patient')}
-            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
-              mainTab === 'patient'
-                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/25'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <UserCheck className="h-4 w-4" /> 1. Patient Medication Dispensing Console
-          </button>
-
-          <button
-            onClick={() => setMainTab('store')}
-            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
-              mainTab === 'store'
-                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/25'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Package className="h-4 w-4" /> 2. Store Inventory Register ({medicines.length})
-          </button>
+      {/* CLEAN FOCUSED DISPENSING CONSOLE TOOLBAR */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-dark-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center gap-2 px-3">
+          <UserCheck className="h-4 w-4 text-brand-500" />
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
+            {mainTab === 'patient' ? 'Patient Medication Dispensing Console' : 'Store Inventory & Stock Register'}
+          </h2>
         </div>
 
         {/* Sub-Tabs Pills (Only for Patient Tab) */}
         {mainTab === 'patient' && (
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Patient Mode:</span>
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Patient Category:</span>
             
             <button
               onClick={() => {
                 setPatientSubTab('today');
                 setSelectedPatientId('');
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
                 patientSubTab === 'today'
                   ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-brand-200/50 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -364,7 +366,7 @@ export const Pharmacy: React.FC = () => {
                 setPatientSubTab('admit');
                 setSelectedPatientId('');
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
                 patientSubTab === 'admit'
                   ? 'bg-white dark:bg-dark-900 text-purple-600 dark:text-purple-400 border border-purple-200/50 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
