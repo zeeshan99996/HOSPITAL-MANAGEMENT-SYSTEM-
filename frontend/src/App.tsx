@@ -61,11 +61,13 @@ const App: React.FC = () => {
   }
 
   const isDoctor = user.role === 'doctor';
+  const isPharmacist = user.role === 'pharmacist';
+  const hideSidebar = isDoctor || isPharmacist;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100">
-      {/* Sidebar Layout — Hidden for Doctor role */}
-      {!isDoctor && <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
+      {/* Sidebar Layout — Hidden for Doctor & Pharmacist roles */}
+      {!hideSidebar && <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
 
       {/* Main Panel Content */}
       <div className="flex flex-1 flex-col overflow-hidden w-full">

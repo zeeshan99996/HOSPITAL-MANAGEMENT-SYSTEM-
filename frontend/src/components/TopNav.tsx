@@ -33,7 +33,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onMenuClick }) => {
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200/50 dark:border-slate-800/60 bg-white/70 dark:bg-dark-900/60 backdrop-blur-md px-6">
       {/* Mobile Toggle & Path Title */}
       <div className="flex items-center gap-4">
-        {user.role !== 'doctor' && (
+        {user.role !== 'doctor' && user.role !== 'pharmacist' && (
           <button
             onClick={onMenuClick}
             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden"

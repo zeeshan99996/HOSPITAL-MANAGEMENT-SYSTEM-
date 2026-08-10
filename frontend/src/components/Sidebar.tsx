@@ -170,6 +170,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     accountant: 'Accountant',
   };
 
+  // Hide left sidebar completely for Doctor and Pharmacist roles
+  if (user?.role === 'doctor' || user?.role === 'pharmacist') {
+    return null;
+  }
+
   return (
     <>
       {/* Mobile Sidebar backdrop */}
