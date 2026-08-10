@@ -25,8 +25,13 @@ export const registerPatient = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Please enter both email address and password.' });
+  }
+
   try {
-    let user = await User.findOne({ where: { email } });
+    const normEmail = email.trim().toLowerCase();
+    let user = await User.findOne({ where: { email: normEmail } });
     const ipStr = String(req.headers['x-forwarded-for'] || req.ip || '127.0.0.1');
 
     // Auto-seed / auto-recover default system accounts if missing
@@ -38,12 +43,12 @@ export const login = async (req: Request, res: Response) => {
       'accountant@lifeflow.com': { name: 'Accountant Mark Evans', role: 'accountant' },
     };
 
-    if (!user && defaultAccounts[email]) {
-      const info = defaultAccounts[email];
+    if (!user && defaultAccounts[normEmail]) {
+      const info = defaultAccounts[normEmail];
       const hashedPassword = await bcrypt.hash(password || 'Password123', 10);
       user = await User.create({
         name: info.name,
-        email: email,
+        email: normEmail,
         password: hashedPassword,
         role: info.role as any,
         phone: '1234567890',
@@ -56,23 +61,30 @@ export const login = async (req: Request, res: Response) => {
         await ActivityLog.create({
           userId: user ? user.id : null,
           action: 'Login Failed',
-          details: `Failed sign-in attempt for email: ${email}. Account status: ${user ? user.status : 'non-existent'}.`,
+          details: `Failed sign-in attempt for email: ${normEmail}. Account status: ${user ? user.status : 'non-existent'}.`,
           ipAddress: ipStr,
         });
       } catch (lErr) {
         console.error('[AuditLog Error]:', lErr);
       }
-      return res.status(401).json({ message: 'Invalid credentials or account is suspended.' });
+      return res.status(401).json({ message: 'Invalid email address or account is suspended.' });
     }
 
-    let isMatch = await bcrypt.compare(password, user.password);
+    let isMatch = false;
+    try {
+      isMatch = await bcrypt.compare(password, user.password);
+    } catch (bErr) {
+      console.warn('[Bcrypt Warning]: Comparing fallback plain password');
+      isMatch = (user.password === password);
+    }
+
+    // Fallback for default accounts with Password123 or admin123
     if (!isMatch) {
-      // Fallback check for alternate seeded passwords or auto-reset default system account
-      const isAlt1 = await bcrypt.compare('Password123', user.password);
-      const isAlt2 = await bcrypt.compare('admin123', user.password);
-      if ((password === 'Password123' || password === 'admin123') && (isAlt1 || isAlt2)) {
+      const isAlt1 = await bcrypt.compare('Password123', user.password).catch(() => false);
+      const isAlt2 = await bcrypt.compare('admin123', user.password).catch(() => false);
+      if ((password === 'Password123' || password === 'admin123') && (isAlt1 || isAlt2 || user.password === password)) {
         isMatch = true;
-      } else if (defaultAccounts[user.email] && (password === 'Password123' || password === 'admin123')) {
+      } else if (defaultAccounts[normEmail] && (password === 'Password123' || password === 'admin123')) {
         const newHash = await bcrypt.hash(password, 10);
         await user.update({ password: newHash, status: 'active' });
         isMatch = true;
@@ -84,13 +96,13 @@ export const login = async (req: Request, res: Response) => {
         await ActivityLog.create({
           userId: user.id,
           action: 'Login Failed',
-          details: `Failed sign-in attempt for email: ${email}. Incorrect password entered.`,
+          details: `Failed sign-in attempt for email: ${normEmail}. Incorrect password entered.`,
           ipAddress: ipStr,
         });
       } catch (lErr) {
         console.error('[AuditLog Error]:', lErr);
       }
-      return res.status(401).json({ message: 'Invalid credentials.' });
+      return res.status(401).json({ message: 'Invalid password. Please check your credentials.' });
     }
 
     // Identify associated profile ID (doctor is the remaining staff profile)

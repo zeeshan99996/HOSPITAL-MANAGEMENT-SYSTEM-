@@ -17,10 +17,10 @@ const getHeaders = () => {
 
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
-    let errorMessage = 'Something went wrong';
+    let errorMessage = 'Authentication or network request failed.';
     try {
       const data = await response.json();
-      errorMessage = data.message || errorMessage;
+      errorMessage = data.message || data.error || errorMessage;
     } catch (e) {
       // Ignored
     }
