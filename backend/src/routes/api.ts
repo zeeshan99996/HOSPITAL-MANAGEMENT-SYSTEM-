@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Op } from 'sequelize';
 import { authenticateToken, requireRoles } from '../middleware/auth';
 import { rateLimiter } from '../middleware/rateLimiter';
 import {

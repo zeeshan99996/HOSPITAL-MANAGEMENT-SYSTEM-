@@ -24,10 +24,11 @@ export const TokenQueue: React.FC = () => {
     setLoading(true);
     try {
       const data = await apiClient.get('/tokens');
-      setTokens(data);
+      setTokens(Array.isArray(data) ? data : []);
+      setErrorMsg('');
     } catch (err: any) {
-      console.error(err);
-      setErrorMsg('Failed to load queue registry.');
+      console.error('Token fetch error:', err);
+      setErrorMsg(err?.message || 'Failed to load queue registry.');
     } finally {
       setLoading(false);
     }
