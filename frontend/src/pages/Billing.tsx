@@ -94,10 +94,6 @@ export const Billing: React.FC = () => {
       setLabCatalog(Array.isArray(labTestsData) ? labTestsData : []);
       setExpenses(Array.isArray(expData) ? expData : []);
       setTokens(Array.isArray(tokensData) ? tokensData : []);
-
-      if (pArr.length > 0 && !selectedPatientId) {
-        setSelectedPatientId(pArr[0].id.toString());
-      }
     } catch (err) {
       console.error('Error fetching billing data', err);
     } finally {
@@ -146,7 +142,10 @@ export const Billing: React.FC = () => {
   const handleMrSearchChange = (val: string) => {
     setMrSearch(val);
     const q = val.trim().toLowerCase();
-    if (!q) return;
+    if (!q) {
+      setSelectedPatientId('');
+      return;
+    }
 
     const exactMatch = currentTabPatients.find(p => {
       const mr = (p.mrNumber || '').toLowerCase();
@@ -170,7 +169,7 @@ export const Billing: React.FC = () => {
     }
   };
 
-  const selectedPatientObj = patients.find(p => String(p.id) === String(selectedPatientId));
+  const selectedPatientObj = selectedPatientId ? currentTabPatients.find(p => String(p.id) === String(selectedPatientId)) : undefined;
   const selectedPatientAdmission = admissions.find(adm => String(adm.patientId) === String(selectedPatientId) && adm.status === 'admitted');
 
   // Compute Comprehensive Billing Breakdown
@@ -434,23 +433,8 @@ export const Billing: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Financial KPI Cards Bar */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[110px]">
-              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Today Cash</span>
-              <span className="text-lg font-black font-mono text-emerald-400">Rs. {totalRevenueCollected.toLocaleString()}</span>
-            </div>
-
-            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[100px]">
-              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Total Invoices</span>
-              <span className="text-lg font-black font-mono text-white">{invoices.length} Ledger</span>
-            </div>
-
-            <div className="px-4 py-2.5 bg-rose-500/20 backdrop-blur-md border border-rose-500/30 rounded-xl text-center min-w-[110px]">
-              <span className="text-[10px] text-rose-200 font-bold uppercase tracking-wider block">Outstanding Due</span>
-              <span className="text-lg font-black font-mono text-rose-300">Rs. {totalOutstandingUnpaid.toLocaleString()}</span>
-            </div>
-
+          {/* Action Button */}
+          <div className="flex items-center gap-3">
             <Button
               onClick={() => setIsCreateOpen(true)}
               className="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-500/30 text-xs"
@@ -468,6 +452,7 @@ export const Billing: React.FC = () => {
             onClick={() => {
               setActiveTab('opd_patient');
               setMrSearch('');
+              setSelectedPatientId('');
             }}
             className={`px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'opd_patient'
@@ -482,6 +467,7 @@ export const Billing: React.FC = () => {
             onClick={() => {
               setActiveTab('admit_patient');
               setMrSearch('');
+              setSelectedPatientId('');
             }}
             className={`px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
               activeTab === 'admit_patient'
