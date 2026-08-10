@@ -273,60 +273,92 @@ export const Pharmacy: React.FC = () => {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
       {/* PROFESSIONAL EXECUTIVE HEADER BANNER */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white p-6 shadow-xl border border-brand-500/20">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/30 text-brand-300 text-2xs font-extrabold uppercase tracking-wider backdrop-blur-md">
-              <Sparkles className="h-3 w-3 text-brand-400" /> Clinical Pharmacy & Store Management Suite
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 sm:p-7 shadow-2xl text-white">
+        {/* Subtle Ambient Background Glows */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          {/* Left Column: Title & Subtitle */}
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-semibold tracking-wide">
+              <Sparkles className="h-3.5 w-3.5 text-brand-400" />
+              <span>Clinical Pharmacy & Store Management Suite</span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
-              <Pill className="h-7 w-7 text-brand-400 animate-pulse" /> Pharmacy Dispensary & Inventory Desk
+
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400">
+                <Pill className="h-6 w-6" />
+              </div>
+              <span>Pharmacy Dispensary & Inventory Desk</span>
             </h1>
-            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+
+            <p className="text-sm text-slate-400 leading-relaxed">
               Real-time prescription dispensing console, automatic invoice charge posting, and live medicine inventory store stock control.
             </p>
           </div>
 
-          {/* Quick Metrics & Store Register Shifted Button */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[100px]">
-              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Stock Types</span>
-              <span className="text-lg font-black font-mono text-white">{medicines.length} Items</span>
+          {/* Right Column: Key Indicators & Action */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Metric Cards Grid */}
+            <div className="grid grid-cols-3 gap-2.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 backdrop-blur-sm">
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-left min-w-[95px]">
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Stock Types</span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-lg font-bold text-white tracking-tight">{medicines.length}</span>
+                  <span className="text-[11px] text-slate-400 font-normal">items</span>
+                </div>
+              </div>
+
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/80 border border-amber-500/20 text-left min-w-[95px]">
+                <span className="text-[10px] text-amber-400/90 font-medium uppercase tracking-wider block flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />
+                  Low Stock
+                </span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-lg font-bold text-amber-300 tracking-tight">{lowStockMeds.length}</span>
+                  <span className="text-[11px] text-amber-400/70 font-normal">alert</span>
+                </div>
+              </div>
+
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/80 border border-emerald-500/20 text-left min-w-[95px]">
+                <span className="text-[10px] text-emerald-400/90 font-medium uppercase tracking-wider block flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                  OPD/IPD
+                </span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-lg font-bold text-emerald-300 tracking-tight">{todayPatients.length + admitPatients.length}</span>
+                  <span className="text-[11px] text-emerald-400/70 font-normal">active</span>
+                </div>
+              </div>
             </div>
 
-            <div className="px-4 py-2.5 bg-amber-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl text-center min-w-[100px]">
-              <span className="text-[10px] text-amber-200 font-bold uppercase tracking-wider block">Low Stock Alert</span>
-              <span className="text-lg font-black font-mono text-amber-300">{lowStockMeds.length} Low</span>
-            </div>
-
-            <div className="px-4 py-2.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 rounded-xl text-center min-w-[100px]">
-              <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">Today OPD/IPD</span>
-              <span className="text-lg font-black font-mono text-emerald-300">{todayPatients.length + admitPatients.length} Active</span>
-            </div>
-
-            {/* SHIFTED DEDICATED STORE INVENTORY REGISTER BUTTON */}
+            {/* Dedicated Action Button */}
             <button
               onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 shadow-lg border ${
+              className={`px-4 py-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap ${
                 mainTab === 'store'
-                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/30'
-                  : 'bg-brand-500 hover:bg-brand-600 text-white border-brand-400 shadow-brand-500/30'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20'
+                  : 'bg-brand-600 hover:bg-brand-500 text-white border-brand-500 shadow-brand-900/20'
               }`}
             >
               {mainTab === 'patient' ? (
                 <>
-                  <Package className="h-4 w-4" /> Store Inventory Register ({medicines.length})
+                  <Package className="h-4 w-4" />
+                  <span>Store Inventory Register ({medicines.length})</span>
                 </>
               ) : (
                 <>
-                  <UserCheck className="h-4 w-4" /> ← Back to Dispensing Console
+                  <UserCheck className="h-4 w-4" />
+                  <span>← Dispensing Console</span>
                 </>
               )}
             </button>
 
             {isSysAdmin && mainTab === 'store' && (
-              <Button onClick={() => setIsAddMedOpen(true)} className="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-500/30 text-xs">
-                <Plus className="h-4 w-4" /> Add Stock Item
+              <Button onClick={() => setIsAddMedOpen(true)} className="px-4 py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm text-xs border border-brand-500">
+                <Plus className="h-4 w-4" />
+                <span>Add Stock Item</span>
               </Button>
             )}
           </div>
