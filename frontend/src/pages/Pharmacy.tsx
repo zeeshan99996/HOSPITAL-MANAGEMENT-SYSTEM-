@@ -72,15 +72,18 @@ export const Pharmacy: React.FC = () => {
       const todayTokens = Array.isArray(tokensRes) ? tokensRes : [];
       const admissionsList = Array.isArray(admissionsRes) ? admissionsRes : [];
 
-      // Filter Today Patients (OPD visit today)
+      // Filter Today Patients (Strictly OPD visit today or registered today)
+      const now = new Date();
+      const localTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
       const todayTokenPatientIds = new Set(todayTokens.map((t: any) => Number(t.patientId)));
       const todayList = allPatients.filter((p: any) => {
-        const isToday = new Date(p.createdAt).toDateString() === new Date().toDateString();
+        const pDateStr = p.createdAt ? p.createdAt.split('T')[0] : '';
+        const isToday = pDateStr === localTodayStr;
         return isToday || todayTokenPatientIds.has(Number(p.id));
       });
 
-      const finalTodayList = todayList.length > 0 ? todayList : allPatients;
-      setTodayPatients(finalTodayList);
+      setTodayPatients(todayList);
 
       // Filter Admitted Patients (IPD active admissions only)
       const admittedList = admissionsList
