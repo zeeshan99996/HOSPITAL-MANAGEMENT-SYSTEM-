@@ -62,6 +62,7 @@ const App: React.FC = () => {
 
   const isDoctor = user.role === 'doctor';
   const isPharmacist = user.role === 'pharmacist';
+  const isAccountant = user.role === 'accountant';
   const hideSidebar = isDoctor || isPharmacist;
 
   return (
