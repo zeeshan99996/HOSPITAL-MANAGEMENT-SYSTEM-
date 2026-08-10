@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   Pill, Plus, ShoppingBag, Trash2, Package, Layers, Edit3,
-  UserCheck, BedDouble, Check, AlertTriangle, Search, Syringe, Filter
+  UserCheck, BedDouble, Check, AlertTriangle, Search, Syringe, Filter,
+  FileText, CheckCircle2, Receipt, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Minus
 } from 'lucide-react';
 
 export const Pharmacy: React.FC = () => {
@@ -100,10 +101,6 @@ export const Pharmacy: React.FC = () => {
         }));
 
       setAdmitPatients(admittedList);
-
-      if (finalTodayList.length > 0 && !selectedPatientId) {
-        setSelectedPatientId(finalTodayList[0].id.toString());
-      }
     } catch (err) {
       console.error('Error fetching pharmacy records', err);
     } finally {
@@ -269,105 +266,97 @@ export const Pharmacy: React.FC = () => {
 
   const activePatientList = patientSubTab === 'today' ? todayPatients : admitPatients;
   const isSysAdmin = user?.role === 'admin';
-  const isAdmin = user?.role === 'admin' || user?.role === 'pharmacist';
+
+  const selectedPatientObj = activePatientList.find(p => String(p.id) === String(selectedPatientId));
+  const grandTotal = dispenseItems.reduce((sum, r) => sum + ((r.unitPrice || 0) * (r.quantity || 1)), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Pill className="h-5 w-5 text-brand-500" /> Pharmacy & Medicine Store
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Dispense prescription medicines to Today/Admitted patients and manage complete store stock register.
-          </p>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+      {/* PROFESSIONAL EXECUTIVE HEADER BANNER */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white p-6 shadow-xl border border-brand-500/20">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/30 text-brand-300 text-2xs font-extrabold uppercase tracking-wider backdrop-blur-md">
+              <Sparkles className="h-3 w-3 text-brand-400" /> Clinical Pharmacy & Store Management Suite
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+              <Pill className="h-7 w-7 text-brand-400 animate-pulse" /> Pharmacy Dispensary & Inventory Desk
+            </h1>
+            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+              Real-time prescription dispensing console, automatic invoice charge posting, and live medicine inventory store stock control.
+            </p>
+          </div>
+
+          {/* Quick Metrics Badges Bar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[110px]">
+              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Stock Types</span>
+              <span className="text-lg font-black font-mono text-white">{medicines.length} Items</span>
+            </div>
+
+            <div className="px-4 py-2.5 bg-amber-500/20 backdrop-blur-md border border-amber-500/30 rounded-xl text-center min-w-[110px]">
+              <span className="text-[10px] text-amber-200 font-bold uppercase tracking-wider block">Low Stock Alert</span>
+              <span className="text-lg font-black font-mono text-amber-300">{lowStockMeds.length} Low</span>
+            </div>
+
+            <div className="px-4 py-2.5 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/30 rounded-xl text-center min-w-[110px]">
+              <span className="text-[10px] text-emerald-200 font-bold uppercase tracking-wider block">Today OPD/IPD</span>
+              <span className="text-lg font-black font-mono text-emerald-300">{todayPatients.length + admitPatients.length} Active</span>
+            </div>
+
+            {isSysAdmin && mainTab === 'store' && (
+              <Button onClick={() => setIsAddMedOpen(true)} className="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-500/30 text-xs">
+                <Plus className="h-4 w-4" /> Add Stock Item
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* SLEEK SEGMENTED NAVIGATION BAR */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-dark-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        {/* Main Tab Pills */}
+        <div className="flex bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
+          <button
+            onClick={() => setMainTab('patient')}
+            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+              mainTab === 'patient'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/25'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <UserCheck className="h-4 w-4" /> 1. Patient Medication Dispensing Console
+          </button>
+
+          <button
+            onClick={() => setMainTab('store')}
+            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+              mainTab === 'store'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/25'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Package className="h-4 w-4" /> 2. Store Inventory Register ({medicines.length})
+          </button>
         </div>
 
-        {isSysAdmin && mainTab === 'store' && (
-          <Button onClick={() => setIsAddMedOpen(true)} className="flex items-center gap-1.5 shadow-sm">
-            <Plus className="h-4 w-4" /> Add New Medicine / Injection Stock
-          </Button>
-        )}
-      </div>
-
-      {/* KPI STATS ROW - ADMIN ONLY */}
-      {isSysAdmin && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="flex items-center gap-3 py-3 border border-slate-200 dark:border-slate-850">
-          <div className="p-2 bg-brand-500/10 text-brand-600 rounded-xl">
-            <Package className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-450 dark:text-slate-500 font-bold block uppercase tracking-wider">Total Store Formulas</span>
-            <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">{medicines.length} Types ({totalStoreStock} units)</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-3 py-3 border border-slate-200 dark:border-slate-850">
-          <div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-450 dark:text-slate-500 font-bold block uppercase tracking-wider">Low Stock Warnings</span>
-            <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">{lowStockMeds.length} Items under alert</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-3 py-3 border border-slate-200 dark:border-slate-850">
-          <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
-            <UserCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-450 dark:text-slate-500 font-bold block uppercase tracking-wider">Patients Eligible Today</span>
-            <span className="text-base font-extrabold text-slate-900 dark:text-slate-100">{todayPatients.length} OPD • {admitPatients.length} IPD Admitted</span>
-          </div>
-        </Card>
-      </div>
-      )}
-
-      {/* MAIN NAVIGATION TABS: PATIENT vs STORE */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800">
-        <button
-          onClick={() => setMainTab('patient')}
-          className={`px-6 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 ${
-            mainTab === 'patient'
-              ? 'border-brand-500 text-brand-600 dark:text-brand-400 bg-brand-500/10'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <UserCheck className="h-4 w-4" /> 1. Patient Medication Dispensing & Billing
-        </button>
-
-        <button
-          onClick={() => setMainTab('store')}
-          className={`px-6 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 ${
-            mainTab === 'store'
-              ? 'border-brand-500 text-brand-600 dark:text-brand-400 bg-brand-500/10'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Package className="h-4 w-4" /> 2. Store (Medicine & Injection Inventory Register)
-        </button>
-      </div>
-
-      {/* TAB 1: PATIENT DISPENSING & BILLING */}
-      {mainTab === 'patient' && (
-        <div className="space-y-5">
-          {/* SUB-TABS: TODAY PATIENT vs ADMIT PATIENT */}
-          <div className="flex bg-slate-100 dark:bg-dark-900 p-1 rounded-xl w-fit border border-slate-200 dark:border-slate-800">
+        {/* Sub-Tabs Pills (Only for Patient Tab) */}
+        {mainTab === 'patient' && (
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Patient Mode:</span>
+            
             <button
               onClick={() => {
                 setPatientSubTab('today');
                 setSelectedPatientId('');
               }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
                 patientSubTab === 'today'
-                  ? 'bg-white dark:bg-dark-950 text-brand-600 dark:text-brand-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                  ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-brand-200/50 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              <UserCheck className="h-3.5 w-3.5" /> Today Patient (OPD) ({todayPatients.length})
+              <UserCheck className="h-3.5 w-3.5" /> Today OPD Patients ({todayPatients.length})
             </button>
 
             <button
@@ -375,257 +364,401 @@ export const Pharmacy: React.FC = () => {
                 setPatientSubTab('admit');
                 setSelectedPatientId('');
               }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
                 patientSubTab === 'admit'
-                  ? 'bg-white dark:bg-dark-950 text-brand-600 dark:text-brand-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                  ? 'bg-white dark:bg-dark-900 text-purple-600 dark:text-purple-400 border border-purple-200/50 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              <BedDouble className="h-3.5 w-3.5" /> Admit Patient (IPD) ({admitPatients.length})
+              <BedDouble className="h-3.5 w-3.5" /> Admitted IPD Patients ({admitPatients.length})
             </button>
           </div>
+        )}
+      </div>
 
-          {/* DISPENSING & AUTO-BILLING CONSOLE CARD */}
-          <Card className="p-5 border border-slate-200 dark:border-slate-850 space-y-4">
-            <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex justify-between items-center">
-              <div>
-                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <Pill className="h-4 w-4 text-brand-500" />
-                  Dispense Medicines for {patientSubTab === 'today' ? 'Today OPD Patient' : 'Admitted IPD Patient'}
-                </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Selected medicines, mg dosage, and prices will be automatically added to the patient's bill invoice.
-                </p>
-              </div>
-              <Badge type="info">Auto-Bill Enabled</Badge>
-            </div>
-
-            <form onSubmit={handleDispenseSubmit} className="space-y-4">
-              {/* Patient Selection Dropdown */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Select {patientSubTab === 'today' ? 'Today OPD' : 'Admitted IPD'} Patient *
-                </label>
-                <select
-                  required
-                  value={selectedPatientId}
-                  onChange={e => setSelectedPatientId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
-                >
-                  <option value="">-- Choose Patient --</option>
-                  {activePatientList.map((p: any) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} • (MR: {p.mrNumber || 'N/A'}) • {p.phone} {patientSubTab === 'admit' ? `• Bed: ${p.bedNumber || 'IPD'}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Medicine Dispensing Rows */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <span>Prescription Medicine / Injection Items</span>
-                  <button
-                    type="button"
-                    onClick={handleAddDispenseRow}
-                    className="text-brand-500 hover:text-brand-600 flex items-center gap-1 font-bold"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Add Another Item
-                  </button>
+      {/* ======================================================== */}
+      {/* TAB 1: PATIENT DISPENSING & REAL-TIME BILLING SPLIT VIEW */}
+      {/* ======================================================== */}
+      {mainTab === 'patient' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* LEFT 7 COLS: PRESCRIPTION BUILDER FORM */}
+          <div className="lg:col-span-7 space-y-5">
+            <Card className="p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 bg-white dark:bg-dark-900 shadow-sm rounded-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4">
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <Pill className="h-4 w-4 text-brand-500" />
+                    Dispense Prescription for {patientSubTab === 'today' ? 'Today OPD Patient' : 'Admitted IPD Patient'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Select patient and add prescription medicine/injection items. Charges will post directly to billing invoice.
+                  </p>
                 </div>
+                <Badge type="info" className="px-3 py-1 font-bold">Auto-Billing Active</Badge>
+              </div>
 
-                {dispenseItems.map((row, idx) => {
-                  const lineTotal = (row.unitPrice || 0) * (row.quantity || 1);
-                  return (
-                    <div key={idx} className="grid grid-cols-12 gap-2.5 items-center p-3 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800">
-                      {/* Medicine Select */}
-                      <div className="col-span-12 sm:col-span-5">
-                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Select Medicine / Injection (Tekka)</label>
-                        <select
-                          required
-                          value={row.medicineId}
-                          onChange={e => handleItemChange(idx, 'medicineId', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200 font-bold"
-                        >
-                          <option value="">-- Select Medicine / Injection --</option>
-                          {medicines.map(m => (
-                            <option key={m.id} value={m.id} disabled={m.stockLevel <= 0}>
-                              {m.name}
-                            </option>
-                          ))}
-                        </select>
+              <form onSubmit={handleDispenseSubmit} className="space-y-5">
+                {/* Patient Selection Dropdown */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                    <span>1. Select {patientSubTab === 'today' ? 'Today OPD' : 'Admitted IPD'} Patient *</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Showing {activePatientList.length} patients</span>
+                  </label>
+                  
+                  <select
+                    required
+                    value={selectedPatientId}
+                    onChange={e => setSelectedPatientId(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 transition-all"
+                  >
+                    <option value="">-- Choose Patient from List --</option>
+                    {activePatientList.map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} • (MRN: {p.mrNumber || 'N/A'}) • {p.phone} {patientSubTab === 'admit' ? `• Bed: ${p.bedNumber || 'IPD'}` : ''}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Selected Patient Quick Summary Card */}
+                  {selectedPatientObj && (
+                    <div className="p-3 bg-brand-500/5 border border-brand-500/20 rounded-xl flex items-center gap-3 animate-in fade-in duration-200">
+                      <div className="h-10 w-10 rounded-full bg-brand-500 text-white flex items-center justify-center font-extrabold text-sm shadow-sm">
+                        {selectedPatientObj.name.charAt(0).toUpperCase()}
                       </div>
-
-                      {/* Dosage mg */}
-                      <div className="col-span-4 sm:col-span-2">
-                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Dosage (mg)</label>
-                        <input
-                          type="text"
-                          value={row.dosageMg}
-                          onChange={e => handleItemChange(idx, 'dosageMg', e.target.value)}
-                          placeholder="e.g. 500 mg"
-                          className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200 font-medium"
-                        />
-                      </div>
-
-                      {/* Quantity */}
-                      <div className="col-span-3 sm:col-span-2">
-                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Qty</label>
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          value={row.quantity}
-                          onChange={e => handleItemChange(idx, 'quantity', Number(e.target.value))}
-                          className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200 font-mono font-bold"
-                        />
-                      </div>
-
-                      {/* Total Price */}
-                      <div className="col-span-3 sm:col-span-2 text-right">
-                        <label className="block text-[10px] font-semibold text-slate-400 mb-1">Total (Rs.)</label>
-                        <span className="text-xs font-mono font-extrabold text-brand-600 dark:text-brand-400 block py-1.5">
-                          Rs. {lineTotal.toLocaleString()}
+                      <div className="min-w-0 flex-1">
+                        <span className="font-mono text-[9px] font-bold bg-brand-500/20 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded">
+                          MRN: {selectedPatientObj.mrNumber}
                         </span>
-                      </div>
-
-                      {/* Remove Row Button */}
-                      <div className="col-span-2 sm:col-span-1 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDispenseRow(idx)}
-                          className="p-1.5 bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg transition-all"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <h4 className="text-xs font-extrabold text-slate-900 dark:text-white mt-0.5 truncate">{selectedPatientObj.name}</h4>
+                        <p className="text-[10px] text-slate-500 font-medium">Contact Phone: {selectedPatientObj.phone}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Total Calculation Footer & Submit */}
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                  Net Amount Added to Patient Invoice Bill:{' '}
-                  <span className="text-base font-mono font-extrabold text-brand-600 dark:text-brand-400">
-                    Rs. {dispenseItems.reduce((sum, r) => sum + ((r.unitPrice || 0) * (r.quantity || 1)), 0).toLocaleString()}
-                  </span>
+                  )}
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={dispensingLoading}
-                  className="w-full sm:w-auto px-6 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center justify-center gap-2"
-                >
-                  <Check className="h-4 w-4" />
-                  {dispensingLoading ? 'Processing...' : 'Dispense & Add Charges to Patient Bill'}
-                </Button>
+                {/* Prescription Items Grid */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-center text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b border-slate-100 dark:border-slate-850 pb-2">
+                    <span className="flex items-center gap-1.5"><Syringe className="h-4 w-4 text-brand-500" /> 2. Prescription Items List</span>
+                    <button
+                      type="button"
+                      onClick={handleAddDispenseRow}
+                      className="text-brand-600 dark:text-brand-400 hover:text-brand-700 text-xs font-extrabold flex items-center gap-1 bg-brand-500/10 hover:bg-brand-500/20 px-3 py-1.5 rounded-lg transition-all"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add Item
+                    </button>
+                  </div>
+
+                  {dispenseItems.map((row, idx) => {
+                    const lineTotal = (row.unitPrice || 0) * (row.quantity || 1);
+                    const matchedMed = medicines.find(m => String(m.id) === String(row.medicineId));
+
+                    return (
+                      <div key={idx} className="p-4 bg-slate-50/80 dark:bg-dark-950/80 rounded-xl border border-slate-200/80 dark:border-slate-850 space-y-3 hover:border-brand-500/30 transition-all">
+                        <div className="grid grid-cols-12 gap-3 items-center">
+                          {/* Medicine Dropdown */}
+                          <div className="col-span-12 sm:col-span-6">
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 dark:text-slate-500 mb-1">
+                              Select Medicine / Injection (Tekka) *
+                            </label>
+                            <select
+                              required
+                              value={row.medicineId}
+                              onChange={e => handleItemChange(idx, 'medicineId', e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-850 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
+                            >
+                              <option value="">-- Choose Stock Medicine --</option>
+                              {medicines.map(m => (
+                                <option key={m.id} value={m.id} disabled={m.stockLevel <= 0}>
+                                  {m.name} ({m.category || 'Tab'}) • Stock: {m.stockLevel} • Rs. {m.price}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Dosage */}
+                          <div className="col-span-6 sm:col-span-3">
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 dark:text-slate-500 mb-1">
+                              Dosage (mg)
+                            </label>
+                            <input
+                              type="text"
+                              value={row.dosageMg}
+                              onChange={e => handleItemChange(idx, 'dosageMg', e.target.value)}
+                              placeholder="e.g. 500 mg"
+                              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-850 dark:text-slate-100 font-bold"
+                            />
+                          </div>
+
+                          {/* Quantity Counter */}
+                          <div className="col-span-6 sm:col-span-3">
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-450 dark:text-slate-500 mb-1">
+                              Quantity
+                            </label>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => handleItemChange(idx, 'quantity', Math.max(1, (row.quantity || 1) - 1))}
+                                className="px-2.5 py-2 bg-slate-200 dark:bg-dark-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 rounded-l-lg font-bold text-xs"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                required
+                                value={row.quantity}
+                                onChange={e => handleItemChange(idx, 'quantity', Math.max(1, Number(e.target.value)))}
+                                className="w-full text-center py-2 border-y border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-mono font-bold"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleItemChange(idx, 'quantity', (row.quantity || 1) + 1)}
+                                className="px-2.5 py-2 bg-slate-200 dark:bg-dark-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 rounded-r-lg font-bold text-xs"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Line Footer Breakdown */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 dark:border-slate-850 text-xs">
+                          <div className="flex items-center gap-2">
+                            {matchedMed ? (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                matchedMed.stockLevel > matchedMed.lowStockThreshold
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              }`}>
+                                Stock Available: {matchedMed.stockLevel} units
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">Select medicine to view stock</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-xs font-black text-brand-600 dark:text-brand-400">
+                              Rs. {lineTotal.toLocaleString()}
+                            </span>
+                            
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDispenseRow(idx)}
+                              className="p-1 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded transition-all"
+                              title="Remove Item"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </form>
+            </Card>
+          </div>
+
+          {/* RIGHT 5 COLS: LIVE BILLING CHECKOUT SUMMARY CARD */}
+          <div className="lg:col-span-5 space-y-5 sticky top-20">
+            <Card className="p-6 border border-brand-500/30 bg-gradient-to-b from-white via-slate-50/50 to-brand-500/[0.02] dark:from-dark-900 dark:to-dark-950 shadow-lg rounded-2xl space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Receipt className="h-4.5 w-4.5 text-brand-500" /> Live Billing Invoice Summary
+                </h3>
+                <span className="text-[10px] font-mono font-bold bg-brand-500/10 text-brand-600 px-2 py-0.5 rounded">
+                  RECEIPT PREVIEW
+                </span>
               </div>
-            </form>
-          </Card>
+
+              {/* Patient Banner */}
+              <div className="p-3 bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+                <span className="text-[10px] font-extrabold text-slate-450 uppercase block tracking-wider">Patient Details</span>
+                {selectedPatientObj ? (
+                  <div>
+                    <span className="font-extrabold text-slate-900 dark:text-white block text-sm">{selectedPatientObj.name}</span>
+                    <span className="font-mono text-[10px] text-slate-500">MRN: {selectedPatientObj.mrNumber} • {selectedPatientObj.phone}</span>
+                  </div>
+                ) : (
+                  <span className="text-slate-400 italic text-xs block py-1">No patient selected yet</span>
+                )}
+              </div>
+
+              {/* Itemized Charges Breakdown */}
+              <div className="space-y-2 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <span className="text-[10px] font-extrabold text-slate-450 uppercase block tracking-wider">Items Breakdown</span>
+                
+                {dispenseItems.filter(i => i.medicineId).length > 0 ? (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {dispenseItems.filter(i => i.medicineId).map((item, idx) => {
+                      const med = medicines.find(m => String(m.id) === String(item.medicineId));
+                      const itemTotal = (item.unitPrice || 0) * (item.quantity || 1);
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-xs py-1 px-2 bg-slate-100/60 dark:bg-dark-950/60 rounded-lg">
+                          <div>
+                            <span className="font-bold text-slate-850 dark:text-slate-200 block text-xs">{med?.name || 'Medicine'}</span>
+                            <span className="text-[10px] text-slate-500 font-mono">Qty: {item.quantity} × Rs. {item.unitPrice}</span>
+                          </div>
+                          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
+                            Rs. {itemTotal.toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-slate-400 text-xs bg-slate-100/40 dark:bg-dark-950/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                    No prescription items added yet.
+                  </div>
+                )}
+              </div>
+
+              {/* Grand Total Calculation Box */}
+              <div className="p-4 bg-brand-500/10 border border-brand-500/20 rounded-xl space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 dark:text-slate-400 font-semibold">Subtotal Charges:</span>
+                  <span className="font-mono font-bold">Rs. {grandTotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs border-b border-brand-500/20 pb-2">
+                  <span className="text-slate-600 dark:text-slate-400 font-semibold">Auto Posting Fee:</span>
+                  <span className="font-mono text-emerald-600 font-bold">FREE</span>
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-xs font-black uppercase text-slate-900 dark:text-white">Net Bill Amount:</span>
+                  <span className="text-xl font-mono font-black text-brand-600 dark:text-brand-400">
+                    Rs. {grandTotal.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Submit & Auto-Bill Button */}
+              <Button
+                type="button"
+                onClick={handleDispenseSubmit}
+                disabled={dispensingLoading || !selectedPatientId || grandTotal <= 0}
+                className="w-full py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-brand-500/30 transition-all"
+              >
+                {dispensingLoading ? (
+                  <>Processing Dispense...</>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" /> Dispense & Add Charges to Patient Bill (Rs. {grandTotal.toLocaleString()})
+                  </>
+                )}
+              </Button>
+            </Card>
+          </div>
         </div>
       )}
 
-      {/* TAB 2: STORE (MEDICINE & INJECTION INVENTORY REGISTER) */}
+      {/* ======================================================== */}
+      {/* TAB 2: STORE INVENTORY REGISTER & MEDICINES MANAGEMENT  */}
+      {/* ======================================================== */}
       {mainTab === 'store' && (
-        <Card className="p-0 overflow-hidden border border-slate-200 dark:border-slate-850">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-dark-950/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <Card className="p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 bg-white dark:bg-dark-900 shadow-sm rounded-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
             <div>
-              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Package className="h-4 w-4 text-brand-500" /> Complete Store Medicine & Injection Inventory Register
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Package className="h-4 w-4 text-brand-500" /> Medicine & Injection Store Register ({medicines.length} Types)
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">
-                Record of available medicines, injections (tekka), syrups, dosage (mg), stock levels, and prices.
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Complete inventory list, stock level tracking, batch numbers, and price specifications.
               </p>
             </div>
 
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            {/* Search Filter Box */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search medicine, injection, mg..."
+                placeholder="Search stock medicines, batch..."
                 value={storeSearchQuery}
                 onChange={e => setStoreSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200 focus:outline-none"
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
               />
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Medicines Table */}
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/50 dark:bg-dark-950/40 text-slate-450 uppercase tracking-wider text-[10px] font-semibold">
-                  <th className="px-5 py-3.5">Medicine / Tekka Name</th>
-                  <th className="px-5 py-3.5">Form / Type</th>
-                  <th className="px-5 py-3.5">Dosage Strength (mg)</th>
-                  <th className="px-5 py-3.5">Available Stock</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-dark-950/60 text-slate-450 uppercase text-[10px] tracking-wider font-semibold">
+                  <th className="px-5 py-3.5">Medicine Name</th>
+                  <th className="px-5 py-3.5">Category</th>
+                  <th className="px-5 py-3.5">Unit Dosage</th>
                   <th className="px-5 py-3.5">Unit Price (Rs.)</th>
-                  <th className="px-5 py-3.5">Batch # / Expiry</th>
-                  {isSysAdmin && <th className="px-5 py-3.5 text-right">Admin Actions</th>}
+                  <th className="px-5 py-3.5">Stock Available</th>
+                  <th className="px-5 py-3.5">Batch / Expiry</th>
+                  {isSysAdmin && <th className="px-5 py-3.5 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
                 {filteredStoreMeds.length === 0 ? (
                   <tr>
-                    <td colSpan={isSysAdmin ? 7 : 6} className="p-8 text-center text-slate-450 text-xs">
-                      No medicines match the search criteria.
+                    <td colSpan={7} className="p-8 text-center text-slate-450 text-xs">
+                      No medicines found in store inventory.
                     </td>
                   </tr>
                 ) : (
-                  filteredStoreMeds.map(m => {
+                  filteredStoreMeds.map((m: any) => {
                     const isLow = m.stockLevel <= (m.lowStockThreshold || 20);
-                    const isInjection = (m.category || '').toLowerCase().includes('injection') || (m.category || '').toLowerCase().includes('tekka');
-
                     return (
-                      <tr key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
-                        <td className="px-5 py-4">
-                          <span className="font-bold text-slate-900 dark:text-white block text-xs flex items-center gap-1.5">
-                            {isInjection ? <Syringe className="h-3.5 w-3.5 text-rose-500" /> : <Pill className="h-3.5 w-3.5 text-brand-500" />}
+                      <tr key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-300">
+                        <td className="px-5 py-4 font-bold text-slate-900 dark:text-white">
+                          <span className="flex items-center gap-2">
+                            <Pill className="h-4 w-4 text-brand-500" />
                             {m.name}
                           </span>
                         </td>
 
                         <td className="px-5 py-4">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-dark-900 text-slate-600 dark:text-slate-300">
+                          <Badge type="info" className="capitalize text-[10px]">
                             {m.category || 'Tablet'}
-                          </span>
+                          </Badge>
                         </td>
 
-                        <td className="px-5 py-4 font-mono font-bold text-brand-600 dark:text-brand-400">
+                        <td className="px-5 py-4 font-mono">
                           {m.unit || '500 mg'}
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-mono font-extrabold text-xs ${isLow ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                              {m.stockLevel} units
-                            </span>
-                            {isLow && <Badge type="danger">Low Stock</Badge>}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4 font-mono font-extrabold text-slate-900 dark:text-slate-100">
+                        <td className="px-5 py-4 font-mono font-bold text-brand-600 dark:text-brand-400">
                           Rs. {Number(m.price || 0).toLocaleString()}
                         </td>
 
-                        <td className="px-5 py-4 font-mono text-[10px] text-slate-450">
-                          <span className="block text-slate-700 dark:text-slate-300 font-semibold">{m.batchNumber || 'BCH-N/A'}</span>
-                          <span>Exp: {m.expiryDate ? new Date(m.expiryDate).toLocaleDateString() : 'N/A'}</span>
+                        <td className="px-5 py-4 font-mono">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-extrabold ${isLow ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                              {m.stockLevel} units
+                            </span>
+                            {isLow && (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                Low Stock
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4 text-[10px] text-slate-500 font-mono">
+                          <div>Batch: {m.batchNumber || 'N/A'}</div>
+                          <div>Exp: {m.expiryDate ? new Date(m.expiryDate).toLocaleDateString() : 'N/A'}</div>
                         </td>
 
                         {isSysAdmin && (
                           <td className="px-5 py-4 text-right">
-                            <div className="flex justify-end gap-1.5">
+                            <div className="flex justify-end gap-2">
                               <button
                                 onClick={() => handleOpenEditModal(m)}
-                                className="p-1.5 bg-brand-500/10 text-brand-600 hover:bg-brand-500 hover:text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1"
+                                className="px-2.5 py-1.5 bg-slate-100 dark:bg-dark-950 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-all border border-slate-200 dark:border-slate-800 flex items-center gap-1"
                               >
                                 <Edit3 className="h-3.5 w-3.5" /> Edit
                               </button>
                               <button
                                 onClick={() => handleDeleteMedicine(m.id, m.name)}
-                                className="p-1.5 bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white rounded-lg transition-all text-xs font-bold"
+                                className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white rounded-lg text-xs font-bold transition-all"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -642,152 +775,74 @@ export const Pharmacy: React.FC = () => {
         </Card>
       )}
 
-      {/* ADMIN ADD MEDICINE / INJECTION MODAL */}
-      <Modal isOpen={isAddMedOpen} onClose={() => setIsAddMedOpen(false)} title="Add New Medicine / Injection to Store">
+      {/* MODAL: ADD NEW MEDICINE TO STORE */}
+      <Modal isOpen={isAddMedOpen} onClose={() => setIsAddMedOpen(false)} title="Add New Stock Medicine / Injection">
         <form onSubmit={handleAddMedicineSubmit} className="space-y-4">
-          <Input
-            label="Medicine / Injection Name"
-            required
-            value={medName}
-            onChange={e => setMedName(e.target.value)}
-            placeholder="e.g. Paracetamol, Ceftriaxone Injection, Augmentin, Gravinate"
-          />
-
+          <Input label="Medicine / Injection Name *" required value={medName} onChange={e => setMedName(e.target.value)} placeholder="e.g. Paracetamol 500mg or Inj Ceftriaxone" />
+          
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1">Form / Type</label>
-              <select
-                value={medType}
-                onChange={e => setMedType(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200"
-              >
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category *</label>
+              <select value={medType} onChange={e => setMedType(e.target.value)} className="w-full px-3 py-2 rounded-lg border text-xs font-bold dark:bg-dark-900">
                 <option value="Tablet">Tablet</option>
-                <option value="Tekka / Injection">Tekka / Injection</option>
-                <option value="Syrup">Syrup</option>
                 <option value="Capsule">Capsule</option>
-                <option value="Drip / Infusion">Drip / Infusion</option>
-                <option value="Drops / Ointment">Drops / Ointment</option>
+                <option value="Syrup">Syrup</option>
+                <option value="Injection">Injection (Tekka)</option>
+                <option value="Ointment">Ointment / Cream</option>
+                <option value="Drops">Eye/Ear Drops</option>
               </select>
             </div>
-
-            <Input
-              label="Dosage Strength (mg)"
-              value={medDosageMg}
-              onChange={e => setMedDosageMg(e.target.value)}
-              placeholder="e.g. 500 mg, 250 mg, 1000 mg / 1g"
-            />
+            <Input label="Unit Dosage (mg/ml)" value={medDosageMg} onChange={e => setMedDosageMg(e.target.value)} placeholder="e.g. 500 mg" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Initial Stock Level (Units)"
-              type="number"
-              required
-              value={medStock}
-              onChange={e => setMedStock(Number(e.target.value))}
-            />
-
-            <Input
-              label="Unit Price (Rs.)"
-              type="number"
-              required
-              value={medPrice}
-              onChange={e => setMedPrice(Number(e.target.value))}
-            />
+            <Input label="Initial Stock Quantity *" type="number" min="1" required value={medStock} onChange={e => setMedStock(Number(e.target.value))} />
+            <Input label="Unit Price (Rs.) *" type="number" min="0" required value={medPrice} onChange={e => setMedPrice(Number(e.target.value))} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Batch Number"
-              value={medBatch}
-              onChange={e => setMedBatch(e.target.value)}
-              placeholder="e.g. BCH-9941"
-            />
-
-            <Input
-              label="Expiry Date"
-              type="date"
-              value={medExpiry}
-              onChange={e => setMedExpiry(e.target.value)}
-            />
+            <Input label="Batch Number" value={medBatch} onChange={e => setMedBatch(e.target.value)} placeholder="e.g. BCH-9941" />
+            <Input label="Expiry Date" type="date" value={medExpiry} onChange={e => setMedExpiry(e.target.value)} />
           </div>
 
-          <Button type="submit" className="w-full flex items-center justify-center gap-1.5">
-            <Check className="h-4 w-4" /> Save Medicine to Store Register
+          <Button type="submit" className="w-full py-2.5 text-xs font-bold">
+            Add Stock Item to Inventory
           </Button>
         </form>
       </Modal>
 
-      {/* ADMIN EDIT MEDICINE MODAL */}
-      <Modal isOpen={isEditMedOpen} onClose={() => setIsEditMedOpen(false)} title={`Edit Store Record: ${selectedMed?.name || ''}`}>
+      {/* MODAL: EDIT MEDICINE IN STORE */}
+      <Modal isOpen={isEditMedOpen} onClose={() => setIsEditMedOpen(false)} title={`Edit Medicine: ${selectedMed?.name}`}>
         <form onSubmit={handleEditMedicineSubmit} className="space-y-4">
-          <Input
-            label="Medicine / Injection Name"
-            required
-            value={editName}
-            onChange={e => setEditName(e.target.value)}
-          />
-
+          <Input label="Medicine / Injection Name *" required value={editName} onChange={e => setEditName(e.target.value)} />
+          
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1">Form / Type</label>
-              <select
-                value={editType}
-                onChange={e => setEditType(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200"
-              >
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category *</label>
+              <select value={editType} onChange={e => setEditType(e.target.value)} className="w-full px-3 py-2 rounded-lg border text-xs font-bold dark:bg-dark-900">
                 <option value="Tablet">Tablet</option>
-                <option value="Tekka / Injection">Tekka / Injection</option>
-                <option value="Syrup">Syrup</option>
                 <option value="Capsule">Capsule</option>
-                <option value="Drip / Infusion">Drip / Infusion</option>
-                <option value="Drops / Ointment">Drops / Ointment</option>
+                <option value="Syrup">Syrup</option>
+                <option value="Injection">Injection (Tekka)</option>
+                <option value="Ointment">Ointment / Cream</option>
+                <option value="Drops">Eye/Ear Drops</option>
               </select>
             </div>
-
-            <Input
-              label="Dosage Strength (mg)"
-              value={editDosageMg}
-              onChange={e => setEditDosageMg(e.target.value)}
-              placeholder="e.g. 500 mg, 1000 mg"
-            />
+            <Input label="Unit Dosage (mg/ml)" value={editDosageMg} onChange={e => setEditDosageMg(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Available Stock Count"
-              type="number"
-              required
-              value={editStock}
-              onChange={e => setEditStock(Number(e.target.value))}
-            />
-
-            <Input
-              label="Unit Price (Rs.)"
-              type="number"
-              required
-              value={editPrice}
-              onChange={e => setEditPrice(Number(e.target.value))}
-            />
+            <Input label="Stock Quantity *" type="number" min="0" required value={editStock} onChange={e => setEditStock(Number(e.target.value))} />
+            <Input label="Unit Price (Rs.) *" type="number" min="0" required value={editPrice} onChange={e => setEditPrice(Number(e.target.value))} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Batch Number"
-              value={editBatch}
-              onChange={e => setEditBatch(e.target.value)}
-            />
-
-            <Input
-              label="Expiry Date"
-              type="date"
-              value={editExpiry}
-              onChange={e => setEditExpiry(e.target.value)}
-            />
+            <Input label="Batch Number" value={editBatch} onChange={e => setEditBatch(e.target.value)} />
+            <Input label="Expiry Date" type="date" value={editExpiry} onChange={e => setEditExpiry(e.target.value)} />
           </div>
 
-          <Button type="submit" className="w-full flex items-center justify-center gap-1.5">
-            <Check className="h-4 w-4" /> Save Updated Medicine Info
+          <Button type="submit" className="w-full py-2.5 text-xs font-bold">
+            Save Updated Inventory Specs
           </Button>
         </form>
       </Modal>
