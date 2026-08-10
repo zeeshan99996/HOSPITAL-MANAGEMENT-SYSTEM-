@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, AreaChart, Area, Legend, LineChart, Line, ComposedChart
+  ResponsiveContainer, AreaChart, Area, Legend
 } from 'recharts';
 
 const escapeCsv = (val: any): string => {
@@ -172,42 +172,34 @@ export const Reports: React.FC = () => {
   }, 0);
 
   // ----------------------------------------------------
-  // CHART DATA SETUP
+  // GRAPH DATA SETUP
   // ----------------------------------------------------
   const financialComparisonData = [
     {
-      name: `Today (${selectedDailyLabel})`,
+      name: 'Today',
       'Revenue Collected': todayRevenue,
       'Clinic Expenses': todayExpensesTotal,
       'Pending Balance Due': todayUnpaidDue
     },
     {
-      name: `${selectedMonthName.substring(0, 3)} ${selectedYear}`,
+      name: 'This Month',
       'Revenue Collected': monthRevenue,
       'Clinic Expenses': monthExpensesTotal,
       'Pending Balance Due': monthUnpaidDue
     }
   ];
 
-  // Day-Wise Trends for Selected Month
-  const daysInSelectedMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-  const dailyMonthTrendData = Array.from({ length: daysInSelectedMonth }).map((_, i) => {
-    const dayNum = i + 1;
-    const dayStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-    const dayLabel = `${dayNum} ${selectedMonthName.substring(0, 3)}`;
+  // Daily Trends for last 7 days
+  const last7DaysData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().split('T')[0];
+    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-    const dayTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(dayStr)).map(t => Number(t.patientId)));
-    const dayPatientsList = patients.filter(p => (p.createdAt && p.createdAt.startsWith(dayStr)) || dayTokenPatientIds.has(Number(p.id)));
-    const dayOpd = dayPatientsList.length;
-
-    const dayIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(dayStr)).length;
-
-    const dayInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(dayStr));
-    const dayInvoicePaid = dayInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
-    const dayRegistrationPaid = dayPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
-    const dayRev = dayInvoicePaid + dayRegistrationPaid;
-
-    const dayExp = expenses.filter(e => e.expenseDate === dayStr).reduce((acc, e) => acc + Number(e.amount || 0), 0);
+    const dayOpd = patients.filter(p => p.createdAt && p.createdAt.startsWith(dateStr)).length;
+    const dayIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(dateStr)).length;
+    const dayRev = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(dateStr)).reduce((a, b) => a + Number(b.paidAmount || 0), 0);
+    const dayExp = expenses.filter(e => e.expenseDate === dateStr).reduce((a, b) => a + Number(b.amount || 0), 0);
 
     return {
       day: dayLabel,
@@ -215,38 +207,6 @@ export const Reports: React.FC = () => {
       'IPD Admissions': dayIpd,
       'Revenue (Rs.)': dayRev,
       'Expenses (Rs.)': dayExp
-    };
-  });
-
-  // ----------------------------------------------------
-  // GRAPH 2: MONTH-WISE TREND DATA FOR SELECTED YEAR
-  // ----------------------------------------------------
-  const monthlyYearTrendData = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-  ].map((mName, i) => {
-    const mNum = i + 1;
-    const mStr = `${selectedYear}-${String(mNum).padStart(2, '0')}`;
-
-    const mTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(mStr)).map(t => Number(t.patientId)));
-    const mPatientsList = patients.filter(p => (p.createdAt && p.createdAt.startsWith(mStr)) || mTokenPatientIds.has(Number(p.id)));
-    const mOpd = mPatientsList.length;
-
-    const mIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(mStr)).length;
-
-    const mInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(mStr));
-    const mInvoicePaid = mInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
-    const mRegistrationPaid = mPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
-    const mRev = mInvoicePaid + mRegistrationPaid;
-
-    const mExp = expenses.filter(e => e.expenseDate && e.expenseDate.startsWith(mStr)).reduce((acc, e) => acc + Number(e.amount || 0), 0);
-
-    return {
-      month: `${mName} ${selectedYear}`,
-      'Revenue (Rs.)': mRev,
-      'Expenses (Rs.)': mExp,
-      'OPD Patients': mOpd,
-      'IPD Admissions': mIpd
     };
   });
 
@@ -746,10 +706,10 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* SECTION 3: VISUAL ANALYTICS & DUAL SEPARATE CHARTS  */}
+      {/* SECTION 3: VISUAL ANALYTICS & INTERACTIVE CHARTS     */}
       {/* ---------------------------------------------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1: Financial Analytics Comparison (Bar Chart) */}
+        {/* Chart 1: Financial Comparison (Revenue vs Expenses vs Pending Due) */}
         <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
@@ -758,7 +718,7 @@ export const Reports: React.FC = () => {
               </h3>
               <p className="text-[10px] text-slate-500 mt-0.5">Compare Revenue Collected vs Clinic Expenses vs Pending Due Balances</p>
             </div>
-            <Badge type="info">Financial Bar Graph</Badge>
+            <Badge type="info">Financial Graph</Badge>
           </div>
 
           <div className="h-64 w-full pt-2">
@@ -780,37 +740,41 @@ export const Reports: React.FC = () => {
           </div>
         </Card>
 
-        {/* Chart 2: Day-Wise Patient Volume & Financial Trend (Line Chart) */}
+        {/* Chart 2: Daily Patient Volume & Financial Trend */}
         <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Activity className="h-4 w-4 text-brand-500" /> Patient Volume & Revenue Trend ({selectedMonthName} {selectedYear})
+                <Activity className="h-4 w-4 text-brand-500" /> 7-Day Patient Volume & Revenue Trend
               </h3>
               <p className="text-[10px] text-slate-500 mt-0.5">Daily trend analysis of OPD visits, IPD admissions, and revenue</p>
             </div>
-            <Badge type="info">Patient Line Graph ({selectedMonthName})</Badge>
+            <Badge type="info">Volume Trend</Badge>
           </div>
 
           <div className="h-64 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyMonthTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={last7DaysData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0284c7" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#0284c7" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fontWeight: 'bold' }} interval={daysInSelectedMonth > 20 ? 1 : 0} />
+                <XAxis dataKey="day" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
-                  formatter={(value: any, name: any) => [
-                    name.includes('Rs.') ? `Rs. ${Number(value).toLocaleString()}` : `${value} Patients`,
-                    name
-                  ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Line type="monotone" dataKey="OPD Patients" stroke="#0284c7" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="IPD Admissions" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="Revenue (Rs.)" stroke="#10b981" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="Expenses (Rs.)" stroke="#f59e0b" strokeWidth={2} dot={false} />
-              </LineChart>
+                <Area type="monotone" dataKey="Revenue (Rs.)" stroke="#0284c7" fillOpacity={1} fill="url(#colorRev)" />
+                <Area type="monotone" dataKey="Expenses (Rs.)" stroke="#f59e0b" fillOpacity={1} fill="url(#colorExp)" />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Patient, Appointment, Prescription, PrescriptionItem, LabRequest, Admission, Bed, Doctor, User, PatientVital } from '../models';
+import { Patient, Appointment, Prescription, PrescriptionItem, LabRequest, Admission, Bed, Doctor, User, PatientVital, TokenQueue } from '../models';
 import { Op } from 'sequelize';
 
 export const createPatient = async (req: Request, res: Response) => {
