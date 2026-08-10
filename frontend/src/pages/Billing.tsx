@@ -71,18 +71,19 @@ export const Billing: React.FC = () => {
 
   // Payroll State
   const [payrollLogs, setPayrollLogs] = useState<any[]>([]);
-  const [payrollMonth, setPayrollMonth] = useState('2026-07');
+  const [tokens, setTokens] = useState<any[]>([]);
 
   const fetchBillingData = async () => {
     setLoading(true);
     try {
-      const [invoicesData, admissionsData, patientsData, labReqsData, labTestsData, expData] = await Promise.all([
+      const [invoicesData, admissionsData, patientsData, labReqsData, labTestsData, expData, tokensData] = await Promise.all([
         apiClient.get('/invoices').catch(() => []),
         apiClient.get('/admissions').catch(() => []),
         apiClient.get('/patients').catch(() => []),
         apiClient.get('/lab/requests').catch(() => []),
         apiClient.get('/lab/tests').catch(() => []),
-        apiClient.get('/expenses').catch(() => [])
+        apiClient.get('/expenses').catch(() => []),
+        apiClient.get('/tokens').catch(() => [])
       ]);
 
       const pArr = Array.isArray(patientsData) ? patientsData : (patientsData?.patients || []);
@@ -92,6 +93,7 @@ export const Billing: React.FC = () => {
       setLabRequests(Array.isArray(labReqsData) ? labReqsData : []);
       setLabCatalog(Array.isArray(labTestsData) ? labTestsData : []);
       setExpenses(Array.isArray(expData) ? expData : []);
+      setTokens(Array.isArray(tokensData) ? tokensData : []);
 
       if (pArr.length > 0 && !selectedPatientId) {
         setSelectedPatientId(pArr[0].id.toString());
@@ -107,17 +109,28 @@ export const Billing: React.FC = () => {
     fetchBillingData();
   }, []);
 
-  // Filter Patients by Tab
+  // Filter Patients by Tab (Strict Today Filter for OPD Patients)
   const admittedPatientIds = new Set(
     admissions
       .filter((adm: any) => adm && adm.status === 'admitted')
       .map((adm: any) => Number(adm.patientId))
   );
 
-  const opdPatientsList = patients.filter(p => !admittedPatientIds.has(Number(p.id)));
+  const now = new Date();
+  const localTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayTokenPatientIds = new Set(tokens.map((t: any) => Number(t.patientId)));
+
+  const opdPatientsList = patients.filter(p => {
+    if (admittedPatientIds.has(Number(p.id))) return false;
+    const pDateStr = p.createdAt ? p.createdAt.split('T')[0] : '';
+    const isTodayCreated = pDateStr === localTodayStr;
+    const hasTodayToken = todayTokenPatientIds.has(Number(p.id));
+    return isTodayCreated || hasTodayToken;
+  });
+
   const admitPatientsList = patients.filter(p => admittedPatientIds.has(Number(p.id)));
   const currentTabPatients = activeTab === 'opd_patient'
-    ? (opdPatientsList.length > 0 ? opdPatientsList : patients)
+    ? opdPatientsList
     : admitPatientsList;
 
   // Real-time MR Number & Patient Search Filter
