@@ -5,7 +5,8 @@ import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   Receipt, Plus, CreditCard, Eye, ShieldCheck, Printer, Trash,
   DollarSign, Activity, Clock, Stethoscope, Bed, Sparkles, Check,
-  Search, Pill, Beaker, FileText, UserCheck, HeartPulse
+  Search, Pill, Beaker, FileText, UserCheck, HeartPulse, CheckCircle2,
+  AlertCircle, ChevronRight, Filter, TrendingUp, Wallet
 } from 'lucide-react';
 
 const escapeHtml = (str: any): string => {
@@ -34,6 +35,7 @@ export const Billing: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [mrSearch, setMrSearch] = useState('');
   const [receptionistDiscount, setReceptionistDiscount] = useState<number | ''>('');
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   // Printable Bill Receipt Modal
   const [isPrintReceiptOpen, setIsPrintReceiptOpen] = useState(false);
@@ -133,7 +135,6 @@ export const Billing: React.FC = () => {
     const q = val.trim().toLowerCase();
     if (!q) return;
 
-    // Exact MR Number or tail sequence match (e.g. MR-2026-0020 or 0020 or 20)
     const exactMatch = currentTabPatients.find(p => {
       const mr = (p.mrNumber || '').toLowerCase();
       const seqOnly = mr.replace(/[^0-9]/g, '');
@@ -145,12 +146,10 @@ export const Billing: React.FC = () => {
       return;
     }
 
-    // Single result search match
     const matches = currentTabPatients.filter(p => {
       const mr = (p.mrNumber || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
-      const phone = (p.phone || '').toLowerCase();
-      return mr.includes(q) || name.includes(q) || phone.includes(q);
+      return mr.includes(q) || name.includes(q);
     });
 
     if (matches.length === 1) {
@@ -158,44 +157,34 @@ export const Billing: React.FC = () => {
     }
   };
 
-  // Selected Patient Details
   const selectedPatientObj = patients.find(p => String(p.id) === String(selectedPatientId));
-  const selectedPatientAdmission = admissions.find(
-    adm => String(adm.patientId) === String(selectedPatientId) && (adm.status === 'admitted' || !adm.dischargeDate)
-  );
+  const selectedPatientAdmission = admissions.find(adm => String(adm.patientId) === String(selectedPatientId) && adm.status === 'admitted');
 
-  // Compute Itemized Charges for Selected Patient
+  // Compute Comprehensive Billing Breakdown
   const patientInvoices = invoices.filter(inv => String(inv.patientId) === String(selectedPatientId));
   const patientLabRequests = labRequests.filter(req => String(req.patientId) === String(selectedPatientId));
 
-  // Build All Line Items
   const computedItems: Array<{ title: string; category: string; amount: number; qty: number; detail?: string }> = [];
 
   if (selectedPatientObj) {
-    // 1. Initial OPD Registration / Consulting Fee
-    const initFee = Number(selectedPatientObj.paymentAmount || 100);
+    // 1. Doctor Consultation Fee
+    const consultFee = 1500;
     computedItems.push({
-      title: 'Initial OPD Consultation & Registration Fee',
-      category: 'Registration Fee',
-      amount: initFee,
+      title: 'Doctor OPD Consultation & Registration Fee',
+      category: 'Consultation Fee',
+      amount: consultFee,
       qty: 1,
-      detail: `Paid at reception desk on ${new Date(selectedPatientObj.createdAt).toLocaleDateString()}`
+      detail: `Standard Consultation (Dr. Talha Clinic)`
     });
 
-    // 2. Pharmacy Medicines & Injections (Tekka) & All Patient Invoices
+    // 2. Pharmacy Medicines & Prescriptions
     patientInvoices.forEach(inv => {
-      const itemsList = inv.invoiceItems || inv.items;
-      if (Array.isArray(itemsList) && itemsList.length > 0) {
-        itemsList.forEach((item: any) => {
-          // Avoid duplicating consultation registration fee
-          const iName = item.itemName ? String(item.itemName) : 'Pharmacy Item';
-          if (item.itemCategory === 'Consultation' || iName.toLowerCase().includes('registration fee')) {
-            return;
-          }
+      if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
+        inv.items.forEach((item: any) => {
           computedItems.push({
-            title: iName,
-            category: item.itemCategory || 'Pharmacy',
-            amount: Number(item.totalPrice || item.unitPrice || 0),
+            title: item.itemName || item.description || 'Prescription Medicine',
+            category: 'Pharmacy Medicine',
+            amount: Number(item.totalPrice || item.unitPrice || 0) * Number(item.quantity || 1),
             qty: Number(item.quantity || 1),
             detail: `Pharmacy Bill #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
           });
@@ -214,7 +203,7 @@ export const Billing: React.FC = () => {
       }
     });
 
-    // 3. Laboratory & Radiology (Ultrasound, LFT, CBC, etc.) Tests
+    // 3. Laboratory Tests
     patientLabRequests.forEach(req => {
       const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === req.testName.toLowerCase());
       const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : 500;
@@ -249,6 +238,10 @@ export const Billing: React.FC = () => {
   const totalPaidSoFar = Math.round((patientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0)) * 100) / 100;
   const netDueBalance = Math.round(Math.max(0, netPayableTotal - totalPaidSoFar) * 100) / 100;
 
+  // Revenue KPI Stats
+  const totalRevenueCollected = invoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0);
+  const totalOutstandingUnpaid = invoices.reduce((sum, inv) => sum + Math.max(0, Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0)), 0);
+
   const handlePrintProfessionalBill = () => {
     if (!selectedPatientObj) return;
 
@@ -257,12 +250,6 @@ export const Billing: React.FC = () => {
       alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print billing receipts automatically.');
       return;
     }
-
-    const discountVal = Number(receptionistDiscount) || 0;
-    const grossSubtotal = computedItems.reduce((acc, item) => acc + item.amount, 0);
-    const netPayableTotal = Math.max(0, grossSubtotal - discountVal);
-    const totalPaidSoFar = patientInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0);
-    const netDueBalance = Math.max(0, netPayableTotal - totalPaidSoFar);
 
     const itemsRows = computedItems.map((item) => `
       <tr>
@@ -293,13 +280,9 @@ export const Billing: React.FC = () => {
           .info-label { font-weight: 700; color: #475569; width: 115px; display: inline-block; }
           .table-invoice { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
           .table-invoice th { background: #f1f5f9; color: #334155; font-size: 10px; text-transform: uppercase; font-weight: 800; padding: 10px 12px; text-align: left; border-bottom: 2px solid #cbd5e1; letter-spacing: 0.5px; }
-          .summary-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
-          .notes-box { font-size: 10px; color: #64748b; max-width: 320px; line-height: 1.5; background: #f8fafc; padding: 12px; rounded: 8px; border: 1px solid #e2e8f0; }
-          .summary-box { width: 300px; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px; background: #fafafa; font-size: 11px; }
+          .summary-box { width: 300px; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px; background: #fafafa; font-size: 11px; margin-left: auto; }
           .summary-row { display: flex; justify-content: space-between; padding: 5px 0; color: #334155; }
           .summary-row.total { border-top: 2px solid #0284c7; font-weight: 900; font-size: 14px; color: #0284c7; padding-top: 8px; margin-top: 4px; }
-          .stamp-box { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; border-top: 1px dashed #cbd5e1; padding-top: 20px; font-size: 10px; color: #64748b; }
-          .stamp-line { border-top: 1.5px solid #334155; width: 160px; text-align: center; padding-top: 6px; font-weight: 800; color: #0f172a; font-size: 11px; }
         </style>
       </head>
       <body>
@@ -307,332 +290,322 @@ export const Billing: React.FC = () => {
           <tr>
             <td>
               <div class="hospital-name">DR. TALHA CLINIC</div>
-              <div class="hospital-sub">12-B, Main Boulevard, Gulberg III, Lahore, Pakistan</div>
-              <div class="hospital-sub">UAN: (042) 35889900 | Helpline: 0311-6353044 | Tax NTN: 4920194-7</div>
+              <div class="hospital-sub">Modern Hospital & Clinical Management EMR Suite</div>
             </td>
-            <td style="vertical-align: top;">
-              <div class="bill-title">MEDICAL INVOICE</div>
-              <div style="font-size: 11px; text-align: right; color: #475569; margin-top: 6px; line-height: 1.5;">
-                Statement Date: <strong>${new Date().toLocaleDateString()}</strong><br/>
-                Bill Ref: <strong>INV-${Date.now().toString().slice(-6)}</strong>
-              </div>
+            <td style="text-align: right;">
+              <div class="bill-title">OFFICIAL RECEIPT</div>
+              <div style="font-size: 11px; font-weight: 700; color: #64748b;">Date: ${new Date().toLocaleDateString()}</div>
             </td>
           </tr>
         </table>
 
         <div class="patient-box">
           <div class="info-col">
-            <div><span class="info-label">Patient Name:</span> <strong style="color: #0f172a; font-size: 12px;">${escapeHtml(selectedPatientObj.name)}</strong></div>
-            <div><span class="info-label">MR Number:</span> <strong style="color: #0284c7;">${escapeHtml(selectedPatientObj.mrNumber || 'MR-N/A')}</strong></div>
-            <div><span class="info-label">Age / Gender:</span> <span>${escapeHtml(selectedPatientObj.age || 'N/A')} Yrs / ${escapeHtml((selectedPatientObj.gender || 'male').toUpperCase())}</span></div>
-            <div><span class="info-label">Phone Contact:</span> <span>${escapeHtml(selectedPatientObj.phone)}</span></div>
+            <div><span class="info-label">Patient Name:</span> <strong>${escapeHtml(selectedPatientObj.name)}</strong></div>
+            <div><span class="info-label">MR Number:</span> <strong>${escapeHtml(selectedPatientObj.mrNumber || 'N/A')}</strong></div>
           </div>
           <div class="info-col">
-            <div><span class="info-label">Billing Category:</span> <strong>${activeTab === 'opd_patient' ? 'OPD Outpatient Visit' : 'IPD Inpatient Stay'}</strong></div>
-            ${selectedPatientAdmission ? `<div><span class="info-label">Ward / Bed:</span> <span>${escapeHtml(selectedPatientAdmission.bed?.wardName || 'Ward')} (${escapeHtml(selectedPatientAdmission.bed?.bedNumber)})</span></div>` : ''}
-            <div><span class="info-label">Payment Status:</span> <strong style="color: ${netDueBalance <= 0 ? '#16a34a' : '#dc2626'}; font-size: 12px;">${netDueBalance <= 0 ? 'PAID IN FULL' : 'PARTIAL / BALANCE DUE'}</strong></div>
+            <div><span class="info-label">Phone:</span> <strong>${escapeHtml(selectedPatientObj.phone || 'N/A')}</strong></div>
+            <div><span class="info-label">Billing Type:</span> <strong>${activeTab === 'opd_patient' ? 'OPD Consultation' : 'IPD Bed Stay'}</strong></div>
           </div>
         </div>
 
         <table class="table-invoice">
           <thead>
             <tr>
-              <th>Description / Particulars</th>
-              <th style="text-align: center;">Service Category</th>
+              <th>Description</th>
+              <th style="text-align: center;">Category</th>
               <th style="text-align: center;">Qty</th>
-              <th style="text-align: right;">Amount (Rs.)</th>
+              <th style="text-align: right;">Amount</th>
             </tr>
           </thead>
-          <tbody>
-            ${itemsRows}
-          </tbody>
+          <tbody>${itemsRows}</tbody>
         </table>
 
-        <div class="summary-container">
-          <div class="notes-box">
-            <strong style="color: #0f172a; display: block; margin-bottom: 4px;">Terms & Authorization:</strong>
-            - Official computer-generated hospital statement.<br/>
-            - Valid for insurance reimbursement & health audit.<br/>
-            - Retain receipt for any refund or query.
-          </div>
-          <div class="summary-box">
-            <div class="summary-row"><span>Gross Subtotal:</span> <strong>Rs. ${grossSubtotal.toLocaleString()}</strong></div>
-            ${discountVal > 0 ? `<div class="summary-row" style="color: #dc2626;"><span>Receptionist Discount:</span> <strong>- Rs. ${discountVal.toLocaleString()}</strong></div>` : ''}
-            <div class="summary-row total"><span>Net Total Amount:</span> <span>Rs. ${netPayableTotal.toLocaleString()}</span></div>
-            <div class="summary-row" style="color: #16a34a;"><span>Total Amount Paid:</span> <strong>Rs. ${totalPaidSoFar.toLocaleString()}</strong></div>
-            <div class="summary-row" style="font-weight: 800; font-size: 12px; color: ${netDueBalance > 0 ? '#dc2626' : '#16a34a'}; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 4px;">
-              <span>Net Balance Due:</span> <span>Rs. ${netDueBalance.toLocaleString()} ${netDueBalance <= 0 ? '(CLEARED)' : ''}</span>
-            </div>
+        <div class="summary-box">
+          <div class="summary-row"><span>Gross Subtotal:</span> <strong>Rs. ${grossSubtotal.toLocaleString()}</strong></div>
+          ${discountVal > 0 ? `<div class="summary-row" style="color: #e11d48;"><span>Discount:</span> <strong>- Rs. ${discountVal.toLocaleString()}</strong></div>` : ''}
+          <div class="summary-row total"><span>Net Payable:</span> <span>Rs. ${netPayableTotal.toLocaleString()}</span></div>
+          <div class="summary-row"><span>Paid So Far:</span> <strong>Rs. ${totalPaidSoFar.toLocaleString()}</strong></div>
+          <div class="summary-row" style="font-weight: 800; color: ${netDueBalance > 0 ? '#e11d48' : '#16a34a'};">
+            <span>Net Balance Due:</span> <span>Rs. ${netDueBalance.toLocaleString()}</span>
           </div>
         </div>
 
-        <div class="stamp-box">
-          <div>
-            <div style="font-weight: 700; color: #334155;">Issued By: Reception Desk Cashier</div>
-            <div>Thank you for choosing Dr. Talha Clinic.</div>
-          </div>
-          <div class="stamp-line">Authorized Stamp & Sign</div>
-        </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function(){ window.close(); }, 500);
-          };
-        </script>
+        <script>window.print();</script>
       </body>
       </html>
     `);
     printWindow.document.close();
   };
 
-  // Settlement & Payment Submit
-  const handlePayInvoiceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedInvoice) return;
-    try {
-      await apiClient.put(`/invoices/${selectedInvoice.id}/pay`, {
-        amount: payAmount,
-        paymentMethod: payMethod,
-      });
-      setIsPayOpen(false);
-      fetchBillingData();
-      alert('Payment settled successfully.');
-    } catch (err: any) {
-      alert(`Payment failed: ${err.message}`);
-    }
-  };
-
-  const handleCreateSubmit = async (e: React.FormEvent) => {
+  // Create Custom Invoice submit
+  const handleCreateCustomInvoiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customPatientId) {
-      alert('Please select a patient file.');
+      alert('Please select a patient.');
+      return;
+    }
+    const validLines = invoiceLines.filter(l => l.itemName.trim() !== '' && l.unitPrice > 0);
+    if (validLines.length === 0) {
+      alert('Please add at least one valid invoice item.');
       return;
     }
 
     try {
       await apiClient.post('/invoices', {
         patientId: Number(customPatientId),
-        discount: Number(customDiscount || 0),
-        items: [
-          {
-            itemName: 'Custom Hospital Billing Invoice',
-            itemCategory: 'General',
-            unitPrice: 500,
-            quantity: 1
-          }
-        ]
+        discount: Number(customDiscount),
+        items: validLines.map(l => ({
+          description: l.itemName,
+          category: l.itemCategory,
+          unitPrice: Number(l.unitPrice),
+          quantity: Number(l.quantity)
+        }))
       });
 
       setIsCreateOpen(false);
-      setCustomPatientId('');
-      setCustomDiscount(0);
       fetchBillingData();
-      alert('Custom invoice issued successfully.');
+      alert('Custom Billing Invoice Created Successfully!');
     } catch (err: any) {
-      alert(`Invoice compilation failed: ${err.message}`);
+      alert(`Failed to create invoice: ${err.message}`);
     }
   };
 
-  const handlePayClick = (invoice: any) => {
-    setSelectedInvoice(invoice);
-    const balance = Number(invoice.grandTotal) - Number(invoice.paidAmount);
+  // Payment Settlement submit
+  const handlePayClick = (inv: any) => {
+    setSelectedInvoice(inv);
+    const balance = Math.max(0, Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0));
     setPayAmount(balance);
-    setPayMethod('cash');
     setIsPayOpen(true);
   };
 
-  // Submit IPD Advance Settlement
-  const handleAdmissionPaySubmit = async (e: React.FormEvent) => {
+  const handlePaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedAdmission || !ipdDepositAmount) return;
-    try {
-      const depositNum = Number(ipdDepositAmount);
-      const newAdvance = Number(selectedAdmission.advancePaid || 0) + depositNum;
+    if (!selectedInvoice) return;
 
-      await apiClient.put(`/medical/admissions/${selectedAdmission.id}/notes`, {
-        advancePaid: newAdvance
+    try {
+      await apiClient.post(`/invoices/${selectedInvoice.id}/payment`, {
+        amount: Number(payAmount),
+        paymentMethod: payMethod
       });
 
-      alert(`Rs. ${depositNum.toLocaleString()} IPD Deposit recorded successfully!`);
-      setIsAdmissionPayOpen(false);
-      setIpdDepositAmount('');
+      setIsPayOpen(false);
       fetchBillingData();
+      alert(`Payment of Rs. ${payAmount} recorded successfully!`);
     } catch (err: any) {
-      alert(`Error updating IPD deposit: ${err.message}`);
+      alert(`Payment recording failed: ${err.message}`);
     }
   };
 
+  const filteredInvoices = invoices.filter(inv => {
+    if (invoiceFilter === 'paid') return inv.status === 'paid' || Number(inv.paidAmount || 0) >= Number(inv.grandTotal || inv.totalAmount || 0);
+    if (invoiceFilter === 'unpaid') return inv.status !== 'paid' && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0);
+    return true;
+  });
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-brand-500" /> Billing & Accounting Center
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Complete billing breakdown of Initial Fee, Pharmacy Medicines, Lab Tests, and IPD Bed Stay.
-          </p>
-        </div>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+      {/* EXECUTIVE FINANCIAL HEADER BANNER */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white p-6 shadow-xl border border-brand-500/20">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/30 text-brand-300 text-2xs font-extrabold uppercase tracking-wider backdrop-blur-md">
+              <Sparkles className="h-3 w-3 text-brand-400" /> Hospital Billing & Financial Operations Center
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+              <Receipt className="h-7 w-7 text-brand-400" /> Billing & Accounting Center
+            </h1>
+            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+              Complete billing breakdown of Initial Fee, Pharmacy Medicines, Lab Tests, and IPD Bed Stay.
+            </p>
+          </div>
 
-        {user?.role !== 'patient' && (
-          <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-1.5 shadow-sm">
-            <Plus className="h-4 w-4" /> Create Custom Invoice
-          </Button>
-        )}
-      </div>
-
-      {/* TWO PRIMARY NAVIGATION TABS */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto pb-px">
-        <button
-          onClick={() => {
-            setActiveTab('opd_patient');
-            setSelectedPatientId('');
-            setReceptionistDiscount('');
-          }}
-          className={`px-5 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 rounded-t-lg ${
-            activeTab === 'opd_patient'
-              ? 'border-brand-500 text-brand-600 dark:text-brand-400 bg-brand-500/10'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <Stethoscope className="h-4 w-4" /> 🩺 OPD Patient Billing ({opdPatientsList.length})
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab('admit_patient');
-            setSelectedPatientId('');
-            setReceptionistDiscount('');
-          }}
-          className={`px-5 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center gap-2 rounded-t-lg ${
-            activeTab === 'admit_patient'
-              ? 'border-brand-500 text-brand-600 dark:text-brand-400 bg-brand-500/10'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <Bed className="h-4 w-4" /> 🛌 Admit Patient (IPD) Billing ({admitPatientsList.length})
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="space-y-4 animate-pulse">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 bg-slate-200 dark:bg-dark-900 rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* COMPREHENSIVE PATIENT BILLING & RECEIPT CALCULATOR BOARD */}
-          <Card className="p-5 border border-brand-500/30 bg-gradient-to-r from-white via-slate-50/50 to-brand-500/[0.02] dark:from-dark-900 dark:to-dark-950 space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 dark:border-slate-800 pb-3 gap-2">
-              <div>
-                <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-brand-500" />
-                  Select {activeTab === 'opd_patient' ? 'OPD Patient' : 'Admitted IPD Patient'} for Complete Fee Statement
-                </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Displays Initial Fee + Pharmacy Medicines + Lab Tests (Ultrasound/LFT/CBC) + Bed Stay.
-                </p>
-              </div>
-              <Badge type="info">{activeTab === 'opd_patient' ? 'OPD Billing' : 'IPD Admission Billing'}</Badge>
+          {/* Quick Financial KPI Cards Bar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[110px]">
+              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Today Cash</span>
+              <span className="text-lg font-black font-mono text-emerald-400">Rs. {totalRevenueCollected.toLocaleString()}</span>
             </div>
 
-            {/* PATIENT SELECTION DROPDOWN & REAL-TIME MR NUMBER SEARCH */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* MR Number Direct Search Box */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider flex items-center justify-between">
-                  <span>Type / Search MR Number *</span>
-                  <span className="text-[10px] text-brand-600 dark:text-brand-400 font-normal">e.g. MR-2026-0020 or 0020</span>
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Type MR Number (e.g. MR-2026-0020 or 0020)..."
-                    value={mrSearch}
-                    onChange={e => handleMrSearchChange(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-brand-500/40 dark:border-brand-500/30 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20 shadow-sm"
-                  />
-                  {mrSearch && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMrSearch('');
-                        setSelectedPatientId('');
-                      }}
-                      className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
+            <div className="px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/15 rounded-xl text-center min-w-[100px]">
+              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider block">Total Invoices</span>
+              <span className="text-lg font-black font-mono text-white">{invoices.length} Ledger</span>
+            </div>
 
-              {/* Patient Dropdown Select */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Select Registered {activeTab === 'opd_patient' ? 'OPD' : 'Admitted IPD'} Patient File *
-                </label>
-                <select
-                  value={selectedPatientId}
-                  onChange={e => setSelectedPatientId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
-                >
-                  <option value="">-- Choose Patient to View Complete Fee Breakdown --</option>
-                  {filteredTabPatients.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} • (MRN: {p.mrNumber || 'N/A'}) • {p.phone}
-                    </option>
-                  ))}
-                </select>
+            <div className="px-4 py-2.5 bg-rose-500/20 backdrop-blur-md border border-rose-500/30 rounded-xl text-center min-w-[110px]">
+              <span className="text-[10px] text-rose-200 font-bold uppercase tracking-wider block">Outstanding Due</span>
+              <span className="text-lg font-black font-mono text-rose-300">Rs. {totalOutstandingUnpaid.toLocaleString()}</span>
+            </div>
+
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-lg shadow-brand-500/30 text-xs"
+            >
+              <Plus className="h-4 w-4" /> Create Custom Invoice
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* SEGMENTED TAB SWITCHER & PATIENT CATEGORY TOOLBAR */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-dark-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <div className="flex bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
+          <button
+            onClick={() => {
+              setActiveTab('opd_patient');
+              setMrSearch('');
+            }}
+            className={`px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'opd_patient'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/25'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Stethoscope className="h-4 w-4" /> OPD Patient Billing ({opdPatientsList.length})
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('admit_patient');
+              setMrSearch('');
+            }}
+            className={`px-5 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'admit_patient'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/25'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Bed className="h-4 w-4" /> Admit Patient (IPD) Billing ({admitPatientsList.length})
+          </button>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* PATIENT FINANCIAL STATEMENT CONSOLE & INVOICE LEDGER */}
+      {/* ======================================================== */}
+      <div className="space-y-6">
+        
+        {/* SECTION 1: SEARCH & COMPREHENSIVE FINANCIAL STATEMENT */}
+        <Card className="p-6 border border-slate-200/80 dark:border-slate-800 space-y-6 bg-white dark:bg-dark-900 shadow-sm rounded-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4">
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-brand-500" />
+                Select {activeTab === 'opd_patient' ? 'OPD' : 'Admitted IPD'} Patient for Complete Fee Statement
+              </h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                Displays Initial Fee + Pharmacy Medicines + Lab Tests (Ultrasound/LFT/CBC) + Bed Stay.
+              </p>
+            </div>
+            <Badge type="info" className="px-3 py-1 font-bold">
+              {activeTab === 'opd_patient' ? 'OPD Billing Console' : 'IPD Admission Billing'}
+            </Badge>
+          </div>
+
+          {/* Search Bar & Dropdown Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+            <div className="md:col-span-6 space-y-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Type / Search MR Number *
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-brand-500" />
+                <input
+                  type="text"
+                  placeholder="Type MR Number (e.g. MR-2026-0020 or 0020)..."
+                  value={mrSearch}
+                  onChange={e => handleMrSearchChange(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
+                />
               </div>
             </div>
 
-            {/* ITEMIZED STATEMENT TABLE IF PATIENT SELECTED */}
-            {selectedPatientObj ? (
-              <div className="space-y-4 pt-2">
-                <div className="p-3 bg-slate-100 dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block">{selectedPatientObj.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      MRN: {selectedPatientObj.mrNumber || 'MR-N/A'} • Contact: {selectedPatientObj.phone}
-                      {selectedPatientAdmission ? ` • Ward: ${selectedPatientAdmission.bed?.wardName || 'IPD'} (Bed: ${selectedPatientAdmission.bed?.bedNumber})` : ''}
-                    </span>
+            <div className="md:col-span-6 space-y-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Select Registered Patient File *
+              </label>
+              <select
+                value={selectedPatientId}
+                onChange={e => setSelectedPatientId(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-brand-500/20"
+              >
+                <option value="">-- Choose Patient to View Complete Fee Breakdown --</option>
+                {filteredTabPatients.map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} • (MRN: {p.mrNumber || 'N/A'}) • {p.phone}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* COMPREHENSIVE FEE STATEMENT SUMMARY DISPLAY */}
+          {selectedPatientObj ? (
+            <div className="p-6 bg-slate-50/80 dark:bg-dark-950/80 rounded-2xl border border-slate-200/80 dark:border-slate-850 space-y-6 animate-in fade-in duration-200">
+              
+              {/* Patient Banner */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-brand-500 text-white flex items-center justify-center font-black text-lg shadow-md shadow-brand-500/30">
+                    {selectedPatientObj.name.charAt(0).toUpperCase()}
                   </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">{selectedPatientObj.name}</h3>
+                      <span className="font-mono text-[10px] font-bold bg-brand-500/20 text-brand-700 dark:text-brand-300 px-2.5 py-0.5 rounded-full">
+                        {selectedPatientObj.mrNumber}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Phone: {selectedPatientObj.phone} • Age: {selectedPatientObj.age || 'N/A'} • Gender: {selectedPatientObj.gender || 'N/A'}
+                    </p>
+                  </div>
+                </div>
 
-                  <Button onClick={handlePrintProfessionalBill} className="flex items-center gap-1.5 text-xs shadow-sm">
-                    <Printer className="h-4 w-4" /> Print Complete Bill Receipt
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setIsPrintReceiptOpen(true)}
+                    className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-brand-500/20"
+                  >
+                    <Printer className="h-4 w-4" /> Print Complete Statement
                   </Button>
                 </div>
+              </div>
 
-                {/* TABLE OF ALL CHARGES */}
-                <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+              {/* Itemized Fee Breakdown Table */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Itemized Fee & Service Charges Breakdown
+                </h4>
+                
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-dark-900">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-850 bg-slate-100/60 dark:bg-dark-950/60 text-slate-450 uppercase tracking-wider text-[10px] font-semibold">
-                        <th className="px-4 py-3">Description / Line Item</th>
-                        <th className="px-4 py-3">Fee Category</th>
-                        <th className="px-4 py-3">Qty</th>
+                      <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-dark-950/60 text-slate-450 uppercase text-[10px] tracking-wider font-bold">
+                        <th className="px-4 py-3">Description</th>
+                        <th className="px-4 py-3">Category</th>
+                        <th className="px-4 py-3 text-center">Qty</th>
                         <th className="px-4 py-3 text-right">Amount (Rs.)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                      {computedItems.map((item, i) => (
-                        <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
-                          <td className="px-4 py-3">
-                            <span className="font-bold text-slate-900 dark:text-white block text-xs">{item.title}</span>
-                            {item.detail && <span className="text-[10px] text-slate-450 italic">{item.detail}</span>}
+                      {computedItems.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-dark-950/40">
+                          <td className="px-4 py-3 font-bold text-slate-850 dark:text-slate-100">
+                            {item.title}
+                            {item.detail && <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{item.detail}</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-dark-900 text-slate-600 dark:text-slate-300">
+                            <Badge type="info" className="text-[10px] uppercase font-bold">
                               {item.category}
-                            </span>
+                            </Badge>
                           </td>
-                          <td className="px-4 py-3 font-mono">{item.qty}</td>
-                          <td className="px-4 py-3 text-right font-mono font-extrabold text-slate-900 dark:text-slate-100">
+                          <td className="px-4 py-3 text-center font-mono font-bold">
+                            {item.qty}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-extrabold text-slate-900 dark:text-white">
                             Rs. {item.amount.toLocaleString()}
                           </td>
                         </tr>
@@ -640,126 +613,179 @@ export const Billing: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+              </div>
 
-                {/* RECEPTIONIST DISCOUNT & GRAND TOTAL SUMMARY CARD */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-white dark:bg-dark-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-                  {/* Receptionist Discount Input */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                      Receptionist Discount (Rs.)
-                    </label>
+              {/* Financial Calculation Summary Card */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-2">
+                <div className="md:col-span-7 p-4 bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                    Special Discount Adjustment (If Any)
+                  </span>
+                  <div className="flex items-center gap-3">
                     <input
                       type="number"
                       min="0"
-                      placeholder="e.g. 200 (Subtract from Total)"
+                      placeholder="Enter discount amount in Rs."
                       value={receptionistDiscount}
-                      onChange={e => setReceptionistDiscount(e.target.value ? Number(e.target.value) : '')}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs font-bold bg-slate-50 dark:bg-dark-900 text-slate-900 dark:text-slate-100"
+                      onChange={e => setReceptionistDiscount(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-800 text-xs bg-slate-50 dark:bg-dark-950 font-bold"
                     />
-                    <span className="text-[10px] text-slate-450 mt-0.5 block">Discount will be subtracted from Gross Subtotal.</span>
-                  </div>
-
-                  {/* Net Summary Calculation */}
-                  <div className="space-y-1.5 text-right font-mono">
-                    <div className="flex justify-between text-xs text-slate-500">
-                      <span>Gross Subtotal:</span>
-                      <span className="font-bold text-slate-900 dark:text-slate-100">Rs. {grossSubtotal.toLocaleString()}</span>
-                    </div>
                     {discountVal > 0 && (
-                      <div className="flex justify-between text-xs text-rose-500 font-bold">
-                        <span>Discount Subtracted:</span>
-                        <span>- Rs. {discountVal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm font-extrabold text-brand-600 dark:text-brand-400 border-t border-slate-200 dark:border-slate-800 pt-1.5">
-                      <span>Net Total Payable:</span>
-                      <span>Rs. {netPayableTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-500">
-                      <span>Amount Paid So Far:</span>
-                      <span className="font-bold text-emerald-600">Rs. {totalPaidSoFar.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
-                      <span>Net Due Balance:</span>
-                      <span className={netDueBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                        Rs. {netDueBalance.toLocaleString()} {netDueBalance <= 0 ? '(FULLY CLEAR)' : ''}
+                      <span className="text-xs font-extrabold text-rose-500 whitespace-nowrap">
+                        - Rs. {discountVal.toLocaleString()} Applied
                       </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="md:col-span-5 p-4 bg-brand-500/10 border border-brand-500/20 rounded-xl space-y-2 font-mono text-xs">
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 font-semibold">
+                    <span>Gross Subtotal:</span>
+                    <span>Rs. {grossSubtotal.toLocaleString()}</span>
+                  </div>
+                  {discountVal > 0 && (
+                    <div className="flex justify-between items-center text-rose-500 font-bold">
+                      <span>Discount:</span>
+                      <span>- Rs. {discountVal.toLocaleString()}</span>
                     </div>
+                  )}
+                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 font-semibold border-t border-brand-500/20 pt-1.5">
+                    <span>Total Paid So Far:</span>
+                    <span className="text-emerald-600 font-bold">Rs. {totalPaidSoFar.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white pt-1">
+                    <span>Net Balance Due:</span>
+                    <span className={netDueBalance > 0 ? 'text-rose-600 dark:text-rose-400 text-base' : 'text-emerald-600 dark:text-emerald-400 text-base'}>
+                      Rs. {netDueBalance.toLocaleString()} {netDueBalance <= 0 ? '(PAID IN FULL)' : ''}
+                    </span>
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="p-8 text-center text-slate-450 text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                Please select a patient from the dropdown above to view their complete initial fee, pharmacy, and lab test statement.
+            </div>
+          ) : (
+            <div className="p-8 text-center text-slate-400 text-xs bg-slate-50/50 dark:bg-dark-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+              Please select a patient from the dropdown above to view their complete initial fee, pharmacy, and lab test statement.
+            </div>
+          )}
+        </Card>
+
+        {/* SECTION 2: ISSUED INVOICES LEDGER */}
+        <Card className="p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 bg-white dark:bg-dark-900 shadow-sm rounded-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-brand-500" /> Issued Invoices Ledger ({filteredInvoices.length} Records)
+              </h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                Complete billing ledger history and payment status tracking.
+              </p>
+            </div>
+
+            {/* Invoice Filter Pills */}
+            <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold">
+              <button
+                onClick={() => setInvoiceFilter('all')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  invoiceFilter === 'all'
+                    ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                All Invoices
+              </button>
+              <button
+                onClick={() => setInvoiceFilter('paid')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  invoiceFilter === 'paid'
+                    ? 'bg-white dark:bg-dark-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Paid
+              </button>
+              <button
+                onClick={() => setInvoiceFilter('unpaid')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  invoiceFilter === 'unpaid'
+                    ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Unpaid / Partial
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredInvoices.length === 0 ? (
+              <div className="col-span-full p-8 text-center text-slate-400 text-xs">
+                No invoices found in ledger history.
               </div>
-            )}
-          </Card>
+            ) : (
+              filteredInvoices.map((inv: any) => {
+                const total = Number(inv.grandTotal || inv.totalAmount || 0);
+                const paid = Number(inv.paidAmount || 0);
+                const balance = Math.max(0, total - paid);
+                const isPaidFull = balance === 0;
 
-          {/* INVOICES HISTORICAL LEDGER GRID */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-              Issued Invoices Ledger ({invoices.length} Records)
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {invoices.map(inv => {
-                const balance = Number(inv.grandTotal) - Number(inv.paidAmount);
                 return (
-                  <Card key={inv.id} className="flex flex-col justify-between gap-4 border border-slate-200 dark:border-slate-850">
-                    <div className="flex justify-between items-start gap-2">
+                  <Card key={inv.id} className="p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/30 transition-all rounded-xl">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[9px] font-mono bg-slate-100 dark:bg-dark-950 font-bold px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">
+                        <span className="text-[9px] font-mono font-bold bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
                           INVOICE ID: #{inv.id}
                         </span>
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 mt-2">Patient: {inv.patient?.name}</h4>
-                        {inv.patient?.mrNumber && <p className="text-[10px] text-slate-500 mt-0.5 font-mono">MRN: {inv.patient?.mrNumber}</p>}
+                        <h4 className="text-xs font-extrabold text-slate-900 dark:text-white mt-1">
+                          Patient: {inv.patient?.name || `ID #${inv.patientId}`}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 font-mono">MRN: {inv.patient?.mrNumber || 'N/A'}</p>
                       </div>
-                      <Badge type={inv.status === 'paid' ? 'success' : inv.status === 'partially_paid' ? 'warning' : 'danger'}>
-                        {inv.status ? inv.status.toUpperCase() : 'UNPAID'}
+
+                      <Badge type={isPaidFull ? 'success' : 'danger'} className="text-[10px] font-bold uppercase">
+                        {isPaidFull ? 'PAID' : 'UNPAID'}
                       </Badge>
                     </div>
 
-                    <div className="border-y border-slate-100 dark:border-slate-850 py-2.5 my-1 space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Invoice Date:</span>
-                        <span className="font-mono text-slate-700 dark:text-slate-300">{new Date(inv.createdAt).toLocaleDateString()}</span>
+                    <div className="p-2.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200/60 dark:border-slate-850 font-mono text-xs space-y-1">
+                      <div className="flex justify-between text-slate-500 text-[10px]">
+                        <span>Invoice Date:</span>
+                        <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Grand Total:</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100">Rs. {Number(inv.grandTotal).toLocaleString()}</span>
+                      <div className="flex justify-between font-bold text-slate-900 dark:text-white">
+                        <span>Grand Total:</span>
+                        <span>Rs. {total.toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Amount Paid:</span>
-                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">Rs. {Number(inv.paidAmount).toLocaleString()}</span>
+                      <div className="flex justify-between text-emerald-600 font-semibold text-[11px]">
+                        <span>Amount Paid:</span>
+                        <span>Rs. {paid.toLocaleString()}</span>
                       </div>
                       {balance > 0 && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">Net Due:</span>
-                          <span className="font-mono font-bold text-rose-600 dark:text-rose-400">Rs. {balance.toLocaleString()}</span>
+                        <div className="flex justify-between text-rose-500 font-bold text-[11px] border-t border-slate-100 dark:border-slate-850 pt-1">
+                          <span>Balance Due:</span>
+                          <span>Rs. {balance.toLocaleString()}</span>
                         </div>
                       )}
                     </div>
 
                     <div className="flex justify-end gap-2 pt-1">
-                      {balance > 0 && user?.role !== 'patient' && (
-                        <Button onClick={() => handlePayClick(inv)} size="sm" className="flex items-center gap-1">
+                      {balance > 0 && (
+                        <Button onClick={() => handlePayClick(inv)} size="sm" className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-lg text-xs flex items-center gap-1">
                           <CreditCard className="h-3.5 w-3.5" /> Settle Payment
                         </Button>
                       )}
                     </div>
                   </Card>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
-        </div>
-      )}
+        </Card>
+      </div>
 
       {/* PRINTABLE COMPLETE BILL RECEIPT MODAL */}
       <Modal isOpen={isPrintReceiptOpen} onClose={() => setIsPrintReceiptOpen(false)} title="Print Complete Patient Bill / Receipt">
         {selectedPatientObj && (
           <div className="space-y-4 p-2 bg-white dark:bg-dark-950 text-slate-900 dark:text-white" id="printable-receipt-area">
-            {/* Hospital Header Logo */}
             <div className="text-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex justify-center items-center gap-2 mb-1">
                 <HeartPulse className="h-6 w-6 text-brand-500" />
@@ -769,7 +795,6 @@ export const Billing: React.FC = () => {
               <p className="text-[9px] text-slate-400 font-mono">Date: {new Date().toLocaleString()}</p>
             </div>
 
-            {/* Patient File Details */}
             <div className="grid grid-cols-2 gap-2 text-xs border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase block font-semibold">Patient Name:</span>
@@ -789,7 +814,6 @@ export const Billing: React.FC = () => {
               </div>
             </div>
 
-            {/* Itemized Table of Charges */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
@@ -814,7 +838,6 @@ export const Billing: React.FC = () => {
               </table>
             </div>
 
-            {/* Calculations Footer */}
             <div className="border-t-2 border-slate-900 dark:border-white pt-3 space-y-1.5 font-mono text-xs text-right">
               <div className="flex justify-between">
                 <span>Gross Subtotal:</span>
@@ -842,17 +865,6 @@ export const Billing: React.FC = () => {
               </div>
             </div>
 
-            {/* Footer Signature */}
-            <div className="flex justify-between items-end pt-8 border-t border-slate-200 dark:border-slate-800 text-[10px]">
-              <div>
-                <span className="block font-semibold">Issued By: Reception Desk Staff</span>
-                <span className="text-slate-400">Thank you for choosing Dr. Talha Clinic.</span>
-              </div>
-              <div className="text-center border-t border-slate-400 w-32 pt-1 font-semibold">
-                Authorized Stamp
-              </div>
-            </div>
-
             <Button onClick={handlePrintProfessionalBill} className="w-full flex items-center justify-center gap-2 mt-4">
               <Printer className="h-4 w-4" /> Print Receipt Now
             </Button>
@@ -860,63 +872,122 @@ export const Billing: React.FC = () => {
         )}
       </Modal>
 
-      {/* CREATE CUSTOM INVOICE MODAL */}
+      {/* MODAL: CREATE CUSTOM INVOICE */}
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Create Custom Billing Invoice">
-        <form onSubmit={handleCreateSubmit} className="space-y-4">
+        <form onSubmit={handleCreateCustomInvoiceSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1">Select Patient *</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Patient *</label>
             <select
               required
               value={customPatientId}
               onChange={e => setCustomPatientId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200"
+              className="w-full px-3 py-2 rounded-lg border text-xs font-bold dark:bg-dark-900"
             >
               <option value="">-- Choose Patient --</option>
               {patients.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.mrNumber || p.phone})</option>
+                <option key={p.id} value={p.id}>
+                  {p.name} • ({p.mrNumber})
+                </option>
               ))}
             </select>
           </div>
 
           <Input
-            label="Invoice Discount (Rs.)"
+            label="Special Discount Amount (Rs.)"
             type="number"
+            min="0"
             value={customDiscount}
             onChange={e => setCustomDiscount(Number(e.target.value))}
           />
 
-          <Button type="submit" className="w-full flex items-center justify-center gap-1.5">
-            <Check className="h-4 w-4" /> Issue Custom Invoice
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Invoice Items List</label>
+            {invoiceLines.map((line, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <input
+                  placeholder="Item Name"
+                  value={line.itemName}
+                  onChange={e => {
+                    const u = [...invoiceLines];
+                    u[i].itemName = e.target.value;
+                    setInvoiceLines(u);
+                  }}
+                  className="col-span-5 px-2 py-1.5 border rounded text-xs"
+                />
+                <input
+                  type="number"
+                  placeholder="Rate (Rs.)"
+                  value={line.unitPrice}
+                  onChange={e => {
+                    const u = [...invoiceLines];
+                    u[i].unitPrice = Number(e.target.value);
+                    setInvoiceLines(u);
+                  }}
+                  className="col-span-3 px-2 py-1.5 border rounded text-xs"
+                />
+                <input
+                  type="number"
+                  placeholder="Qty"
+                  value={line.quantity}
+                  onChange={e => {
+                    const u = [...invoiceLines];
+                    u[i].quantity = Number(e.target.value);
+                    setInvoiceLines(u);
+                  }}
+                  className="col-span-2 px-2 py-1.5 border rounded text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setInvoiceLines(invoiceLines.filter((_, idx) => idx !== i))}
+                  className="col-span-2 text-rose-500 text-xs font-bold"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setInvoiceLines([...invoiceLines, { itemName: '', itemCategory: 'Consultation', unitPrice: 0, quantity: 1 }])}
+              className="text-brand-500 text-xs font-bold mt-1"
+            >
+              + Add Item Line
+            </button>
+          </div>
+
+          <Button type="submit" className="w-full py-2 text-xs font-bold">
+            Create & Issue Invoice
           </Button>
         </form>
       </Modal>
 
-      {/* SETTLE PAYMENT MODAL */}
-      <Modal isOpen={isPayOpen} onClose={() => setIsPayOpen(false)} title={`Settle Invoice #${selectedInvoice?.id || ''}`}>
-        <form onSubmit={handlePayInvoiceSubmit} className="space-y-4">
+      {/* MODAL: PAY INVOICE */}
+      <Modal isOpen={isPayOpen} onClose={() => setIsPayOpen(false)} title={`Settle Payment for Invoice #${selectedInvoice?.id}`}>
+        <form onSubmit={handlePaySubmit} className="space-y-4">
           <Input
-            label="Payment Amount (Rs.)"
+            label="Payment Amount (Rs.) *"
             type="number"
+            min="1"
             required
             value={payAmount}
             onChange={e => setPayAmount(Number(e.target.value))}
           />
 
           <div>
-            <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1">Payment Method</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Payment Method *</label>
             <select
               value={payMethod}
               onChange={e => setPayMethod(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-800 dark:text-slate-200"
+              className="w-full px-3 py-2 rounded-lg border text-xs font-bold dark:bg-dark-900"
             >
               <option value="cash">Cash</option>
-              <option value="card">Credit / Debit Card</option>
-              <option value="online">Online Transfer</option>
+              <option value="card">Credit/Debit Card</option>
+              <option value="bank_transfer">Bank Transfer / Online</option>
             </select>
           </div>
 
-          <Button type="submit" className="w-full flex items-center justify-center gap-1.5">
-            <Check className="h-4 w-4" /> Confirm & Record Payment
+          <Button type="submit" className="w-full py-2.5 text-xs font-bold">
+            Confirm Cash Payment Collection
           </Button>
         </form>
       </Modal>
