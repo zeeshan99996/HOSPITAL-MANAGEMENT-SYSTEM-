@@ -76,8 +76,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         return {
           doctorId: doc.id,
           doctorName: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. Physician #${doc.id}`,
-          specialization: doc.specialization || doc.department?.name || 'General OPD',
-          roomNumber: doc.roomNumber || `Room 10${doc.id}`,
+          specialization: doc.specialization || (doc as any).department?.name || 'General OPD',
+          roomNumber: (doc as any).roomNumber || `Room 10${doc.id}`,
           currentToken: currentTokenStr,
           currentPatientName: currentPatientName,
           totalPatientsToday: todayTokens.length,
@@ -106,10 +106,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     const departmentStats = deptsWithDocs.map(d => {
       let count = 0;
-      if (d.doctors) {
-        d.doctors.forEach(doc => {
-          if ((doc as any).appointments) {
-            count += (doc as any).appointments.length;
+      if ((d as any).doctors) {
+        (d as any).doctors.forEach((doc: any) => {
+          if (doc.appointments) {
+            count += doc.appointments.length;
           }
         });
       }
@@ -183,8 +183,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         doctorInfo: {
           id: docObj?.id,
           name: docObj?.user?.name ? (docObj.user.name.startsWith('Dr.') ? docObj.user.name : `Dr. ${docObj.user.name}`) : 'Dr. Medical Doctor',
-          specialization: docObj?.specialization || docObj?.department?.name || 'General OPD',
-          roomNumber: docObj?.roomNumber || `Room 10${docObj?.id || 1}`,
+          specialization: docObj?.specialization || (docObj as any)?.department?.name || 'General OPD',
+          roomNumber: (docObj as any)?.roomNumber || `Room 10${docObj?.id || 1}`,
         },
         stats: {
           totalPatients: uniqueDocTokens.length,

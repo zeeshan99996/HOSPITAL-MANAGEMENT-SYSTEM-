@@ -37,7 +37,7 @@ export const login = async (req: Request, res: Response) => {
     // Auto-create staff account for any new email (e.g., Salman@gmail.com, doctor@..., etc.)
     if (!user) {
       const emailPrefix = normEmail.split('@')[0];
-      const rawWords = emailPrefix.split(/[\._\-]/).map(w => w.charAt(0).toUpperCase() + w.slice(1));
+      const rawWords = emailPrefix.split(/[\._\-]/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1));
       let cleanName = rawWords.join(' ');
 
       let role: any = 'doctor';

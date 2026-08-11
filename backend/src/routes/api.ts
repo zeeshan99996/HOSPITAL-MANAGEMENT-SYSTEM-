@@ -20,7 +20,8 @@ import {
 } from '../middleware/validate';
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
-import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption } from '../models';
+import sequelize from '../config/db';
+import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption, Invoice, InvoiceItem } from '../models';
 
 import {
   createPatient,
