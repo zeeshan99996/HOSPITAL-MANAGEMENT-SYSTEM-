@@ -3,6 +3,24 @@ import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2 } from 'lucide-react';
 
+const DEFAULT_DESIGNATIONS = [
+  'Senior Consultant Doctor',
+  'Consultant Physician',
+  'General Medical Officer (Dr.)',
+  'Surgeon Specialist',
+  'Head Nurse',
+  'Staff Nurse (Ward)',
+  'Receptionist / Front Desk Officer',
+  'Pharmacist / Store Manager',
+  'Pharmacy Assistant',
+  'Accountant / Billing Manager',
+  'Lab Technician / Pathologist',
+  'Security Officer / Gate Supervisor',
+  'IT & System Administrator',
+  'Housekeeping & Janitorial Staff',
+  'Ambulance Driver / Logistics'
+];
+
 export const Staff: React.FC = () => {
   const [staff, setStaff] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -17,7 +35,20 @@ export const Staff: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [cnic, setCnic] = useState('');
   const [address, setAddress] = useState('');
-  const [designation, setDesignation] = useState('');
+  
+  // Dynamic Designations State
+  const [designationsList, setDesignationsList] = useState<string[]>(() => {
+    const saved = localStorage.getItem('hms_staff_designations');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return DEFAULT_DESIGNATIONS;
+  });
+  const [selectedDesignation, setSelectedDesignation] = useState<string>('Senior Consultant Doctor');
+  const [customDesignation, setCustomDesignation] = useState<string>('');
+  const [isCustomMode, setIsCustomMode] = useState<boolean>(false);
+  const [designation, setDesignation] = useState<string>('Senior Consultant Doctor');
+
   const [salary, setSalary] = useState<number | string>(50000);
   const [departmentId, setDepartmentId] = useState('');
   const [specialization, setSpecialization] = useState('');
@@ -243,7 +274,68 @@ export const Staff: React.FC = () => {
 
           {/* Designation & Monthly Salary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Designation / Job Title" required value={designation} onChange={e => setDesignation(e.target.value)} placeholder="e.g. Senior Consultant / Staff Nurse" />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Designation / Job Title
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newDes = prompt('Add New Custom Employee Designation:');
+                    if (newDes && newDes.trim()) {
+                      const trimmed = newDes.trim();
+                      if (!designationsList.includes(trimmed)) {
+                        const updated = [...designationsList, trimmed];
+                        setDesignationsList(updated);
+                        localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
+                      }
+                      setSelectedDesignation(trimmed);
+                      setDesignation(trimmed);
+                      setIsCustomMode(false);
+                    }
+                  }}
+                  className="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold"
+                >
+                  + Add Custom Title
+                </button>
+              </div>
+              <select
+                value={isCustomMode ? '__CUSTOM__' : selectedDesignation}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === '__CUSTOM__') {
+                    setIsCustomMode(true);
+                    setDesignation(customDesignation);
+                  } else {
+                    setIsCustomMode(false);
+                    setSelectedDesignation(val);
+                    setDesignation(val);
+                  }
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                {designationsList.map((des, idx) => (
+                  <option key={idx} value={des}>{des}</option>
+                ))}
+                <option value="__CUSTOM__">✏️ Other / Type Custom Designation...</option>
+              </select>
+
+              {isCustomMode && (
+                <div className="mt-2">
+                  <Input
+                    placeholder="Type custom designation title..."
+                    value={customDesignation}
+                    onChange={e => {
+                      setCustomDesignation(e.target.value);
+                      setDesignation(e.target.value);
+                    }}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
             <Input label="Monthly Basic Salary (Rs.)" type="number" required value={salary} onChange={e => setSalary(e.target.value)} placeholder="50000" />
           </div>
 
