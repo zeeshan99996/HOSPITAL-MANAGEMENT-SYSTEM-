@@ -273,25 +273,14 @@ export const SecurityManagement: React.FC = () => {
                   </Badge>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => handleOpenEdit(u)}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 flex items-center justify-center gap-2 font-bold text-xs"
-                  >
-                    <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Change Credentials
-                  </Button>
-                  <Button
-                    onClick={() => handleDeleteUser(u)}
-                    variant="outline"
-                    size="sm"
-                    className="px-3 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:border-rose-400"
-                    title="Delete User Account"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-rose-500" />
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => handleOpenEdit(u)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full flex items-center justify-center gap-2 font-bold text-xs"
+                >
+                  <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Change Password & Credentials
+                </Button>
               </Card>
             ))}
           </div>
@@ -340,24 +329,14 @@ export const SecurityManagement: React.FC = () => {
                     </td>
 
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          onClick={() => handleOpenEdit(u)}
-                          variant="outline"
-                          size="sm"
-                          className="inline-flex items-center gap-1.5 font-bold text-xs border-slate-300 dark:border-slate-700 hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400"
-                        >
-                          <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Edit Credentials
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteUser(u)}
-                          variant="outline"
-                          size="sm"
-                          className="inline-flex items-center gap-1.5 font-bold text-xs border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:border-rose-400"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Delete
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => handleOpenEdit(u)}
+                        variant="outline"
+                        size="sm"
+                        className="inline-flex items-center gap-1.5 font-bold text-xs border-slate-300 dark:border-slate-700 hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400"
+                      >
+                        <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Edit Credentials
+                      </Button>
                     </td>
                   </tr>
                 ))}
