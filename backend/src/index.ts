@@ -66,6 +66,9 @@ const startServer = async () => {
       await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "address" TEXT;`);
       await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "designation" VARCHAR(255);`);
       await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "salary" DECIMAL(10, 2) DEFAULT 0.00;`);
+      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "isStaffMember" BOOLEAN DEFAULT FALSE;`);
+      await sequelize.query(`UPDATE "users" SET "isStaffMember" = FALSE WHERE "email" = 'admin@lifeflow.com';`);
+      await sequelize.query(`UPDATE "users" SET "isStaffMember" = TRUE WHERE "email" LIKE '%_lifeflow.com' AND "email" != 'admin@lifeflow.com';`);
     } catch (mErr) {
       console.warn('[DB Migration Warning]:', mErr);
     }

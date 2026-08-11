@@ -75,6 +75,11 @@ function getApp(): express.Application {
           } catch (e) {}
         }
 
+        try {
+          await sequelize.query(`UPDATE "users" SET "isStaffMember" = FALSE WHERE "email" = 'admin@lifeflow.com';`);
+          await sequelize.query(`UPDATE "users" SET "isStaffMember" = TRUE WHERE "email" LIKE '%_lifeflow.com' AND "email" != 'admin@lifeflow.com';`);
+        } catch (e) {}
+
         await seedDatabase();
         isDbInitialized = true;
         console.log('[Vercel Serverless] DB Sync & Seeding Complete.');

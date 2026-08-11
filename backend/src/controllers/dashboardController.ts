@@ -509,6 +509,9 @@ export const getActivityLogs = async (req: Request, res: Response) => {
 export const getAllUsersAdmin = async (req: Request, res: Response) => {
   try {
     const users = await User.findAll({
+      where: {
+        isStaffMember: false,
+      },
       attributes: { exclude: ['password'] },
       order: [['createdAt', 'DESC']],
     });
