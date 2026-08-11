@@ -185,7 +185,15 @@ export const Staff: React.FC = () => {
       setSpecialization('');
       alert(`Staff member '${name}' registered successfully!`);
     } catch (err: any) {
-      alert(err.message || 'Error creating staff member.');
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const details = err.response.data.errors.map((e: any) => `• ${e.message}`).join('\n');
+        alert(`Validation Error:\n\n${details}`);
+      } else if (err?.errors && Array.isArray(err.errors)) {
+        const details = err.errors.map((e: any) => `• ${e.message}`).join('\n');
+        alert(`Validation Error:\n\n${details}`);
+      } else {
+        alert(err.message || 'Error creating staff member.');
+      }
     }
   };
 

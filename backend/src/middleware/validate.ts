@@ -40,20 +40,20 @@ const isValidEmail = (v: any): boolean => {
   return emailRegex.test(v.trim());
 };
 
-/** Validates phone number format (7 to 20 digits/symbols) */
+/** Validates phone number format (flexible 3 to 50 characters) */
 const isValidPhone = (v: any): boolean => {
-  if (v === undefined || v === null || v === '') return true; // Optional field
-  if (typeof v !== 'string') return false;
-  const phoneRegex = /^\+?[\d\s\-().]{7,20}$/;
-  return phoneRegex.test(v.trim());
+  if (v === undefined || v === null || v === '') return true;
+  if (typeof v !== 'string' && typeof v !== 'number') return false;
+  const str = String(v).trim();
+  return str.length >= 3 && str.length <= 50;
 };
 
-/** Validates CNIC format (e.g. 42101-1234567-1 or 13 digits) */
+/** Validates CNIC format (flexible 3 to 50 characters) */
 const isValidCNIC = (v: any): boolean => {
-  if (v === undefined || v === null || v === '') return true; // Optional field
-  if (typeof v !== 'string') return false;
-  const cnicRegex = /^(?:\d{5}-\d{7}-\d{1}|\d{13})$/;
-  return cnicRegex.test(v.trim());
+  if (v === undefined || v === null || v === '') return true;
+  if (typeof v !== 'string' && typeof v !== 'number') return false;
+  const str = String(v).trim();
+  return str.length >= 3 && str.length <= 50;
 };
 
 /** Validates that value is a number within [min, max] range */
@@ -479,8 +479,8 @@ export const validateStaff = (req: Request, res: Response, next: NextFunction) =
   const errors: FieldError[] = [];
   const { name, email, password, role, phone, cnic, address, designation, salary } = req.body;
 
-  if (!isString(name, 2, 100)) {
-    errors.push({ field: 'name', message: 'Staff name is required (2 to 100 characters).' });
+  if (!isString(name, 1, 150)) {
+    errors.push({ field: 'name', message: 'Staff name is required.' });
   }
 
   if (email !== undefined && email !== null && email !== '' && !isValidEmail(email)) {
