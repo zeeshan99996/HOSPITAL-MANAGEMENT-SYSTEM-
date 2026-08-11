@@ -108,6 +108,11 @@ export const Staff: React.FC = () => {
     }
   };
 
+  const isDoctorDesignation = (desTitle: string) => {
+    const d = (desTitle || '').toLowerCase();
+    return d.includes('doctor') || d.includes('dr') || d.includes('physician') || d.includes('surgeon') || d.includes('consultant');
+  };
+
   const handleToggleStatus = async (id: number, currentStatus: string) => {
     const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
     if (window.confirm(`Are you sure you want to mark this staff account as ${nextStatus}?`)) {
@@ -344,8 +349,8 @@ export const Staff: React.FC = () => {
 
 
           {/* Doctor-specific fields */}
-          {role === 'doctor' && (
-            <div className="p-3 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-850 space-y-3">
+  {isDoctorDesignation(designation) && (
+    <div className="p-3 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-850 space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Doctor Assignments</span>
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase">Department</label>
