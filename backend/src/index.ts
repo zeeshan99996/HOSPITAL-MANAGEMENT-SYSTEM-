@@ -62,10 +62,6 @@ const startServer = async () => {
       await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "surgeryDetails" TEXT;`);
       await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "treatmentPlan" TEXT;`);
       await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE;`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "cnic" VARCHAR(255);`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "address" TEXT;`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "designation" VARCHAR(255);`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "salary" DECIMAL(10, 2) DEFAULT 0.00;`);
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS "staff" (
           "id" SERIAL PRIMARY KEY,
@@ -84,15 +80,13 @@ const startServer = async () => {
       await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
       await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
 
-      await sequelize.query(`
-        INSERT INTO "staff" ("name", "phone", "cnic", "address", "designation", "salary", "status", "createdAt", "updatedAt")
-        SELECT "name", COALESCE("phone", ''), COALESCE("cnic", ''), COALESCE("address", ''), COALESCE("designation", 'Staff Member'), COALESCE("salary", 0), COALESCE("status", 'active'), "createdAt", "updatedAt"
-        FROM "users"
-        WHERE "isStaffMember" = TRUE
-        AND NOT EXISTS (SELECT 1 FROM "staff" WHERE "staff"."name" = "users"."name");
-      `);
-
-      await sequelize.query(`DELETE FROM "users" WHERE "isStaffMember" = TRUE AND "email" != 'admin@lifeflow.com';`);
+      // Drop extra staff columns from users table in Supabase
+      const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
+      for (const col of extraUserCols) {
+        try {
+          await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
+        } catch (e) {}
+      }
     } catch (mErr) {
       console.warn('[DB Migration Warning]:', mErr);
     }

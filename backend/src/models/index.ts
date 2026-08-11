@@ -54,11 +54,6 @@ export class User extends Model {
   declare password: string;
   declare role: 'admin' | 'doctor' | 'receptionist' | 'lab_technician' | 'pharmacist' | 'accountant' | 'nurse' | 'patient';
   declare phone: string;
-  declare cnic: string;
-  declare address: string;
-  declare designation: string;
-  declare salary: number;
-  declare isStaffMember: boolean;
   declare status: 'active' | 'inactive';
   declare roleId: number | null;
 }
@@ -73,11 +68,6 @@ User.init(
       allowNull: false,
     },
     phone: { type: DataTypes.STRING, allowNull: true },
-    cnic: { type: DataTypes.STRING, allowNull: true },
-    address: { type: DataTypes.TEXT, allowNull: true },
-    designation: { type: DataTypes.STRING, allowNull: true },
-    salary: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
-    isStaffMember: { type: DataTypes.BOOLEAN, defaultValue: false },
     status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
     roleId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'roles', key: 'id' } },
   },

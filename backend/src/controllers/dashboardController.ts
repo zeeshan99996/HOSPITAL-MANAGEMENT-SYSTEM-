@@ -484,9 +484,6 @@ export const getActivityLogs = async (req: Request, res: Response) => {
 export const getAllUsersAdmin = async (req: Request, res: Response) => {
   try {
     const users = await User.findAll({
-      where: {
-        isStaffMember: false,
-      },
       attributes: { exclude: ['password'] },
       order: [['createdAt', 'DESC']],
     });
@@ -609,7 +606,6 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
       password: hashed,
       role: role || 'patient',
       phone: phone || '',
-      isStaffMember: false,
       status: status || 'active',
     });
 

@@ -61,13 +61,8 @@ function getApp(): express.Application {
 
         const userCols = [
           { name: 'deletedAt', type: 'TIMESTAMP WITH TIME ZONE' },
-          { name: 'cnic', type: 'VARCHAR(255)' },
-          { name: 'address', type: 'TEXT' },
-          { name: 'designation', type: 'VARCHAR(255)' },
-          { name: 'salary', type: 'DECIMAL(10, 2) DEFAULT 0.00' },
           { name: 'phone', type: 'VARCHAR(255)' },
           { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
-          { name: 'isStaffMember', type: 'BOOLEAN DEFAULT FALSE' },
         ];
         for (const col of userCols) {
           try {
@@ -94,15 +89,13 @@ function getApp(): express.Application {
           await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
           await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
 
-          await sequelize.query(`
-            INSERT INTO "staff" ("name", "phone", "cnic", "address", "designation", "salary", "status", "createdAt", "updatedAt")
-            SELECT "name", COALESCE("phone", ''), COALESCE("cnic", ''), COALESCE("address", ''), COALESCE("designation", 'Staff Member'), COALESCE("salary", 0), COALESCE("status", 'active'), "createdAt", "updatedAt"
-            FROM "users"
-            WHERE "isStaffMember" = TRUE
-            AND NOT EXISTS (SELECT 1 FROM "staff" WHERE "staff"."name" = "users"."name");
-          `);
-
-          await sequelize.query(`DELETE FROM "users" WHERE "isStaffMember" = TRUE AND "email" != 'admin@lifeflow.com';`);
+          // Drop extra staff columns from users table in Supabase
+          const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
+          for (const col of extraUserCols) {
+            try {
+              await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
+            } catch (e) {}
+          }
         } catch (e) {
           console.warn('[Staff Migration Warning]:', e);
         }
