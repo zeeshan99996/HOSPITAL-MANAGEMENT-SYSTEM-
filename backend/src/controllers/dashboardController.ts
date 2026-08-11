@@ -313,7 +313,7 @@ export const getAllStaff = async (req: Request, res: Response) => {
 };
 
 export const createStaff = async (req: Request, res: Response) => {
-  const { name, email, password, role, phone, departmentId, specialization, consultationFee } = req.body;
+  const { name, email, password, role, phone, cnic, address, designation, salary, departmentId, specialization, consultationFee } = req.body;
 
   try {
     const existing = await User.findOne({ where: { email } });
@@ -328,6 +328,10 @@ export const createStaff = async (req: Request, res: Response) => {
       password: hashed,
       role,
       phone,
+      cnic: cnic || '',
+      address: address || '',
+      designation: designation || role,
+      salary: Number(salary) || 0,
       status: 'active',
     });
 
@@ -344,7 +348,7 @@ export const createStaff = async (req: Request, res: Response) => {
       await Doctor.create({
         userId: user.id,
         departmentId: deptId,
-        specialization: specialization || 'General Practitioner',
+        specialization: specialization || designation || 'General Practitioner',
         consultationFee: consultationFee || 50.00,
         status: 'active',
       });
@@ -572,5 +576,43 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error deleting user account.', error: error.message });
   }
 };
+
+export const createSystemUserAdmin = async (req: Request, res: Response) => {
+  const { name, email, password, role, status, phone } = req.body;
+
+  try {
+    const existing = await User.findOne({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ message: 'User with this email address already exists.' });
+    }
+
+    const hashed = await bcrypt.hash(password || 'Password123', 10);
+    const user = await User.create({
+      name,
+      email,
+      password: hashed,
+      role: role || 'patient',
+      phone: phone || '',
+      status: status || 'active',
+    });
+
+    const adminUser = (req as any).user;
+    await ActivityLog.create({
+      userId: adminUser?.id || null,
+      action: 'System User Account Created',
+      details: `New account [${user.name} - ${user.email}] with role '${user.role}' created by Admin in Security Control.`,
+      ipAddress: req.ip,
+    });
+
+    const createdUser = await User.findByPk(user.id, { attributes: { exclude: ['password'] } });
+    return res.status(201).json({
+      message: `System account for '${user.name}' created successfully.`,
+      user: createdUser,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error creating system user account.', error: error.message });
+  }
+};
+
 
 

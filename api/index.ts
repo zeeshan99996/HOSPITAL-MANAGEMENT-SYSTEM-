@@ -59,6 +59,11 @@ function getApp(): express.Application {
           try {
             await sequelize.query(`ALTER TABLE "patients" ALTER COLUMN "${col}" DROP NOT NULL;`);
           } catch (e) {}
+        const userColsToAlter = ['cnic', 'address', 'designation', 'salary'];
+        for (const col of userColsToAlter) {
+          try {
+            await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
+          } catch (e) {}
         }
 
         await seedDatabase();

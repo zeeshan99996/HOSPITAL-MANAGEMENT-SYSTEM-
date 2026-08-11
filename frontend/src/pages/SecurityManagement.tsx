@@ -14,7 +14,8 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  Trash2
+  Trash2,
+  Plus
 } from 'lucide-react';
 
 export const SecurityManagement: React.FC = () => {
@@ -26,6 +27,16 @@ export const SecurityManagement: React.FC = () => {
   // Selected user for credential edit
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Add System User Modal
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('Password123');
+  const [addRole, setAddRole] = useState('patient');
+  const [addStatus, setAddStatus] = useState('active');
+  const [addPhone, setAddPhone] = useState('');
+  const [addingUser, setAddingUser] = useState(false);
 
   // Edit form state
   const [name, setName] = useState('');
@@ -89,6 +100,34 @@ export const SecurityManagement: React.FC = () => {
     }
     setPassword(result);
     setShowPassword(true);
+  };
+
+  const handleCreateSystemUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddingUser(true);
+    try {
+      const res = await apiClient.post('/admin/users', {
+        name: addName,
+        email: addEmail,
+        password: addPassword,
+        role: addRole,
+        status: addStatus,
+        phone: addPhone,
+      });
+      setFeedback({ type: 'success', message: res.message || 'System user account created successfully.' });
+      setIsAddUserOpen(false);
+      // Reset
+      setAddName('');
+      setAddEmail('');
+      setAddPassword('Password123');
+      setAddRole('patient');
+      setAddPhone('');
+      fetchUsers();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.response?.data?.message || err.message || 'Failed to create user account.' });
+    } finally {
+      setAddingUser(false);
+    }
   };
 
   const handleUpdateCredentials = async (e: React.FormEvent) => {
@@ -166,9 +205,12 @@ export const SecurityManagement: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-semibold text-slate-300">
+          <div className="hidden sm:block px-3.5 py-2 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-semibold text-slate-300">
             Total System Accounts: <span className="text-brand-400 font-bold ml-1">{users.length}</span>
           </div>
+          <Button onClick={() => setIsAddUserOpen(true)} className="flex items-center gap-2 font-bold shadow-lg shadow-brand-500/20">
+            <Plus className="h-4 w-4" /> Add System User
+          </Button>
         </div>
       </div>
 
@@ -476,6 +518,94 @@ export const SecurityManagement: React.FC = () => {
                 Save Account Credentials
               </Button>
             </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add New System User Modal */}
+      <Modal isOpen={isAddUserOpen} onClose={() => setIsAddUserOpen(false)} title="Add New System Login Credentials">
+        <form onSubmit={handleCreateSystemUser} className="space-y-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Create a standalone user login account for system access. (This account is independent from the Staff Directory).
+          </p>
+
+          <Input
+            label="Full Name"
+            type="text"
+            required
+            value={addName}
+            onChange={e => setAddName(e.target.value)}
+            placeholder="e.g. System Operator"
+          />
+
+          <Input
+            label="Email Address / Username"
+            type="email"
+            required
+            value={addEmail}
+            onChange={e => setAddEmail(e.target.value)}
+            placeholder="user@lifeflow.com"
+          />
+
+          <Input
+            label="Phone Contact (Optional)"
+            type="text"
+            value={addPhone}
+            onChange={e => setAddPhone(e.target.value)}
+            placeholder="0300-1234567"
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                System Role
+              </label>
+              <select
+                value={addRole}
+                onChange={e => setAddRole(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="admin">System Admin</option>
+                <option value="doctor">Medical Doctor</option>
+                <option value="receptionist">Reception Staff</option>
+                <option value="nurse">Ward Nurse</option>
+                <option value="pharmacist">Pharmacist</option>
+                <option value="accountant">Accountant</option>
+                <option value="patient">Patient Portal</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Account Access Status
+              </label>
+              <select
+                value={addStatus}
+                onChange={e => setAddStatus(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="active">Active (Access Granted)</option>
+                <option value="inactive">Inactive / Suspended</option>
+              </select>
+            </div>
+          </div>
+
+          <Input
+            label="Initial Login Password"
+            type="password"
+            required
+            value={addPassword}
+            onChange={e => setAddPassword(e.target.value)}
+            placeholder="Password123"
+          />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setIsAddUserOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={addingUser} className="font-bold">
+              Create System Account
+            </Button>
           </div>
         </form>
       </Modal>

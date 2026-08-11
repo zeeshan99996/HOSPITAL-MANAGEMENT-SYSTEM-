@@ -61,6 +61,10 @@ const startServer = async () => {
       await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "stayType" VARCHAR DEFAULT 'short';`);
       await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "surgeryDetails" TEXT;`);
       await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "treatmentPlan" TEXT;`);
+      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "cnic" VARCHAR(255);`);
+      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "address" TEXT;`);
+      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "designation" VARCHAR(255);`);
+      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "salary" DECIMAL(10, 2) DEFAULT 0.00;`);
     } catch (mErr) {
       console.warn('[DB Migration Warning]:', mErr);
     }

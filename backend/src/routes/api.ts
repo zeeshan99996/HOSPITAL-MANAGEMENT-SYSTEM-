@@ -76,7 +76,8 @@ import {
   getActivityLogs,
   getAllUsersAdmin,
   updateUserCredentials,
-  deleteUserAdmin
+  deleteUserAdmin,
+  createSystemUserAdmin
 } from '../controllers/dashboardController';
 
 const router = Router();
@@ -313,6 +314,7 @@ router.put('/admin/staff/:id/status', authenticateToken, requireRoles(['admin'])
 router.put('/doctors/:id', authenticateToken, requireRoles(['admin']), updateDoctor);
 router.delete('/doctors/:id', authenticateToken, requireRoles(['admin']), deleteDoctor);
 router.get('/admin/users', authenticateToken, requireRoles(['admin']), getAllUsersAdmin);
+router.post('/admin/users', authenticateToken, requireRoles(['admin']), createSystemUserAdmin);
 router.put('/admin/users/:id/credentials', authenticateToken, requireRoles(['admin']), updateUserCredentials);
 router.delete('/admin/users/:id', authenticateToken, requireRoles(['admin']), deleteUserAdmin);
 router.get('/admin/departments', authenticateToken, getDepartments);

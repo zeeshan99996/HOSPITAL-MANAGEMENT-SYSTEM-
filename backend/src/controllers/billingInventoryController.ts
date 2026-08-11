@@ -688,19 +688,32 @@ export const payStaffPayroll = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Salary is already cleared.' });
     }
 
+    const payDate = new Date();
     await payroll.update({
       status: 'paid',
-      paymentDate: new Date(),
+      paymentDate: payDate,
+    });
+
+    const staffName = (payroll as any).user?.name || `Staff #${payroll.userId}`;
+    const todayStr = `${payDate.getFullYear()}-${String(payDate.getMonth() + 1).padStart(2, '0')}-${String(payDate.getDate()).padStart(2, '0')}`;
+
+    // Automatically post salary clearance as an Office / Clinic Expense entry
+    await DailyExpense.create({
+      description: `Staff Salary Disbursed: ${staffName} (${payroll.month})`,
+      category: 'Staff Salary & Payroll',
+      amount: Number(payroll.netSalary) || 0,
+      spentBy: (req as any).user?.name || 'Administrator',
+      expenseDate: todayStr,
     });
 
     await ActivityLog.create({
       userId: (req as any).user?.id || null,
       action: 'Salary Disbursed',
-      details: `Cleared salary payment for staff member: ${(payroll as any).user?.name} (Month: ${payroll.month}, Net: Rs. ${payroll.netSalary})`,
+      details: `Cleared salary payment for staff member: ${staffName} (Month: ${payroll.month}, Net: Rs. ${payroll.netSalary}) & posted auto expense record.`,
       ipAddress: req.ip
     });
 
-    return res.status(200).json({ message: 'Salary marked as paid.', payroll });
+    return res.status(200).json({ message: 'Salary marked as paid and posted to Office Expenses.', payroll });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error processing payroll clearance.', error: error.message });
   }
