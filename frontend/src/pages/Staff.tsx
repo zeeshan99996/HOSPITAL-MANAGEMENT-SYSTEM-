@@ -50,8 +50,6 @@ export const Staff: React.FC = () => {
     try {
       await apiClient.post('/admin/staff', {
         name,
-        email,
-        password,
         role,
         phone,
         cnic,
@@ -171,7 +169,6 @@ export const Staff: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-extrabold text-slate-900 dark:text-white text-xs">{s.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{s.email}</div>
                       </div>
                     </div>
                   </td>
@@ -251,10 +248,7 @@ export const Staff: React.FC = () => {
             <Input label="Monthly Basic Salary (Rs.)" type="number" required value={salary} onChange={e => setSalary(e.target.value)} placeholder="50000" />
           </div>
 
-          {/* Email Address (Optional) */}
-          <div>
-            <Input label="Email Address (Optional)" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. salman@lifeflow.com (Optional)" />
-          </div>
+
 
           {/* System Role Selection */}
           <div>
