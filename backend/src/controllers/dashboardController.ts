@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog, TokenQueue } from '../models';
+import { User, StaffMember, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog, TokenQueue } from '../models';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
 
@@ -286,13 +286,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 // ==========================================
 // STAFF MANAGEMENT (CRUD)
 // ==========================================
-export const getAllStaff = async (req: Request, res: Response) => {
+export const getStaff = async (req: Request, res: Response) => {
   try {
-    const staff = await User.findAll({
-      where: {
-        isStaffMember: true,
-      },
-      attributes: { exclude: ['password'] },
+    const staff = await StaffMember.findAll({
+      order: [['createdAt', 'DESC']],
       include: [
         {
           model: Doctor,
@@ -310,55 +307,26 @@ export const getAllStaff = async (req: Request, res: Response) => {
   }
 };
 
+export const getAllStaff = getStaff;
+
 export const createStaff = async (req: Request, res: Response) => {
-  const { name, email, password, role, phone, cnic, address, designation, salary, departmentId, specialization, consultationFee } = req.body;
+  const { name, role, phone, cnic, address, designation, salary, departmentId, specialization, consultationFee } = req.body;
 
   try {
-    let staffEmail = (email || '').trim().toLowerCase();
-    if (!staffEmail) {
-      const cleanSlug = (name || 'staff').toLowerCase().replace(/[^a-z0-9]/g, '');
-      staffEmail = `${cleanSlug}_${Date.now()}@lifeflow.com`;
-    } else {
-      const existing = await User.findOne({ where: { email: staffEmail } });
-      if (existing) {
-        return res.status(400).json({ message: 'Staff email address already registered.' });
-      }
-    }
-
-    let staffRole: any = (role || '').toLowerCase();
-    if (!staffRole) {
-      const desLower = (designation || '').toLowerCase();
-      if (desLower.includes('dr') || desLower.includes('doctor') || desLower.includes('physician') || desLower.includes('surgeon')) {
-        staffRole = 'doctor';
-      } else if (desLower.includes('nurse')) {
-        staffRole = 'nurse';
-      } else if (desLower.includes('pharm')) {
-        staffRole = 'pharmacist';
-      } else if (desLower.includes('account')) {
-        staffRole = 'accountant';
-      } else if (desLower.includes('recept')) {
-        staffRole = 'receptionist';
-      } else {
-        staffRole = 'nurse';
-      }
-    }
-
-    const hashed = await bcrypt.hash(password || 'Password123', 10);
-    const user = await User.create({
+    const staffMember = await StaffMember.create({
       name,
-      email: staffEmail,
-      password: hashed,
-      role: staffRole,
       phone: phone || '',
       cnic: cnic || '',
       address: address || '',
       designation: designation || 'Staff Member',
       salary: Number(salary) || 0,
-      isStaffMember: true,
       status: 'active',
     });
 
-    if (role === 'doctor') {
+    const desLower = (designation || '').toLowerCase();
+    const isDoctor = role === 'doctor' || desLower.includes('doctor') || desLower.includes('dr') || desLower.includes('physician') || desLower.includes('surgeon') || desLower.includes('consultant');
+
+    if (isDoctor) {
       let deptId = Number(departmentId);
       if (!deptId || isNaN(deptId) || deptId <= 0) {
         let defaultDept = await Department.findOne();
@@ -369,15 +337,16 @@ export const createStaff = async (req: Request, res: Response) => {
       }
 
       await Doctor.create({
-        userId: user.id,
+        staffId: staffMember.id,
+        userId: null,
         departmentId: deptId,
-        specialization: specialization || designation || 'General Practitioner',
-        consultationFee: consultationFee || 50.00,
+        specialization: specialization || designation || 'General OPD',
+        consultationFee: consultationFee || 500.00,
         status: 'active',
       });
     }
 
-    return res.status(201).json({ message: 'Staff member created successfully.', user });
+    return res.status(201).json({ message: 'Staff member created successfully.', user: staffMember });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error creating staff.', error: error.message });
   }
@@ -573,6 +542,13 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
+    const staff = await StaffMember.findByPk(id);
+    if (staff) {
+      const name = staff.name;
+      await staff.destroy();
+      return res.status(200).json({ message: `Staff member '${name}' deleted successfully.` });
+    }
+
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: 'User account not found.' });

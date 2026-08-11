@@ -85,6 +85,38 @@ User.init(
 );
 
 // ==========================================
+// 2B. STAFF MEMBER MODEL (SEPARATE FROM USERS TABLE)
+// ==========================================
+export class StaffMember extends Model {
+  declare id: number;
+  declare name: string;
+  declare phone: string;
+  declare cnic: string;
+  declare address: string;
+  declare designation: string;
+  declare salary: number;
+  declare status: 'active' | 'inactive';
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+  declare readonly deletedAt: Date;
+  declare doctor?: Doctor;
+  declare nurse?: Nurse;
+}
+StaffMember.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    phone: { type: DataTypes.STRING, allowNull: true },
+    cnic: { type: DataTypes.STRING, allowNull: true },
+    address: { type: DataTypes.TEXT, allowNull: true },
+    designation: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Staff Member' },
+    salary: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
+    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
+  },
+  { sequelize, modelName: 'staff_member', tableName: 'staff', paranoid: true }
+);
+
+// ==========================================
 // 3. DEPARTMENT MODEL
 // ==========================================
 export class Department extends Model {
@@ -106,18 +138,21 @@ Department.init(
 // ==========================================
 export class Doctor extends Model {
   declare id: number;
-  declare userId: number;
+  declare userId: number | null;
+  declare staffId: number | null;
   declare departmentId: number;
   declare specialization: string;
   declare consultationFee: number;
   declare status: 'active' | 'inactive';
   declare biography: string;
   declare user?: User;
+  declare staffMember?: StaffMember;
 }
 Doctor.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
+    userId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
+    staffId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'staff', key: 'id' } },
     departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'departments', key: 'id' } },
     specialization: { type: DataTypes.STRING, allowNull: false },
     consultationFee: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.0 },
@@ -132,14 +167,18 @@ Doctor.init(
 // ==========================================
 export class Nurse extends Model {
   declare id: number;
-  declare userId: number;
+  declare userId: number | null;
+  declare staffId: number | null;
   declare departmentId: number;
   declare status: 'active' | 'inactive';
+  declare user?: User;
+  declare staffMember?: StaffMember;
 }
 Nurse.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
+    userId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
+    staffId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'staff', key: 'id' } },
     departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'departments', key: 'id' } },
     status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
   },
@@ -777,6 +816,13 @@ Doctor.belongsTo(User, { foreignKey: 'userId' });
 
 User.hasOne(Nurse, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Nurse.belongsTo(User, { foreignKey: 'userId' });
+
+// StaffMember Profiles (Separate table)
+StaffMember.hasOne(Doctor, { foreignKey: 'staffId', onDelete: 'CASCADE' });
+Doctor.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember' });
+
+StaffMember.hasOne(Nurse, { foreignKey: 'staffId', onDelete: 'CASCADE' });
+Nurse.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember' });
 
 User.hasOne(Patient, { foreignKey: 'userId', onDelete: 'SET NULL' });
 Patient.belongsTo(User, { foreignKey: 'userId' });

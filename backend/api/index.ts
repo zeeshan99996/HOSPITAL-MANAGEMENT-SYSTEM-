@@ -76,9 +76,36 @@ function getApp(): express.Application {
         }
 
         try {
-          await sequelize.query(`UPDATE "users" SET "isStaffMember" = FALSE WHERE "email" = 'admin@lifeflow.com';`);
-          await sequelize.query(`UPDATE "users" SET "isStaffMember" = TRUE WHERE "email" LIKE '%_lifeflow.com' AND "email" != 'admin@lifeflow.com';`);
-        } catch (e) {}
+          await sequelize.query(`
+            CREATE TABLE IF NOT EXISTS "staff" (
+              "id" SERIAL PRIMARY KEY,
+              "name" VARCHAR(255) NOT NULL,
+              "phone" VARCHAR(255) DEFAULT '',
+              "cnic" VARCHAR(255) DEFAULT '',
+              "address" TEXT DEFAULT '',
+              "designation" VARCHAR(255) NOT NULL DEFAULT 'Staff Member',
+              "salary" DECIMAL(10, 2) DEFAULT 0.00,
+              "status" VARCHAR(50) DEFAULT 'active',
+              "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              "deletedAt" TIMESTAMP WITH TIME ZONE
+            );
+          `);
+          await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
+          await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
+
+          await sequelize.query(`
+            INSERT INTO "staff" ("name", "phone", "cnic", "address", "designation", "salary", "status", "createdAt", "updatedAt")
+            SELECT "name", COALESCE("phone", ''), COALESCE("cnic", ''), COALESCE("address", ''), COALESCE("designation", 'Staff Member'), COALESCE("salary", 0), COALESCE("status", 'active'), "createdAt", "updatedAt"
+            FROM "users"
+            WHERE "isStaffMember" = TRUE
+            AND NOT EXISTS (SELECT 1 FROM "staff" WHERE "staff"."name" = "users"."name");
+          `);
+
+          await sequelize.query(`DELETE FROM "users" WHERE "isStaffMember" = TRUE AND "email" != 'admin@lifeflow.com';`);
+        } catch (e) {
+          console.warn('[Staff Migration Warning]:', e);
+        }
 
         await seedDatabase();
         isDbInitialized = true;
