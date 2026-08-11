@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle } from 'lucide-react';
+import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2 } from 'lucide-react';
 
 export const Staff: React.FC = () => {
   const [staff, setStaff] = useState<any[]>([]);
@@ -87,6 +87,18 @@ export const Staff: React.FC = () => {
         fetchStaffData();
       } catch (err) {
         alert('Failed to update employee status.');
+      }
+    }
+  };
+
+  const handleDeleteStaff = async (staffMember: any) => {
+    if (!staffMember) return;
+    if (window.confirm(`Are you sure you want to permanently delete employee profile '${staffMember.name}' (${staffMember.email})?\n\nThis will delete their record from the system.`)) {
+      try {
+        await apiClient.delete(`/admin/users/${staffMember.id}`);
+        fetchStaffData();
+      } catch (err: any) {
+        alert(err.message || 'Failed to delete staff member.');
       }
     }
   };
@@ -186,16 +198,25 @@ export const Staff: React.FC = () => {
                     <div className="text-[10px] text-slate-400">Monthly Base</div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleToggleStatus(s.id, s.status)}
-                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold border transition-colors ${
-                        s.status === 'active'
-                          ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 border-rose-200 dark:border-rose-900/50 hover:bg-rose-100'
-                          : 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100'
-                      }`}
-                    >
-                      {s.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleToggleStatus(s.id, s.status)}
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                          s.status === 'active'
+                            ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100'
+                            : 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100'
+                        }`}
+                      >
+                        {s.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStaff(s)}
+                        title="Delete Employee Record"
+                        className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
