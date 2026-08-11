@@ -3,13 +3,20 @@ import { Op } from 'sequelize';
 import { authenticateToken, requireRoles } from '../middleware/auth';
 import { rateLimiter } from '../middleware/rateLimiter';
 import {
+  validateLogin,
   validatePatient,
   validateAppointment,
+  validateTokenQueue,
   validateInvoice,
   validateMedicineSale,
+  validateMedicine,
   validateLabRequest,
   validateVitals,
-  validateAdmission
+  validateAdmission,
+  validateDailyExpense,
+  validateStaff,
+  validateSystemUser,
+  validateUserCredentials,
 } from '../middleware/validate';
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
@@ -89,7 +96,7 @@ router.use(rateLimiter(150, 60000));
 // PUBLIC & AUTHENTICATION ROUTES
 // ==========================================
 router.post('/auth/register', registerPatient);
-router.post('/auth/login', login);
+router.post('/auth/login', validateLogin, login);
 router.get('/auth/profile', authenticateToken, getProfile);
 router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 
@@ -99,7 +106,7 @@ router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 router.post('/patients', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), validatePatient, createPatient);
 router.get('/patients', authenticateToken, getAllPatients);
 router.get('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse', 'accountant', 'patient']), getPatientById);
-router.put('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), updatePatient);
+router.put('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), validatePatient, updatePatient);
 router.delete('/patients/:id', authenticateToken, requireRoles(['admin']), deletePatient);
 
 // PATIENT VITALS LOGGING
@@ -115,7 +122,7 @@ router.put('/appointments/:id/status', authenticateToken, requireRoles(['admin',
 router.post('/appointments/prescription', authenticateToken, requireRoles(['admin', 'doctor']), createPrescription);
 
 // THERMAL PRINTER & QUEUE TOKEN GENERATION (DOCTOR-SPECIFIC DAILY SEQUENCE)
-router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']), async (req, res) => {
+router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']), validateTokenQueue, async (req, res) => {
   const { type, patientId, doctorId, detail, fee } = req.body;
   const transaction = await sequelize.transaction();
 
@@ -280,7 +287,7 @@ router.put('/invoices/:id/pay', authenticateToken, requireRoles(['admin', 'accou
 
 // PETTY CASH daily expenses ledger
 router.get('/expenses', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), getDailyExpenses);
-router.post('/expenses', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), createDailyExpense);
+router.post('/expenses', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), validateDailyExpense, createDailyExpense);
 router.delete('/expenses/:id', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), deleteDailyExpense);
 
 // MONTHLY PAYROLL SYSTEM & forecasts
@@ -292,7 +299,7 @@ router.put('/payroll/:id/pay', authenticateToken, requireRoles(['admin', 'accoun
 // PHARMACY & MEDICINE INVENTORY
 // ==========================================
 router.get('/medicines', authenticateToken, getMedicines);
-router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), addMedicine);
+router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), validateMedicine, addMedicine);
 router.put('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), updateMedicineStock);
 router.delete('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist']), deleteMedicine);
 router.post('/medicines/sale', authenticateToken, requireRoles(['admin', 'pharmacist']), validateMedicineSale, recordMedicineSale);
@@ -309,13 +316,13 @@ router.post('/medicines/rates', authenticateToken, requireRoles(['admin', 'accou
 // ==========================================
 router.get('/admin/stats', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist', 'pharmacist', 'accountant']), getDashboardStats);
 router.get('/admin/staff', authenticateToken, requireRoles(['admin']), getAllStaff);
-router.post('/admin/staff', authenticateToken, requireRoles(['admin']), createStaff);
+router.post('/admin/staff', authenticateToken, requireRoles(['admin']), validateStaff, createStaff);
 router.put('/admin/staff/:id/status', authenticateToken, requireRoles(['admin']), updateStaffStatus);
 router.put('/doctors/:id', authenticateToken, requireRoles(['admin']), updateDoctor);
 router.delete('/doctors/:id', authenticateToken, requireRoles(['admin']), deleteDoctor);
 router.get('/admin/users', authenticateToken, requireRoles(['admin']), getAllUsersAdmin);
-router.post('/admin/users', authenticateToken, requireRoles(['admin']), createSystemUserAdmin);
-router.put('/admin/users/:id/credentials', authenticateToken, requireRoles(['admin']), updateUserCredentials);
+router.post('/admin/users', authenticateToken, requireRoles(['admin']), validateSystemUser, createSystemUserAdmin);
+router.put('/admin/users/:id/credentials', authenticateToken, requireRoles(['admin']), validateUserCredentials, updateUserCredentials);
 router.delete('/admin/users/:id', authenticateToken, requireRoles(['admin']), deleteUserAdmin);
 router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
