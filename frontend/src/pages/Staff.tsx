@@ -455,36 +455,44 @@ export const Staff: React.FC = () => {
             Add, rename, or remove employee designations and assign Doctor Fields (Department, Specialization, Fee) per designation.
           </p>
 
-          {/* Add New Designation */}
-          <div className="space-y-2.5 bg-slate-50 dark:bg-dark-950 p-3 rounded-xl border border-slate-200 dark:border-slate-850">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Add New Designation</span>
-            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
-              <Input
-                placeholder="Enter designation title (e.g. ICU Specialist)..."
-                value={newDesignationInput}
-                onChange={e => setNewDesignationInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewDesignation(); } }}
-                className="text-xs w-full"
-              />
-              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 cursor-pointer select-none px-2.5 py-2 rounded-lg bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800">
+          {/* Add New Designation (Professional UI/UX) */}
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100/70 dark:from-dark-950 dark:to-dark-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Add New Job Title / Designation
+              </span>
+              <span className="text-[10px] text-slate-400 font-semibold">Custom Employee Title</span>
+            </div>
+
+            <Input
+              placeholder="e.g. Senior Consultant Radiologist / ICU Specialist..."
+              value={newDesignationInput}
+              onChange={e => setNewDesignationInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewDesignation(); } }}
+              className="text-xs w-full shadow-inner"
+            />
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+              <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none bg-white dark:bg-dark-850 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-brand-500/40 transition-colors">
                 <input
                   type="checkbox"
                   checked={newIsDoctorCheck}
                   onChange={e => setNewIsDoctorCheck(e.target.checked)}
                   className="rounded text-brand-600 focus:ring-brand-500 h-4 w-4"
                 />
-                <span>Assign Doctor Fields (Dept, Fee)</span>
+                <span>Assign Doctor Fields (Department, Specialization & Fee)</span>
               </label>
-              <Button type="button" onClick={handleAddNewDesignation} className="shrink-0 font-bold text-xs">
-                + Add Title
+
+              <Button type="button" onClick={handleAddNewDesignation} className="w-full sm:w-auto font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shrink-0">
+                <Plus className="h-4 w-4" /> Add Title
               </Button>
             </div>
           </div>
 
-          {/* Designations List */}
+          {/* Designations List (Clean Row UI - No Image 02 elements) */}
           <div className="divide-y divide-slate-100 dark:divide-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
             {designationItems.map((item, idx) => (
-              <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-white dark:bg-dark-900 text-xs font-semibold gap-2">
+              <div key={idx} className="flex items-center justify-between p-3.5 bg-white dark:bg-dark-900 hover:bg-slate-50/80 dark:hover:bg-dark-850/60 transition-colors text-xs font-semibold">
                 {editingIndex === idx ? (
                   <div className="flex items-center gap-2 w-full pr-2">
                     <Input
@@ -495,49 +503,33 @@ export const Staff: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleSaveDesignationEdit(idx)}
-                      className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
                     >
                       Save
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingIndex(null)}
-                      className="px-2.5 py-1.5 bg-slate-400 hover:bg-slate-500 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+                      className="px-3 py-1.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">{item.title}</span>
-                      {item.isDoctor && (
-                        <span className="px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-600 dark:text-brand-400 text-[9px] font-bold uppercase">
-                          Doctor Fields
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={item.isDoctor}
-                          onChange={() => handleToggleDoctorAssignment(idx)}
-                          className="rounded text-brand-600 focus:ring-brand-500 h-3.5 w-3.5"
-                        />
-                        <span>Assign Doctor Fields</span>
-                      </label>
+                    <span className="text-slate-900 dark:text-slate-100 font-extrabold text-xs">{item.title}</span>
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => { setEditingIndex(idx); setEditingText(item.title); }}
-                        className="px-2 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors"
+                        className="px-3 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteDesignation(idx)}
-                        className="px-2 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors"
+                        className="px-3 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors"
                       >
                         Delete
                       </button>
