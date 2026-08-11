@@ -51,16 +51,16 @@ function getApp(): express.Application {
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
-        const colsToAlter = ['dob', 'age', 'tokenNumber', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
-        for (const col of colsToAlter) {
+        // Run column migrations safely (separated loops)
+        const patientCols = ['dob', 'age', 'tokenNumber', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
+        for (const col of patientCols) {
           try {
             await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
           } catch (e) {}
-          try {
-            await sequelize.query(`ALTER TABLE "patients" ALTER COLUMN "${col}" DROP NOT NULL;`);
-          } catch (e) {}
-        const userColsToAlter = ['cnic', 'address', 'designation', 'salary'];
-        for (const col of userColsToAlter) {
+        }
+
+        const userCols = ['cnic', 'address', 'designation', 'salary'];
+        for (const col of userCols) {
           try {
             await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
           } catch (e) {}
