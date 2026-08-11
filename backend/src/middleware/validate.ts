@@ -492,7 +492,7 @@ export const validateStaff = (req: Request, res: Response, next: NextFunction) =
   }
 
   const allowedStaffRoles = ['admin', 'doctor', 'receptionist', 'nurse', 'lab_technician', 'pharmacist', 'accountant'];
-  if (!isEnumValue(role, allowedStaffRoles)) {
+  if (role !== undefined && role !== null && role !== '' && !isEnumValue(role, allowedStaffRoles)) {
     errors.push({ field: 'role', message: `Role must be strictly one of: ${allowedStaffRoles.join(', ')}.` });
   }
 

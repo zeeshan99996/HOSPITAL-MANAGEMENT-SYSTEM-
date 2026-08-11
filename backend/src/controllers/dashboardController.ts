@@ -325,16 +325,34 @@ export const createStaff = async (req: Request, res: Response) => {
       }
     }
 
+    let staffRole: any = (role || '').toLowerCase();
+    if (!staffRole) {
+      const desLower = (designation || '').toLowerCase();
+      if (desLower.includes('dr') || desLower.includes('doctor') || desLower.includes('physician') || desLower.includes('surgeon')) {
+        staffRole = 'doctor';
+      } else if (desLower.includes('nurse')) {
+        staffRole = 'nurse';
+      } else if (desLower.includes('pharm')) {
+        staffRole = 'pharmacist';
+      } else if (desLower.includes('account')) {
+        staffRole = 'accountant';
+      } else if (desLower.includes('recept')) {
+        staffRole = 'receptionist';
+      } else {
+        staffRole = 'nurse';
+      }
+    }
+
     const hashed = await bcrypt.hash(password || 'Password123', 10);
     const user = await User.create({
       name,
       email: staffEmail,
       password: hashed,
-      role: role || 'doctor',
+      role: staffRole,
       phone: phone || '',
       cnic: cnic || '',
       address: address || '',
-      designation: designation || role || 'Staff Member',
+      designation: designation || 'Staff Member',
       salary: Number(salary) || 0,
       isStaffMember: true,
       status: 'active',

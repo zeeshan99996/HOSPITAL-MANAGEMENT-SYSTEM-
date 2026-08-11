@@ -150,7 +150,7 @@ export const Staff: React.FC = () => {
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-dark-950 text-slate-500 dark:text-slate-400 uppercase font-bold text-[10px] tracking-wider">
                 <th className="px-6 py-3.5">Employee Details</th>
-                <th className="px-6 py-3.5">Designation & Role</th>
+                <th className="px-6 py-3.5">Designation</th>
                 <th className="px-6 py-3.5">CNIC & Contact</th>
                 <th className="px-6 py-3.5">Address</th>
                 <th className="px-6 py-3.5">Basic Salary</th>
@@ -173,8 +173,7 @@ export const Staff: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-slate-900 dark:text-slate-100">{s.designation || roleLabels[s.role] || s.role}</div>
-                    <span className="text-[10px] text-brand-600 dark:text-brand-400 font-semibold uppercase">{roleLabels[s.role] || s.role}</span>
+                    <div className="font-bold text-slate-900 dark:text-slate-100">{s.designation || 'Staff Employee'}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">{s.cnic || 'N/A'}</div>
@@ -250,22 +249,7 @@ export const Staff: React.FC = () => {
 
 
 
-          {/* System Role Selection */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Assigned Role</label>
-            <select
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="doctor">Medical Doctor</option>
-              <option value="nurse">Ward Nurse</option>
-              <option value="receptionist">Receptionist</option>
-              <option value="pharmacist">Pharmacist</option>
-              <option value="accountant">Accountant</option>
-              <option value="admin">System Administrator</option>
-            </select>
-          </div>
+
 
           {/* Doctor-specific fields */}
           {role === 'doctor' && (
