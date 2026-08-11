@@ -251,10 +251,9 @@ export const Staff: React.FC = () => {
             <Input label="Monthly Basic Salary (Rs.)" type="number" required value={salary} onChange={e => setSalary(e.target.value)} placeholder="50000" />
           </div>
 
-          {/* Email & Password */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Email Address" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="salman@lifeflow.com" />
-            <Input label="System Password" type="password" required value={password} onChange={e => setPassword(e.target.value)} />
+          {/* Email Address (Optional) */}
+          <div>
+            <Input label="Email Address (Optional)" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. salman@lifeflow.com (Optional)" />
           </div>
 
           {/* System Role Selection */}

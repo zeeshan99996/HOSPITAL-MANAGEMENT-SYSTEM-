@@ -483,11 +483,11 @@ export const validateStaff = (req: Request, res: Response, next: NextFunction) =
     errors.push({ field: 'name', message: 'Staff name is required (2 to 100 characters).' });
   }
 
-  if (!isValidEmail(email)) {
-    errors.push({ field: 'email', message: 'A valid email address is required.' });
+  if (email !== undefined && email !== null && email !== '' && !isValidEmail(email)) {
+    errors.push({ field: 'email', message: 'If provided, email address format must be valid.' });
   }
 
-  if (!isString(password, 6, 128)) {
+  if (password !== undefined && password !== null && password !== '' && !isString(password, 6, 128)) {
     errors.push({ field: 'password', message: 'Password must be between 6 and 128 characters.' });
   }
 

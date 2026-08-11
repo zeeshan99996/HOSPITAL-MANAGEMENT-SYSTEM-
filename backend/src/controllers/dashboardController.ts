@@ -314,21 +314,27 @@ export const createStaff = async (req: Request, res: Response) => {
   const { name, email, password, role, phone, cnic, address, designation, salary, departmentId, specialization, consultationFee } = req.body;
 
   try {
-    const existing = await User.findOne({ where: { email } });
-    if (existing) {
-      return res.status(400).json({ message: 'Staff email already registered.' });
+    let staffEmail = (email || '').trim().toLowerCase();
+    if (!staffEmail) {
+      const cleanSlug = (name || 'staff').toLowerCase().replace(/[^a-z0-9]/g, '');
+      staffEmail = `${cleanSlug}_${Date.now()}@lifeflow.com`;
+    } else {
+      const existing = await User.findOne({ where: { email: staffEmail } });
+      if (existing) {
+        return res.status(400).json({ message: 'Staff email address already registered.' });
+      }
     }
 
     const hashed = await bcrypt.hash(password || 'Password123', 10);
     const user = await User.create({
       name,
-      email,
+      email: staffEmail,
       password: hashed,
-      role,
-      phone,
+      role: role || 'doctor',
+      phone: phone || '',
       cnic: cnic || '',
       address: address || '',
-      designation: designation || role,
+      designation: designation || role || 'Staff Member',
       salary: Number(salary) || 0,
       isStaffMember: true,
       status: 'active',
