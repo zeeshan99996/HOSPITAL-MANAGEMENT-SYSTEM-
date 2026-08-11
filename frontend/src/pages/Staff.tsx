@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2 } from 'lucide-react';
+import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X } from 'lucide-react';
 
 const DEFAULT_DESIGNATIONS = [
   'Senior Consultant Doctor',
@@ -36,7 +36,7 @@ export const Staff: React.FC = () => {
   const [cnic, setCnic] = useState('');
   const [address, setAddress] = useState('');
   
-  // Dynamic Designations State
+  // Dynamic Designations State & Management
   const [designationsList, setDesignationsList] = useState<string[]>(() => {
     const saved = localStorage.getItem('hms_staff_designations');
     if (saved) {
@@ -48,6 +48,65 @@ export const Staff: React.FC = () => {
   const [customDesignation, setCustomDesignation] = useState<string>('');
   const [isCustomMode, setIsCustomMode] = useState<boolean>(false);
   const [designation, setDesignation] = useState<string>('Senior Consultant Doctor');
+
+  // Designation Manager Modal State
+  const [isManageDesignationsOpen, setIsManageDesignationsOpen] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [newDesignationInput, setNewDesignationInput] = useState<string>('');
+
+  const handleSaveDesignationEdit = (index: number) => {
+    if (!editingText.trim()) return;
+    const updated = [...designationsList];
+    const oldText = updated[index];
+    const trimmed = editingText.trim();
+    updated[index] = trimmed;
+    setDesignationsList(updated);
+    localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
+    if (selectedDesignation === oldText) {
+      setSelectedDesignation(trimmed);
+      setDesignation(trimmed);
+    }
+    setEditingIndex(null);
+    setEditingText('');
+  };
+
+  const handleDeleteDesignation = (index: number) => {
+    const itemToDelete = designationsList[index];
+    if (window.confirm(`Delete designation '${itemToDelete}' from dropdown list?`)) {
+      const updated = designationsList.filter((_, idx) => idx !== index);
+      setDesignationsList(updated);
+      localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
+      if (selectedDesignation === itemToDelete) {
+        const nextSelected = updated[0] || '';
+        setSelectedDesignation(nextSelected);
+        setDesignation(nextSelected);
+      }
+    }
+  };
+
+  const handleAddNewDesignation = () => {
+    if (!newDesignationInput.trim()) return;
+    const trimmed = newDesignationInput.trim();
+    if (!designationsList.includes(trimmed)) {
+      const updated = [...designationsList, trimmed];
+      setDesignationsList(updated);
+      localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
+    }
+    setNewDesignationInput('');
+    setSelectedDesignation(trimmed);
+    setDesignation(trimmed);
+    setIsCustomMode(false);
+  };
+
+  const handleResetDefaultDesignations = () => {
+    if (window.confirm('Reset designations list back to system defaults?')) {
+      setDesignationsList(DEFAULT_DESIGNATIONS);
+      localStorage.removeItem('hms_staff_designations');
+      setSelectedDesignation(DEFAULT_DESIGNATIONS[0]);
+      setDesignation(DEFAULT_DESIGNATIONS[0]);
+    }
+  };
 
   const [salary, setSalary] = useState<number | string>(50000);
   const [departmentId, setDepartmentId] = useState('');
@@ -284,26 +343,15 @@ export const Staff: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Designation / Job Title
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newDes = prompt('Add New Custom Employee Designation:');
-                    if (newDes && newDes.trim()) {
-                      const trimmed = newDes.trim();
-                      if (!designationsList.includes(trimmed)) {
-                        const updated = [...designationsList, trimmed];
-                        setDesignationsList(updated);
-                        localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
-                      }
-                      setSelectedDesignation(trimmed);
-                      setDesignation(trimmed);
-                      setIsCustomMode(false);
-                    }
-                  }}
-                  className="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold"
-                >
-                  + Add Custom Title
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsManageDesignationsOpen(true)}
+                    className="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold flex items-center gap-1 bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded border border-brand-200 dark:border-brand-900/50"
+                  >
+                    <Settings className="h-3 w-3" /> Edit / Manage List
+                  </button>
+                </div>
               </div>
               <select
                 value={isCustomMode ? '__CUSTOM__' : selectedDesignation}
@@ -344,13 +392,9 @@ export const Staff: React.FC = () => {
             <Input label="Monthly Basic Salary (Rs.)" type="number" required value={salary} onChange={e => setSalary(e.target.value)} placeholder="50000" />
           </div>
 
-
-
-
-
           {/* Doctor-specific fields */}
-  {isDoctorDesignation(designation) && (
-    <div className="p-3 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-850 space-y-3">
+          {isDoctorDesignation(designation) && (
+            <div className="p-3 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-850 space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Doctor Assignments</span>
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase">Department</label>
@@ -380,6 +424,94 @@ export const Staff: React.FC = () => {
             <Button type="submit" variant="primary" className="font-bold">Save Staff Profile</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Admin Designations Manager Modal */}
+      <Modal isOpen={isManageDesignationsOpen} onClose={() => setIsManageDesignationsOpen(false)} title="Manage Staff Designations List (Admin)">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Add, rename, or remove employee designations available in the dropdown list.
+          </p>
+
+          {/* Add New Designation */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter new designation title (e.g. ICU Specialist)..."
+              value={newDesignationInput}
+              onChange={e => setNewDesignationInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewDesignation(); } }}
+              className="text-xs"
+            />
+            <Button type="button" onClick={handleAddNewDesignation} className="shrink-0 font-bold text-xs">
+              + Add Title
+            </Button>
+          </div>
+
+          {/* Designations List */}
+          <div className="divide-y divide-slate-100 dark:divide-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            {designationsList.map((des, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-dark-900 text-xs font-semibold">
+                {editingIndex === idx ? (
+                  <div className="flex items-center gap-2 w-full pr-2">
+                    <Input
+                      value={editingText}
+                      onChange={e => setEditingText(e.target.value)}
+                      className="!py-1 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveDesignationEdit(idx)}
+                      className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingIndex(null)}
+                      className="px-2.5 py-1.5 bg-slate-400 hover:bg-slate-500 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">{des}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => { setEditingIndex(idx); setEditingText(des); }}
+                        className="px-2.5 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDesignation(idx)}
+                        className="px-2.5 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Reset Defaults & Close */}
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+            <button
+              type="button"
+              onClick={handleResetDefaultDesignations}
+              className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline font-semibold"
+            >
+              ↺ Reset to System Defaults
+            </button>
+            <Button type="button" variant="primary" onClick={() => setIsManageDesignationsOpen(false)} className="text-xs font-bold">
+              Done Editing
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
