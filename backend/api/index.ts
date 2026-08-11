@@ -59,10 +59,18 @@ function getApp(): express.Application {
           } catch (e) {}
         }
 
-        const userCols = ['cnic', 'address', 'designation', 'salary'];
+        const userCols = [
+          { name: 'deletedAt', type: 'TIMESTAMP WITH TIME ZONE' },
+          { name: 'cnic', type: 'VARCHAR(255)' },
+          { name: 'address', type: 'TEXT' },
+          { name: 'designation', type: 'VARCHAR(255)' },
+          { name: 'salary', type: 'DECIMAL(10, 2) DEFAULT 0.00' },
+          { name: 'phone', type: 'VARCHAR(255)' },
+          { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
+        ];
         for (const col of userCols) {
           try {
-            await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
+            await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};`);
           } catch (e) {}
         }
 
