@@ -290,9 +290,7 @@ export const getAllStaff = async (req: Request, res: Response) => {
   try {
     const staff = await User.findAll({
       where: {
-        role: {
-          [Op.in]: ['admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'pharmacist', 'accountant'],
-        },
+        isStaffMember: true,
       },
       attributes: { exclude: ['password'] },
       include: [
@@ -332,6 +330,7 @@ export const createStaff = async (req: Request, res: Response) => {
       address: address || '',
       designation: designation || role,
       salary: Number(salary) || 0,
+      isStaffMember: true,
       status: 'active',
     });
 
@@ -593,6 +592,7 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
       password: hashed,
       role: role || 'patient',
       phone: phone || '',
+      isStaffMember: false,
       status: status || 'active',
     });
 

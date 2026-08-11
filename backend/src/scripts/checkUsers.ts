@@ -16,6 +16,7 @@ async function checkUsers() {
       { name: 'salary', type: 'DECIMAL(10, 2) DEFAULT 0.00' },
       { name: 'phone', type: 'VARCHAR(255)' },
       { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
+      { name: 'isStaffMember', type: 'BOOLEAN DEFAULT FALSE' },
     ];
 
     for (const col of userCols) {
@@ -27,17 +28,17 @@ async function checkUsers() {
       }
     }
 
+    // Set isStaffMember = true for existing staff roles
+    await sequelize.query(`UPDATE "users" SET "isStaffMember" = TRUE WHERE "role" IN ('admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'pharmacist', 'accountant');`);
+    console.log('[DB Migration] Updated existing employee records to isStaffMember = TRUE.');
+
     const users = await User.findAll({ raw: true });
     console.log('[DB Script] Found users count:', users.length);
     for (const u of users) {
-      console.log(`ID: ${u.id} | Email: ${u.email} | Role: ${u.role} | Status: ${u.status} | PassHash: ${String(u.password).substring(0, 20)}...`);
-      if (u.email === 'admin@lifeflow.com') {
-        const isMatch = await bcrypt.compare('Password123', u.password).catch((e: any) => e.message);
-        console.log('[DB Script] Admin Password123 match test:', isMatch);
-      }
+      console.log(`ID: ${u.id} | Email: ${u.email} | Role: ${u.role} | isStaffMember: ${u.isStaffMember} | PassHash: ${String(u.password).substring(0, 20)}...`);
     }
 
-    // Ensure admin@lifeflow.com user exists and has valid hashed password
+    // Ensure admin@lifeflow.com user exists and has valid hashed password & isStaffMember = true
     let adminUser = await User.findOne({ where: { email: 'admin@lifeflow.com' } });
     if (!adminUser) {
       const hashed = await bcrypt.hash('Password123', 10);
@@ -47,12 +48,13 @@ async function checkUsers() {
         password: hashed,
         role: 'admin',
         phone: '0300-1234567',
+        isStaffMember: true,
         status: 'active'
       });
       console.log('✅ Created default System Admin account.');
     } else {
       const hashed = await bcrypt.hash('Password123', 10);
-      await adminUser.update({ password: hashed, status: 'active' });
+      await adminAccUpdate(adminUser, hashed);
       console.log('✅ Reset admin@lifeflow.com password hash to Password123.');
     }
 
@@ -61,6 +63,10 @@ async function checkUsers() {
     console.error('[DB Script Error]:', err);
     process.exit(1);
   }
+}
+
+async function adminAccUpdate(user: any, hash: string) {
+  await user.update({ password: hash, isStaffMember: true, status: 'active' });
 }
 
 checkUsers();

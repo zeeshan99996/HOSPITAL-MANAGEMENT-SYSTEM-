@@ -67,6 +67,7 @@ function getApp(): express.Application {
           { name: 'salary', type: 'DECIMAL(10, 2) DEFAULT 0.00' },
           { name: 'phone', type: 'VARCHAR(255)' },
           { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
+          { name: 'isStaffMember', type: 'BOOLEAN DEFAULT FALSE' },
         ];
         for (const col of userCols) {
           try {
