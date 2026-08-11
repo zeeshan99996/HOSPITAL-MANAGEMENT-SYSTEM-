@@ -3,22 +3,27 @@ import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X } from 'lucide-react';
 
-const DEFAULT_DESIGNATIONS = [
-  'Senior Consultant Doctor',
-  'Consultant Physician',
-  'General Medical Officer (Dr.)',
-  'Surgeon Specialist',
-  'Head Nurse',
-  'Staff Nurse (Ward)',
-  'Receptionist / Front Desk Officer',
-  'Pharmacist / Store Manager',
-  'Pharmacy Assistant',
-  'Accountant / Billing Manager',
-  'Lab Technician / Pathologist',
-  'Security Officer / Gate Supervisor',
-  'IT & System Administrator',
-  'Housekeeping & Janitorial Staff',
-  'Ambulance Driver / Logistics'
+interface DesignationItem {
+  title: string;
+  isDoctor: boolean;
+}
+
+const DEFAULT_DESIGNATION_ITEMS: DesignationItem[] = [
+  { title: 'Senior Consultant Doctor', isDoctor: true },
+  { title: 'Consultant Physician', isDoctor: true },
+  { title: 'General Medical Officer (Dr.)', isDoctor: true },
+  { title: 'Surgeon Specialist', isDoctor: true },
+  { title: 'Head Nurse', isDoctor: false },
+  { title: 'Staff Nurse (Ward)', isDoctor: false },
+  { title: 'Receptionist / Front Desk Officer', isDoctor: false },
+  { title: 'Pharmacist / Store Manager', isDoctor: false },
+  { title: 'Pharmacy Assistant', isDoctor: false },
+  { title: 'Accountant / Billing Manager', isDoctor: false },
+  { title: 'Lab Technician / Pathologist', isDoctor: false },
+  { title: 'Security Officer / Gate Supervisor', isDoctor: false },
+  { title: 'IT & System Administrator', isDoctor: false },
+  { title: 'Housekeeping & Janitorial Staff', isDoctor: false },
+  { title: 'Ambulance Driver / Logistics', isDoctor: false },
 ];
 
 export const Staff: React.FC = () => {
@@ -36,13 +41,13 @@ export const Staff: React.FC = () => {
   const [cnic, setCnic] = useState('');
   const [address, setAddress] = useState('');
   
-  // Dynamic Designations State & Management
-  const [designationsList, setDesignationsList] = useState<string[]>(() => {
-    const saved = localStorage.getItem('hms_staff_designations');
+  // Dynamic Designations State & Management (Title + IsDoctor mapping)
+  const [designationItems, setDesignationItems] = useState<DesignationItem[]>(() => {
+    const saved = localStorage.getItem('hms_staff_designation_items');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    return DEFAULT_DESIGNATIONS;
+    return DEFAULT_DESIGNATION_ITEMS;
   });
   const [selectedDesignation, setSelectedDesignation] = useState<string>('Senior Consultant Doctor');
   const [customDesignation, setCustomDesignation] = useState<string>('');
@@ -54,16 +59,21 @@ export const Staff: React.FC = () => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState<string>('');
   const [newDesignationInput, setNewDesignationInput] = useState<string>('');
+  const [newIsDoctorCheck, setNewIsDoctorCheck] = useState<boolean>(false);
+
+  const saveDesignationItems = (items: DesignationItem[]) => {
+    setDesignationItems(items);
+    localStorage.setItem('hms_staff_designation_items', JSON.stringify(items));
+  };
 
   const handleSaveDesignationEdit = (index: number) => {
     if (!editingText.trim()) return;
-    const updated = [...designationsList];
-    const oldText = updated[index];
+    const updated = [...designationItems];
+    const oldTitle = updated[index].title;
     const trimmed = editingText.trim();
-    updated[index] = trimmed;
-    setDesignationsList(updated);
-    localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
-    if (selectedDesignation === oldText) {
+    updated[index].title = trimmed;
+    saveDesignationItems(updated);
+    if (selectedDesignation === oldTitle) {
       setSelectedDesignation(trimmed);
       setDesignation(trimmed);
     }
@@ -71,14 +81,19 @@ export const Staff: React.FC = () => {
     setEditingText('');
   };
 
+  const handleToggleDoctorAssignment = (index: number) => {
+    const updated = [...designationItems];
+    updated[index].isDoctor = !updated[index].isDoctor;
+    saveDesignationItems(updated);
+  };
+
   const handleDeleteDesignation = (index: number) => {
-    const itemToDelete = designationsList[index];
+    const itemToDelete = designationItems[index].title;
     if (window.confirm(`Delete designation '${itemToDelete}' from dropdown list?`)) {
-      const updated = designationsList.filter((_, idx) => idx !== index);
-      setDesignationsList(updated);
-      localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
+      const updated = designationItems.filter((_, idx) => idx !== index);
+      saveDesignationItems(updated);
       if (selectedDesignation === itemToDelete) {
-        const nextSelected = updated[0] || '';
+        const nextSelected = updated[0]?.title || '';
         setSelectedDesignation(nextSelected);
         setDesignation(nextSelected);
       }
@@ -88,12 +103,12 @@ export const Staff: React.FC = () => {
   const handleAddNewDesignation = () => {
     if (!newDesignationInput.trim()) return;
     const trimmed = newDesignationInput.trim();
-    if (!designationsList.includes(trimmed)) {
-      const updated = [...designationsList, trimmed];
-      setDesignationsList(updated);
-      localStorage.setItem('hms_staff_designations', JSON.stringify(updated));
+    if (!designationItems.some(item => item.title === trimmed)) {
+      const updated = [...designationItems, { title: trimmed, isDoctor: newIsDoctorCheck }];
+      saveDesignationItems(updated);
     }
     setNewDesignationInput('');
+    setNewIsDoctorCheck(false);
     setSelectedDesignation(trimmed);
     setDesignation(trimmed);
     setIsCustomMode(false);
@@ -101,11 +116,18 @@ export const Staff: React.FC = () => {
 
   const handleResetDefaultDesignations = () => {
     if (window.confirm('Reset designations list back to system defaults?')) {
-      setDesignationsList(DEFAULT_DESIGNATIONS);
-      localStorage.removeItem('hms_staff_designations');
-      setSelectedDesignation(DEFAULT_DESIGNATIONS[0]);
-      setDesignation(DEFAULT_DESIGNATIONS[0]);
+      setDesignationItems(DEFAULT_DESIGNATION_ITEMS);
+      localStorage.removeItem('hms_staff_designation_items');
+      setSelectedDesignation(DEFAULT_DESIGNATION_ITEMS[0].title);
+      setDesignation(DEFAULT_DESIGNATION_ITEMS[0].title);
     }
+  };
+
+  const checkIsDoctor = (titleStr: string) => {
+    const found = designationItems.find(item => item.title === titleStr);
+    if (found) return found.isDoctor;
+    const d = (titleStr || '').toLowerCase();
+    return d.includes('doctor') || d.includes('dr') || d.includes('physician') || d.includes('surgeon') || d.includes('consultant');
   };
 
   const [salary, setSalary] = useState<number | string>(50000);
@@ -368,8 +390,8 @@ export const Staff: React.FC = () => {
                 }}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
-                {designationsList.map((des, idx) => (
-                  <option key={idx} value={des}>{des}</option>
+                {designationItems.map((item, idx) => (
+                  <option key={idx} value={item.title}>{item.title}</option>
                 ))}
                 <option value="__CUSTOM__">✏️ Other / Type Custom Designation...</option>
               </select>
@@ -393,7 +415,7 @@ export const Staff: React.FC = () => {
           </div>
 
           {/* Doctor-specific fields */}
-          {isDoctorDesignation(designation) && (
+          {checkIsDoctor(designation) && (
             <div className="p-3 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-850 space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Doctor Assignments</span>
               <div>
@@ -430,27 +452,39 @@ export const Staff: React.FC = () => {
       <Modal isOpen={isManageDesignationsOpen} onClose={() => setIsManageDesignationsOpen(false)} title="Manage Staff Designations List (Admin)">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Add, rename, or remove employee designations available in the dropdown list.
+            Add, rename, or remove employee designations and assign Doctor Fields (Department, Specialization, Fee) per designation.
           </p>
 
           {/* Add New Designation */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter new designation title (e.g. ICU Specialist)..."
-              value={newDesignationInput}
-              onChange={e => setNewDesignationInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewDesignation(); } }}
-              className="text-xs"
-            />
-            <Button type="button" onClick={handleAddNewDesignation} className="shrink-0 font-bold text-xs">
-              + Add Title
-            </Button>
+          <div className="space-y-2.5 bg-slate-50 dark:bg-dark-950 p-3 rounded-xl border border-slate-200 dark:border-slate-850">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Add New Designation</span>
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+              <Input
+                placeholder="Enter designation title (e.g. ICU Specialist)..."
+                value={newDesignationInput}
+                onChange={e => setNewDesignationInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewDesignation(); } }}
+                className="text-xs w-full"
+              />
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 cursor-pointer select-none px-2.5 py-2 rounded-lg bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800">
+                <input
+                  type="checkbox"
+                  checked={newIsDoctorCheck}
+                  onChange={e => setNewIsDoctorCheck(e.target.checked)}
+                  className="rounded text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <span>Assign Doctor Fields (Dept, Fee)</span>
+              </label>
+              <Button type="button" onClick={handleAddNewDesignation} className="shrink-0 font-bold text-xs">
+                + Add Title
+              </Button>
+            </div>
           </div>
 
           {/* Designations List */}
           <div className="divide-y divide-slate-100 dark:divide-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-            {designationsList.map((des, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-dark-900 text-xs font-semibold">
+            {designationItems.map((item, idx) => (
+              <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-white dark:bg-dark-900 text-xs font-semibold gap-2">
                 {editingIndex === idx ? (
                   <div className="flex items-center gap-2 w-full pr-2">
                     <Input
@@ -475,19 +509,35 @@ export const Staff: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">{des}</span>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">{item.title}</span>
+                      {item.isDoctor && (
+                        <span className="px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-600 dark:text-brand-400 text-[9px] font-bold uppercase">
+                          Doctor Fields
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={item.isDoctor}
+                          onChange={() => handleToggleDoctorAssignment(idx)}
+                          className="rounded text-brand-600 focus:ring-brand-500 h-3.5 w-3.5"
+                        />
+                        <span>Assign Doctor Fields</span>
+                      </label>
                       <button
                         type="button"
-                        onClick={() => { setEditingIndex(idx); setEditingText(des); }}
-                        className="px-2.5 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors"
+                        onClick={() => { setEditingIndex(idx); setEditingText(item.title); }}
+                        className="px-2 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteDesignation(idx)}
-                        className="px-2.5 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors"
+                        className="px-2 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors"
                       >
                         Delete
                       </button>
