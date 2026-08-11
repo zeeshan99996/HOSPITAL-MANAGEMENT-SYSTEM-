@@ -46,6 +46,7 @@ function getApp(): express.Application {
     if (!isDbInitialized) {
       try {
         console.log('[Vercel Serverless] Initializing DB Connection & Seeding...');
+        await import('../src/models');
         const sequelize = (await import('../src/config/db')).default;
         const { seedDatabase } = await import('../src/seeders/initialSeed');
         await sequelize.authenticate();
