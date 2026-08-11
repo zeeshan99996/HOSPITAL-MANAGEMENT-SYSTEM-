@@ -357,13 +357,19 @@ export const updateStaffStatus = async (req: Request, res: Response) => {
   const { status } = req.body; // active, inactive
 
   try {
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ message: 'Staff member not found.' });
+    const staff = await StaffMember.findByPk(id);
+    if (staff) {
+      await staff.update({ status });
+      return res.status(200).json({ message: `Staff member status updated to ${status}.`, user: staff });
     }
 
-    await user.update({ status });
-    return res.status(200).json({ message: `Staff account status updated to ${status}.`, user });
+    const user = await User.findByPk(id);
+    if (user) {
+      await user.update({ status });
+      return res.status(200).json({ message: `User account status updated to ${status}.`, user });
+    }
+
+    return res.status(404).json({ message: 'Staff member not found.' });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error updating staff status.', error: error.message });
   }
@@ -545,6 +551,8 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
     const staff = await StaffMember.findByPk(id);
     if (staff) {
       const name = staff.name;
+      try { await Doctor.destroy({ where: { staffId: staff.id }, force: true }); } catch (e) {}
+      try { await Nurse.destroy({ where: { staffId: staff.id }, force: true }); } catch (e) {}
       await staff.destroy();
       return res.status(200).json({ message: `Staff member '${name}' deleted successfully.` });
     }
@@ -562,20 +570,26 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
     const deletedEmail = user.email;
     const deletedName = user.name;
 
-    await user.destroy(); // Soft delete because User model has paranoid: true
+    try { await Doctor.destroy({ where: { userId: user.id }, force: true }); } catch (e) {}
+    try { await Nurse.destroy({ where: { userId: user.id }, force: true }); } catch (e) {}
 
-    await ActivityLog.create({
-      userId: adminUser?.id || null,
-      action: 'Account Deletion',
-      details: `User account [${deletedName} - ${deletedEmail}] was deleted by Admin.`,
-      ipAddress: req.ip,
-    });
+    await user.destroy(); // Soft delete
+
+    try {
+      await ActivityLog.create({
+        userId: adminUser?.id || null,
+        action: 'Account Deletion',
+        details: `User account [${deletedName} - ${deletedEmail}] was deleted by Admin.`,
+        ipAddress: req.ip,
+      });
+    } catch (e) {}
 
     return res.status(200).json({
       message: `User account '${deletedName}' (${deletedEmail}) deleted successfully.`,
     });
   } catch (error: any) {
-    return res.status(500).json({ message: 'Error deleting user account.', error: error.message });
+    console.error('Error deleting account:', error);
+    return res.status(500).json({ message: 'Error deleting account.', error: error.message });
   }
 };
 
