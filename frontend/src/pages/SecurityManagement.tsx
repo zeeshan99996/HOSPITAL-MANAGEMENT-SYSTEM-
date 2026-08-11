@@ -13,7 +13,8 @@ import {
   EyeOff,
   RefreshCw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 export const SecurityManagement: React.FC = () => {
@@ -48,6 +49,20 @@ export const SecurityManagement: React.FC = () => {
       setFeedback({ type: 'error', message: 'Failed to load user accounts.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: any) => {
+    if (!user) return;
+    if (window.confirm(`Are you sure you want to permanently delete the user account '${user.name}' (${user.email})?\n\nThis will revoke all access for this user.`)) {
+      try {
+        const res = await apiClient.delete(`/admin/users/${user.id}`);
+        setFeedback({ type: 'success', message: res.message || `User account '${user.name}' deleted successfully.` });
+        if (isEditOpen) setIsEditOpen(false);
+        fetchUsers();
+      } catch (err: any) {
+        setFeedback({ type: 'error', message: err.response?.data?.message || err.message || 'Failed to delete user account.' });
+      }
     }
   };
 
@@ -258,14 +273,25 @@ export const SecurityManagement: React.FC = () => {
                   </Badge>
                 </div>
 
-                <Button
-                  onClick={() => handleOpenEdit(u)}
-                  variant="outline"
-                  size="sm"
-                  className="w-full flex items-center justify-center gap-2 font-bold text-xs"
-                >
-                  <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Change Password & Credentials
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => handleOpenEdit(u)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 flex items-center justify-center gap-2 font-bold text-xs"
+                  >
+                    <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Change Credentials
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteUser(u)}
+                    variant="outline"
+                    size="sm"
+                    className="px-3 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:border-rose-400"
+                    title="Delete User Account"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>
@@ -314,14 +340,24 @@ export const SecurityManagement: React.FC = () => {
                     </td>
 
                     <td className="px-6 py-4 text-right">
-                      <Button
-                        onClick={() => handleOpenEdit(u)}
-                        variant="outline"
-                        size="sm"
-                        className="inline-flex items-center gap-1.5 font-bold text-xs border-slate-300 dark:border-slate-700 hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400"
-                      >
-                        <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Edit Credentials
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          onClick={() => handleOpenEdit(u)}
+                          variant="outline"
+                          size="sm"
+                          className="inline-flex items-center gap-1.5 font-bold text-xs border-slate-300 dark:border-slate-700 hover:border-brand-500 hover:text-brand-600 dark:hover:text-brand-400"
+                        >
+                          <KeyRound className="h-3.5 w-3.5 text-brand-500" /> Edit Credentials
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteUser(u)}
+                          variant="outline"
+                          size="sm"
+                          className="inline-flex items-center gap-1.5 font-bold text-xs border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 hover:border-rose-400"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -443,13 +479,24 @@ export const SecurityManagement: React.FC = () => {
           </div>
 
           {/* Submit Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <Button type="button" variant="secondary" onClick={() => setIsEditOpen(false)}>
-              Cancel
+          <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleDeleteUser(selectedUser)}
+              className="border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 font-bold text-xs flex items-center gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Delete Account
             </Button>
-            <Button type="submit" variant="primary" isLoading={submitting} className="font-bold">
-              Save Account Credentials
-            </Button>
+
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="secondary" onClick={() => setIsEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" isLoading={submitting} className="font-bold">
+                Save Account Credentials
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>

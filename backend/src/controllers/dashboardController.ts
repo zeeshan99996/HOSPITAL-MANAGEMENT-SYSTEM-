@@ -539,3 +539,38 @@ export const updateUserCredentials = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteUserAdmin = async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User account not found.' });
+    }
+
+    const adminUser = (req as any).user;
+    if (adminUser && Number(adminUser.id) === Number(id)) {
+      return res.status(400).json({ message: 'You cannot delete your own active administrator account.' });
+    }
+
+    const deletedEmail = user.email;
+    const deletedName = user.name;
+
+    await user.destroy(); // Soft delete because User model has paranoid: true
+
+    await ActivityLog.create({
+      userId: adminUser?.id || null,
+      action: 'Account Deletion',
+      details: `User account [${deletedName} - ${deletedEmail}] was deleted by Admin.`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      message: `User account '${deletedName}' (${deletedEmail}) deleted successfully.`,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error deleting user account.', error: error.message });
+  }
+};
+
+
