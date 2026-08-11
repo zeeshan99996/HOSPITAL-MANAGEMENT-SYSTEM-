@@ -60,7 +60,26 @@ export const seedDatabase = async () => {
 
     const userCount = await User.count();
     if (userCount > 0) {
-      console.log('[Seed] User Database already seeded. Skipping.');
+      console.log('[Seed] User Database already seeded. Verifying admin credentials...');
+      try {
+        const adminAcc = await User.findOne({ where: { email: 'admin@lifeflow.com' } });
+        if (!adminAcc) {
+          const hashedPassword = await bcrypt.hash('Password123', 10);
+          await User.create({
+            name: 'System Admin',
+            email: 'admin@lifeflow.com',
+            password: hashedPassword,
+            role: 'admin',
+            phone: '0300-1234567',
+            status: 'active'
+          });
+        } else if (!adminAcc.password || (!adminAcc.password.startsWith('$2a$') && !adminAcc.password.startsWith('$2b$') && !adminAcc.password.startsWith('$2y$'))) {
+          const hashedPassword = await bcrypt.hash('Password123', 10);
+          await adminAcc.update({ password: hashedPassword, status: 'active' });
+        }
+      } catch (aErr) {
+        console.warn('[Admin Verification Warning]:', aErr);
+      }
       return;
     }
 
