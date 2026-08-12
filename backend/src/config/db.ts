@@ -10,7 +10,27 @@ const dbDialect = (process.env.DB_DIALECT || 'mysql').toLowerCase();
 
 let sequelize: Sequelize;
 
-if (dbDialect === 'mysql' || (process.env.DB_HOST && !process.env.DATABASE_URL && dbDialect !== 'postgres')) {
+if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
+  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
+  console.log('[Database] Initializing Sequelize with PostgreSQL URL');
+  sequelize = new Sequelize(databaseUrl, {
+    dialect: 'postgres',
+    dialectModule: pg,
+    logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
+  });
+} else if (dbDialect === 'mysql' && process.env.DB_HOST) {
   const host = process.env.DB_HOST || 'localhost';
   const port = parseInt(process.env.DB_PORT || '3306');
   const database = process.env.DB_NAME || 'hms_db';
@@ -37,33 +57,12 @@ if (dbDialect === 'mysql' || (process.env.DB_HOST && !process.env.DATABASE_URL &
       underscored: false,
     },
   });
-} else if (process.env.DATABASE_URL || dbDialect === 'postgres' || dbDialect === 'supabase') {
-  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
-
-  console.log('[Database] Initializing Sequelize with PostgreSQL URL');
-  sequelize = new Sequelize(databaseUrl, {
-    dialect: 'postgres',
-    dialectModule: pg,
-    logging: false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    },
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
-  });
 } else {
   const dbPath = process.env.VERCEL || process.env.TMPDIR
     ? path.join('/tmp', 'hms.db')
     : path.resolve(__dirname, '../../hms.db');
 
-  console.log(`[Database] Initializing Sequelize with SQLite: ${dbPath}`);
+  console.log(`[Database] Initializing Local SQLite Database: ${dbPath}`);
   sequelize = new Sequelize({
     dialect: 'sqlite',
     dialectModule: sqlite3,
