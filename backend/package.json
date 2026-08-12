@@ -7,7 +7,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test-db": "ts-node src/scripts/testConn.ts"
+    "test-db": "ts-node src/scripts/testConn.ts",
+    "inspect-db": "ts-node src/scripts/inspectDb.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
