@@ -76,6 +76,21 @@ function getApp(): express.Application {
 
           try {
             await sequelize.query(`
+              CREATE TABLE IF NOT EXISTS "system_users" (
+                "id" SERIAL PRIMARY KEY,
+                "name" VARCHAR(255) NOT NULL,
+                "email" VARCHAR(255) NOT NULL UNIQUE,
+                "password" VARCHAR(255) NOT NULL,
+                "phone" VARCHAR(50) DEFAULT '',
+                "role" VARCHAR(50) NOT NULL DEFAULT 'admin',
+                "status" VARCHAR(50) NOT NULL DEFAULT 'active',
+                "supabase_user_id" VARCHAR(255),
+                "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                "deletedAt" TIMESTAMP WITH TIME ZONE
+              );
+            `);
+            await sequelize.query(`
               CREATE TABLE IF NOT EXISTS "staff" (
                 "id" SERIAL PRIMARY KEY,
                 "name" VARCHAR(255) NOT NULL,
