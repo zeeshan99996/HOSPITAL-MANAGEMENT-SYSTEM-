@@ -484,6 +484,17 @@ export const getActivityLogs = async (req: Request, res: Response) => {
 // ==========================================
 export const getAllUsersAdmin = async (req: Request, res: Response) => {
   try {
+    // 1. Attempt to fetch from Supabase public.system_users table
+    try {
+      const { data: supaUsers } = await supabaseAdmin.from('system_users').select('*').order('id', { ascending: false });
+      if (supaUsers && supaUsers.length > 0) {
+        return res.status(200).json(supaUsers);
+      }
+    } catch (supaErr) {
+      console.warn('[Supabase system_users fetch notice]:', supaErr);
+    }
+
+    // 2. Fallback to local DB
     let sysUsers = await SystemUser.findAll({
       attributes: { exclude: ['password'] },
       order: [['createdAt', 'DESC']],
@@ -691,8 +702,9 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
     }
 
     // 3. Save into Supabase PostgreSQL system_users table via Supabase Client API
+    let supaCreatedUser: any = null;
     try {
-      await supabaseAdmin.from('system_users').insert([
+      const { data: supaData, error: supaErr } = await supabaseAdmin.from('system_users').insert([
         {
           name,
           email: normEmail,
@@ -702,8 +714,14 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
           status: status || 'active',
           supabase_user_id: supabaseUserId,
         }
-      ]);
-      console.log(`✅ [Supabase Table] Inserted System User into Supabase 'system_users' table!`);
+      ]).select();
+
+      if (supaErr) {
+        console.error('❌ [Supabase system_users Table Insert Error]:', supaErr.message);
+      } else if (supaData && supaData.length > 0) {
+        supaCreatedUser = supaData[0];
+        console.log(`✅ [Supabase Table] Inserted System User into Supabase 'system_users' table:`, supaCreatedUser);
+      }
     } catch (supaTableErr: any) {
       console.warn('[Supabase system_users Table Insert Notice]:', supaTableErr?.message);
     }
