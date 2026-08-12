@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models';
 import { supabaseAdmin } from '../config/supabase';
 
-const FALLBACK_JWT_SECRET = 'lifeflow_jwt_secret_token_key_for_hms_application_2026';
+const FALLBACK_JWT_SECRET = 'gDLDNJmOYTXFfmXWGCxR2CvkHbLzK0bBr/JzogRSgu57TSc6/iu8Y6pux0gTtRz8gmCSq/jx7j9oDevhUcHIZA==';
 const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET || FALLBACK_JWT_SECRET;
 
 export interface AuthenticatedRequest extends Request {
