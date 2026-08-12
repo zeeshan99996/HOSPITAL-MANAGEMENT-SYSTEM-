@@ -28,19 +28,17 @@ const getHeaders = async () => {
 
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem('hms_token');
-      localStorage.removeItem('hms_user');
-      if (window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
-        window.location.href = '/';
-      }
-    }
-    let errorMessage = 'Request failed. Please try again.';
+    let errorMessage = `Server error (${response.status}). Please try again.`;
     try {
       const data = await response.json();
       errorMessage = data.message || data.error || errorMessage;
     } catch (e) {
       // Ignored
+    }
+    if (response.status === 401 && window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
+      localStorage.removeItem('hms_token');
+      localStorage.removeItem('hms_user');
+      window.location.href = '/';
     }
     throw new Error(errorMessage);
   }
