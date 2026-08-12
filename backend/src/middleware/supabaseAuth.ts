@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../config/supabase';
-import { User } from '../models';
+import { User, SystemUser } from '../models';
 
 export interface AuthenticatedRequest extends Request {
   user?: any;
@@ -60,16 +60,19 @@ export const verifySupabaseToken = async (
       return res.status(401).json({ message: 'Invalid or expired Supabase authentication token.' });
     }
 
-    // 3. Find matching Hostinger MySQL user
-    let user = null;
+    // 3. Find matching SystemUser or MySQL user
+    let user: any = null;
     if (supabaseUserId) {
-      user = await User.findOne({ where: { supabase_user_id: supabaseUserId } });
+      user = await SystemUser.findOne({ where: { supabase_user_id: supabaseUserId } });
+      if (!user) user = await User.findOne({ where: { supabase_user_id: supabaseUserId } });
     }
 
     if (!user && userEmail) {
-      user = await User.findOne({ where: { email: userEmail.toLowerCase().trim() } });
+      const normEmail = userEmail.toLowerCase().trim();
+      user = await SystemUser.findOne({ where: { email: normEmail } });
+      if (!user) user = await User.findOne({ where: { email: normEmail } });
       if (user && supabaseUserId) {
-        // Link supabase_user_id to local MySQL user
+        // Link supabase_user_id to local record
         try {
           await user.update({ supabase_user_id: supabaseUserId });
         } catch (uErr) {}

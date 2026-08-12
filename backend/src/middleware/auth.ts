@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models';
+import { User, SystemUser } from '../models';
 import { supabaseAdmin } from '../config/supabase';
 
 const FALLBACK_JWT_SECRET = 'gDLDNJmOYTXFfmXWGCxR2CvkHbLzK0bBr/JzogRSgu57TSc6/iu8Y6pux0gTtRz8gmCSq/jx7j9oDevhUcHIZA==';
@@ -60,16 +60,20 @@ export const authenticateToken = async (
       }
     }
 
-    // 3. Match user in Hostinger MySQL database
-    let user = null;
+    // 3. Match user in Hostinger MySQL / SystemUsers database
+    let user: any = null;
     if (supabaseUserId) {
-      user = await User.findOne({ where: { supabase_user_id: supabaseUserId } });
+      user = await SystemUser.findOne({ where: { supabase_user_id: supabaseUserId } });
+      if (!user) user = await User.findOne({ where: { supabase_user_id: supabaseUserId } });
     }
     if (!user && userIdNum) {
-      user = await User.findByPk(userIdNum);
+      user = await SystemUser.findByPk(userIdNum);
+      if (!user) user = await User.findByPk(userIdNum);
     }
     if (!user && userEmail) {
-      user = await User.findOne({ where: { email: userEmail.toLowerCase().trim() } });
+      const normEmail = userEmail.toLowerCase().trim();
+      user = await SystemUser.findOne({ where: { email: normEmail } });
+      if (!user) user = await User.findOne({ where: { email: normEmail } });
       if (user && supabaseUserId && !user.supabase_user_id) {
         try { await user.update({ supabase_user_id: supabaseUserId }); } catch (e) {}
       }
