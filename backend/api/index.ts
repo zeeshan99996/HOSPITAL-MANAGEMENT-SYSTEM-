@@ -64,6 +64,7 @@ function getApp(): express.Application {
           { name: 'deletedAt', type: 'TIMESTAMP WITH TIME ZONE' },
           { name: 'phone', type: 'VARCHAR(255)' },
           { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
+          { name: 'roleId', type: 'INTEGER' },
         ];
         for (const col of userCols) {
           try {
