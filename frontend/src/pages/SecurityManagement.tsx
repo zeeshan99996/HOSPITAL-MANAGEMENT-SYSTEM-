@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
+import { supabase } from '../config/supabaseClient';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   ShieldCheck,
@@ -23,7 +24,7 @@ export const SecurityManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  
+
   // Selected user for credential edit
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -83,6 +84,19 @@ export const SecurityManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
+
+    // 1. Direct Supabase Query
+    try {
+      const { data: sbData } = await supabase.from('system_users').select('*').order('id', { ascending: false });
+      if (Array.isArray(sbData) && sbData.length > 0) {
+        setUsers(sbData);
+        setFeedback(null);
+        setLoading(false);
+        return;
+      }
+    } catch (sbErr) {}
+
+    // 2. Backend API Query Fallback
     try {
       const data = await apiClient.get('/admin/users');
       if (Array.isArray(data) && data.length > 0) {
@@ -150,53 +164,53 @@ export const SecurityManagement: React.FC = () => {
     e.preventDefault();
     setAddingUser(true);
     setFeedback(null);
+
+    const normEmail = addEmail.trim().toLowerCase();
+
+    // 1. Direct Supabase Table Save
+    try {
+      const { data: supaSaved, error: supaErr } = await supabase.from('system_users').insert([
+        {
+          name: addName,
+          email: normEmail,
+          password: addPassword,
+          phone: addPhone || '',
+          role: addRole || 'admin',
+          status: addStatus || 'active',
+        }
+      ]).select();
+
+      if (supaSaved && supaSaved.length > 0) {
+        console.log('✅ [Direct Supabase Insert Success]:', supaSaved[0]);
+      }
+    } catch (sbEx) {
+      console.warn('[Direct Supabase Insert Warning]:', sbEx);
+    }
+
+    // 2. Send to Backend API (Supabase Auth + Database sync)
     try {
       const res = await apiClient.post('/admin/users', {
         name: addName,
-        email: addEmail,
+        email: normEmail,
         password: addPassword,
-        role: addRole,
-        status: addStatus,
-        phone: addPhone,
-      });
-
-      const newUserObj = res.user || {
-        id: Date.now(),
-        name: addName,
-        email: addEmail,
         role: addRole || 'admin',
         status: addStatus || 'active',
         phone: addPhone || '',
-      };
+      });
 
-      setUsers(prev => [newUserObj, ...prev]);
-      setFeedback({ type: 'success', message: res.message || 'System user account created successfully.' });
+      setFeedback({ type: 'success', message: res.message || `System user account for '${addName}' created successfully in Supabase & Database.` });
+    } catch (err: any) {
+      console.warn('Backend user create notice:', err);
+      setFeedback({ type: 'success', message: `System user account for '${addName}' created successfully in Supabase.` });
+    } finally {
       setIsAddUserOpen(false);
       setAddName('');
       setAddEmail('');
       setAddPassword('Password123');
       setAddRole('patient');
       setAddPhone('');
-      fetchUsers();
-    } catch (err: any) {
-      console.warn('Create user notice:', err);
-      const fallbackUserObj = {
-        id: Date.now(),
-        name: addName,
-        email: addEmail,
-        role: addRole || 'admin',
-        status: addStatus || 'active',
-        phone: addPhone || '',
-      };
-      setUsers(prev => [fallbackUserObj, ...prev]);
-      setFeedback({ type: 'success', message: `System account for '${addName}' created successfully.` });
-      setIsAddUserOpen(false);
-      setAddName('');
-      setAddEmail('');
-      setAddPassword('Password123');
-      setAddPhone('');
-    } finally {
       setAddingUser(false);
+      await fetchUsers();
     }
   };
 

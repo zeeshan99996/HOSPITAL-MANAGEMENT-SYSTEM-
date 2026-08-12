@@ -1,16 +1,18 @@
 import { supabaseAdmin } from '../config/supabase';
 
-async function testInsert() {
-  console.log('Testing insert into Supabase system_users table...');
+async function testInsertNew() {
+  const testEmail = `user_${Date.now()}@gmail.com`;
+  console.log(`Testing insert of new user: ${testEmail}...`);
+
   const { data, error } = await supabaseAdmin
     .from('system_users')
     .insert([
       {
-        name: 'System Admin',
-        email: 'admin@lifeflow.com',
+        name: 'New Test User',
+        email: testEmail,
         password: 'hashed_password_123',
-        phone: '0300-1234567',
-        role: 'admin',
+        phone: '0300-9999999',
+        role: 'doctor',
         status: 'active',
       }
     ])
@@ -29,8 +31,8 @@ async function testInsert() {
   if (selectError) {
     console.error('❌ Supabase Select Error:', selectError);
   } else {
-    console.log('📋 Supabase Current Rows:', selectData);
+    console.log(`📋 Supabase Current Rows Count: ${selectData?.length}`, selectData);
   }
 }
 
-testInsert();
+testInsertNew();
