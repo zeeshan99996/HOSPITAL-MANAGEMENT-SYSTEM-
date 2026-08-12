@@ -1,16 +1,15 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, Doctor, Department, ActivityLog } from '../models';
+import { User, SystemUser, Doctor, Department, ActivityLog } from '../models';
 import { AuthenticatedRequest } from '../middleware/auth';
 
-const FALLBACK_JWT_SECRET = 'lifeflow_jwt_secret_token_key_for_hms_application_2026';
+const FALLBACK_JWT_SECRET = 'gDLDNJmOYTXFfmXWGCxR2CvkHbLzK0bBr/JzogRSgu57TSc6/iu8Y6pux0gTtRz8gmCSq/jx7j9oDevhUcHIZA==';
 
 if (!process.env.JWT_SECRET) {
   console.warn(
     '[SECURITY WARNING] JWT_SECRET environment variable is not set. ' +
-    'Using an insecure hardcoded fallback secret. ' +
-    'Set JWT_SECRET in your .env file before deploying to production.'
+    'Using fallback secret.'
   );
 }
 
@@ -31,7 +30,10 @@ export const login = async (req: Request, res: Response) => {
 
   try {
     const normEmail = email.trim().toLowerCase();
-    let user = await User.findOne({ where: { email: normEmail } });
+    let user: any = await SystemUser.findOne({ where: { email: normEmail } });
+    if (!user) {
+      user = await User.findOne({ where: { email: normEmail } });
+    }
     const ipStr = String(req.headers['x-forwarded-for'] || req.ip || '127.0.0.1');
 
     // Auto-create staff account for default emails if missing

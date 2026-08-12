@@ -77,6 +77,39 @@ User.init(
 );
 
 // ==========================================
+// 2A. SYSTEM USER MODEL (DEDICATED SYSTEM USERS TABLE)
+// ==========================================
+export class SystemUser extends Model {
+  declare id: number;
+  declare supabase_user_id: string | null;
+  declare name: string;
+  declare email: string;
+  declare password: string;
+  declare phone: string;
+  declare role: 'admin' | 'doctor' | 'receptionist' | 'lab_technician' | 'pharmacist' | 'accountant' | 'nurse';
+  declare status: 'active' | 'inactive';
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+  declare readonly deletedAt: Date;
+}
+SystemUser.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    supabase_user_id: { type: DataTypes.STRING, allowNull: true, unique: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
+    password: { type: DataTypes.STRING, allowNull: false },
+    phone: { type: DataTypes.STRING, allowNull: true, defaultValue: '' },
+    role: {
+      type: DataTypes.ENUM('admin', 'doctor', 'receptionist', 'lab_technician', 'pharmacist', 'accountant', 'nurse'),
+      defaultValue: 'admin',
+    },
+    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
+  },
+  { sequelize, modelName: 'system_user', tableName: 'system_users', paranoid: true }
+);
+
+// ==========================================
 // 2B. STAFF MEMBER MODEL (SEPARATE FROM USERS TABLE)
 // ==========================================
 export class StaffMember extends Model {

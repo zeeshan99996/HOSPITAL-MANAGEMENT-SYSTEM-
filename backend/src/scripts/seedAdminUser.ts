@@ -1,11 +1,11 @@
 import sequelize from '../config/db';
-import { User } from '../models';
+import { User, SystemUser } from '../models';
 import { supabaseAdmin } from '../config/supabase';
 import bcrypt from 'bcryptjs';
 
 async function seedAdminUser() {
   console.log(`\n=============================================================`);
-  console.log(`🔑 SEEDING SYSTEM ADMIN ACCOUNTS IN SUPABASE AUTH & DATABASE`);
+  console.log(`🔑 SEEDING SYSTEM ADMIN ACCOUNTS IN SUPABASE AUTH & SYSTEM_USERS`);
   console.log(`=============================================================\n`);
 
   try {
@@ -38,7 +38,6 @@ async function seedAdminUser() {
           console.log(`✅ [Supabase Auth] Created Supabase Auth user! UUID: ${supabaseUserId}`);
         } else if (sbError) {
           console.warn(`[Supabase Auth Notice]: ${sbError.message}`);
-          // List existing users to get UUID if already created
           const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
           const found = listData?.users?.find((u: any) => u.email?.toLowerCase() === acc.email.toLowerCase());
           if (found) {
@@ -50,12 +49,12 @@ async function seedAdminUser() {
         console.warn(`[Supabase Admin Exception]: ${sbEx.message}`);
       }
 
-      // 2. Create/Update User in Database
+      // 2. Create/Update SystemUser in Dedicated system_users table
       const hashedPassword = await bcrypt.hash(acc.password, 10);
-      let localUser = await User.findOne({ where: { email: acc.email } });
-
-      if (!localUser) {
-        localUser = await User.create({
+      
+      let sysUser = await SystemUser.findOne({ where: { email: acc.email } });
+      if (!sysUser) {
+        sysUser = await SystemUser.create({
           name: acc.name,
           email: acc.email,
           password: hashedPassword,
@@ -64,17 +63,33 @@ async function seedAdminUser() {
           status: 'active',
           supabase_user_id: supabaseUserId,
         });
-        console.log(`✅ [Database] Created local Admin account record in MySQL/DB! ID: ${localUser.id}`);
+        console.log(`✅ [system_users Table] Created SystemUser record! ID: ${sysUser.id}`);
       } else {
-        await localUser.update({
+        await sysUser.update({
           name: acc.name,
           password: hashedPassword,
           role: 'admin',
           status: 'active',
-          supabase_user_id: supabaseUserId || localUser.supabase_user_id,
+          supabase_user_id: supabaseUserId || sysUser.supabase_user_id,
         });
-        console.log(`✅ [Database] Updated local Admin account record in MySQL/DB! ID: ${localUser.id}`);
+        console.log(`✅ [system_users Table] Updated SystemUser record! ID: ${sysUser.id}`);
       }
+
+      // Also sync User table
+      try {
+        let localUser = await User.findOne({ where: { email: acc.email } });
+        if (!localUser) {
+          await User.create({
+            name: acc.name,
+            email: acc.email,
+            password: hashedPassword,
+            role: 'admin',
+            phone: '0300-1234567',
+            status: 'active',
+            supabase_user_id: supabaseUserId,
+          });
+        }
+      } catch (e) {}
     }
 
     console.log(`\n=============================================================`);
