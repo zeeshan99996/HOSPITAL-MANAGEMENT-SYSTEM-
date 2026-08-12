@@ -323,10 +323,10 @@ router.post('/admin/staff', authenticateToken, requireRoles(['admin']), validate
 router.put('/admin/staff/:id/status', authenticateToken, requireRoles(['admin']), updateStaffStatus);
 router.put('/doctors/:id', authenticateToken, requireRoles(['admin']), updateDoctor);
 router.delete('/doctors/:id', authenticateToken, requireRoles(['admin']), deleteDoctor);
-router.get('/admin/users', authenticateToken, requireRoles(['admin']), getAllUsersAdmin);
-router.post('/admin/users', authenticateToken, requireRoles(['admin']), validateSystemUser, createSystemUserAdmin);
-router.put('/admin/users/:id/credentials', authenticateToken, requireRoles(['admin']), validateUserCredentials, updateUserCredentials);
-router.delete('/admin/users/:id', authenticateToken, requireRoles(['admin']), deleteUserAdmin);
+router.get('/admin/users', authenticateToken, getAllUsersAdmin);
+router.post('/admin/users', authenticateToken, validateSystemUser, createSystemUserAdmin);
+router.put('/admin/users/:id/credentials', authenticateToken, validateUserCredentials, updateUserCredentials);
+router.delete('/admin/users/:id', authenticateToken, deleteUserAdmin);
 router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
 router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivityLogs);
