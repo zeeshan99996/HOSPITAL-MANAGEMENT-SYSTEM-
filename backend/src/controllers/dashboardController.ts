@@ -667,6 +667,24 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
       supabase_user_id: supabaseUserId,
     });
 
+    // 3. Save into Supabase PostgreSQL system_users table via Supabase Client API
+    try {
+      await supabaseAdmin.from('system_users').insert([
+        {
+          name,
+          email,
+          password: hashed,
+          phone: phone || '',
+          role: role || 'admin',
+          status: status || 'active',
+          supabase_user_id: supabaseUserId,
+        }
+      ]);
+      console.log(`✅ [Supabase Table] Inserted System User into Supabase 'system_users' table!`);
+    } catch (supaTableErr: any) {
+      console.warn('[Supabase system_users Table Insert Notice]:', supaTableErr?.message);
+    }
+
     // Also insert into User model for legacy joins
     try {
       await User.create({
