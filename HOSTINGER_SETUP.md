@@ -51,7 +51,7 @@ DB_POOL_MAX=10
 DB_POOL_MIN=2
 
 # Supabase Auth Configuration
-SUPABASE_URL=https://cboevanmnhphawnmfpjg.supabase.co
+SUPABASE_URL=https://your-supabase-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_anon_public_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_JWT_SECRET=your_supabase_jwt_secret

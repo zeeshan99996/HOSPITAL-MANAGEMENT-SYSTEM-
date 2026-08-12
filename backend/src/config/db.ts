@@ -38,8 +38,7 @@ if (dbDialect === 'mysql' || (process.env.DB_HOST && !process.env.DATABASE_URL &
     },
   });
 } else if (process.env.DATABASE_URL || dbDialect === 'postgres' || dbDialect === 'supabase') {
-  const DEFAULT_SUPABASE_URL = 'postgresql://postgres.cboevanmnhphawnmfpjg:Pak%40pass.3499@aws-1-ap-south-1.pooler.supabase.com:6543/postgres';
-  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || DEFAULT_SUPABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
 
   console.log('[Database] Initializing Sequelize with PostgreSQL URL');
   sequelize = new Sequelize(databaseUrl, {
