@@ -52,62 +52,64 @@ function getApp(): express.Application {
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
-        // Run column migrations safely (separated loops)
-        const patientCols = ['dob', 'age', 'tokenNumber', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
-        for (const col of patientCols) {
-          try {
-            await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
-          } catch (e) {}
-        }
-
-        const userCols = [
-          { name: 'deletedAt', type: 'TIMESTAMP WITH TIME ZONE' },
-          { name: 'phone', type: 'VARCHAR(255)' },
-          { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
-          { name: 'roleId', type: 'INTEGER' },
-          { name: 'supabase_user_id', type: 'VARCHAR(255)' },
-        ];
-        for (const col of userCols) {
-          try {
-            await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};`);
-          } catch (e) {}
-        }
-
-        try {
-          await sequelize.query(`
-            CREATE TABLE IF NOT EXISTS "staff" (
-              "id" SERIAL PRIMARY KEY,
-              "name" VARCHAR(255) NOT NULL,
-              "phone" VARCHAR(255) DEFAULT '',
-              "cnic" VARCHAR(255) DEFAULT '',
-              "address" TEXT DEFAULT '',
-              "designation" VARCHAR(255) NOT NULL DEFAULT 'Staff Member',
-              "salary" DECIMAL(10, 2) DEFAULT 0.00,
-              "status" VARCHAR(50) DEFAULT 'active',
-              "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-              "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-              "deletedAt" TIMESTAMP WITH TIME ZONE
-            );
-          `);
-          await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
-          await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
-
-          // Drop extra staff columns from users table in Supabase
-          const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
-          for (const col of extraUserCols) {
+        if (sequelize.getDialect() === 'postgres') {
+          // Run PostgreSQL-specific migrations safely
+          const patientCols = ['dob', 'age', 'tokenNumber', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
+          for (const col of patientCols) {
             try {
-              await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
+              await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
             } catch (e) {}
           }
-        } catch (e) {
-          console.warn('[Staff Migration Warning]:', e);
+
+          const userCols = [
+            { name: 'deletedAt', type: 'TIMESTAMP WITH TIME ZONE' },
+            { name: 'phone', type: 'VARCHAR(255)' },
+            { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
+            { name: 'roleId', type: 'INTEGER' },
+            { name: 'supabase_user_id', type: 'VARCHAR(255)' },
+          ];
+          for (const col of userCols) {
+            try {
+              await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};`);
+            } catch (e) {}
+          }
+
+          try {
+            await sequelize.query(`
+              CREATE TABLE IF NOT EXISTS "staff" (
+                "id" SERIAL PRIMARY KEY,
+                "name" VARCHAR(255) NOT NULL,
+                "phone" VARCHAR(255) DEFAULT '',
+                "cnic" VARCHAR(255) DEFAULT '',
+                "address" TEXT DEFAULT '',
+                "designation" VARCHAR(255) NOT NULL DEFAULT 'Staff Member',
+                "salary" DECIMAL(10, 2) DEFAULT 0.00,
+                "status" VARCHAR(50) DEFAULT 'active',
+                "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                "deletedAt" TIMESTAMP WITH TIME ZONE
+              );
+            `);
+            await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
+            await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
+
+            const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
+            for (const col of extraUserCols) {
+              try {
+                await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
+              } catch (e) {}
+            }
+          } catch (e) {
+            console.warn('[Staff Migration Warning]:', e);
+          }
         }
 
         await seedDatabase();
         isDbInitialized = true;
-        console.log('[Vercel Serverless] DB Sync & Seeding Complete.');
+        console.log('[Serverless DB Init] Complete.');
       } catch (err: any) {
-        console.error('[Lazy DB Init Error]:', err);
+        console.error('[Serverless DB Init Error]:', err.message);
+        // Do not crash serverless request
       }
     }
     next();
