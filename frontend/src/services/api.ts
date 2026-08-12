@@ -1,12 +1,23 @@
+import { supabase } from '../config/supabaseClient';
+
 const API_BASE = '/api';
 
 interface RequestOptions extends RequestInit {
   body?: any;
 }
 
-const getHeaders = () => {
-  const token = localStorage.getItem('hms_token');
-  const headers: HeadersInit = {
+const getHeaders = async () => {
+  let token = localStorage.getItem('hms_token') || localStorage.getItem('supabase_token');
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      token = session.access_token;
+      localStorage.setItem('hms_token', token);
+    }
+  } catch (err) {}
+
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (token) {
@@ -38,35 +49,39 @@ const handleResponse = async (response: Response) => {
 
 export const apiClient = {
   get: async (endpoint: string) => {
+    const headers = await getHeaders();
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'GET',
-      headers: getHeaders(),
+      headers,
     });
     return handleResponse(res);
   },
 
   post: async (endpoint: string, body: any) => {
+    const headers = await getHeaders();
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: getHeaders(),
+      headers,
       body: JSON.stringify(body),
     });
     return handleResponse(res);
   },
 
   put: async (endpoint: string, body: any) => {
+    const headers = await getHeaders();
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers,
       body: JSON.stringify(body),
     });
     return handleResponse(res);
   },
 
   delete: async (endpoint: string) => {
+    const headers = await getHeaders();
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'DELETE',
-      headers: getHeaders(),
+      headers,
     });
     return handleResponse(res);
   },

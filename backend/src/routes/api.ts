@@ -85,7 +85,9 @@ import {
   getAllUsersAdmin,
   updateUserCredentials,
   deleteUserAdmin,
-  createSystemUserAdmin
+  createSystemUserAdmin,
+  getBackupLogsHandler,
+  triggerBackupHandler
 } from '../controllers/dashboardController';
 
 const router = Router();
@@ -328,6 +330,8 @@ router.delete('/admin/users/:id', authenticateToken, requireRoles(['admin']), de
 router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
 router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivityLogs);
+router.get('/admin/backups', authenticateToken, requireRoles(['admin']), getBackupLogsHandler);
+router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), triggerBackupHandler);
 
 // ==========================================
 // RECEPTIONIST PORTAL ENDPOINTS

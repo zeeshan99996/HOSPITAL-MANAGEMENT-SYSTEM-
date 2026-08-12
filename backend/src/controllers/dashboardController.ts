@@ -627,5 +627,29 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
   }
 };
 
+export const getBackupLogsHandler = async (req: Request, res: Response) => {
+  try {
+    const { backupService } = await import('../services/backupService');
+    const logs = await backupService.getBackupLogs(50);
+    return res.status(200).json(logs);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error fetching database backup logs.', error: error.message });
+  }
+};
+
+export const triggerBackupHandler = async (req: Request, res: Response) => {
+  const { type = 'manual' } = req.body;
+  try {
+    const { backupService } = await import('../services/backupService');
+    const result = await backupService.createBackup({ type });
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Database backup operation failed.', error: error.message });
+  }
+};
+
 
 

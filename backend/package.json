@@ -10,6 +10,7 @@
     "test-db": "ts-node src/scripts/testConn.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "@types/pg": "^8.20.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

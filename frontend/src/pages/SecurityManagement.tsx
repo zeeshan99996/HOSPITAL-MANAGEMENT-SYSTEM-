@@ -50,6 +50,37 @@ export const SecurityManagement: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Backup Engine state
+  const [backupLogs, setBackupLogs] = useState<any[]>([]);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [runningBackup, setRunningBackup] = useState(false);
+
+  const fetchBackupLogs = async () => {
+    setBackupLoading(true);
+    try {
+      const data = await apiClient.get('/admin/backups');
+      setBackupLogs(data || []);
+    } catch (err) {
+      console.warn('Backup logs fetch error:', err);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleRunBackup = async (type: 'daily' | 'weekly' | 'monthly' | 'manual') => {
+    setRunningBackup(true);
+    setFeedback(null);
+    try {
+      const res = await apiClient.post('/admin/backups/run', { type });
+      setFeedback({ type: 'success', message: res.message || `${type.toUpperCase()} database backup completed successfully!` });
+      fetchBackupLogs();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Backup failed.' });
+    } finally {
+      setRunningBackup(false);
+    }
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -79,6 +110,7 @@ export const SecurityManagement: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchBackupLogs();
   }, []);
 
   const handleOpenEdit = (user: any) => {

@@ -49,6 +49,7 @@ RolePermission.init(
 // ==========================================
 export class User extends Model {
   declare id: number;
+  declare supabase_user_id: string | null;
   declare name: string;
   declare email: string;
   declare password: string;
@@ -60,6 +61,7 @@ export class User extends Model {
 User.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    supabase_user_id: { type: DataTypes.STRING, allowNull: true, unique: true },
     name: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
     password: { type: DataTypes.STRING, allowNull: false },
@@ -897,3 +899,37 @@ TokenQueue.belongsTo(Patient, { foreignKey: 'patientId' });
 
 Doctor.hasMany(TokenQueue, { foreignKey: 'doctorId', onDelete: 'SET NULL' });
 TokenQueue.belongsTo(Doctor, { foreignKey: 'doctorId' });
+
+// ==========================================
+// BACKUP LOG MODEL FOR AUTOMATED MY-SQL BACKUPS
+// ==========================================
+export class BackupLog extends Model {
+  declare id: number;
+  declare backupType: 'daily' | 'weekly' | 'monthly' | 'manual';
+  declare filename: string;
+  declare fileSize: number;
+  declare storageLocation: string;
+  declare startedAt: Date;
+  declare completedAt: Date | null;
+  declare status: 'IN_PROGRESS' | 'SUCCESS' | 'FAILED';
+  declare errorMessage: string | null;
+  declare checksum: string | null;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+}
+
+BackupLog.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    backupType: { type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'manual'), allowNull: false },
+    filename: { type: DataTypes.STRING, allowNull: false },
+    fileSize: { type: DataTypes.BIGINT, defaultValue: 0 },
+    storageLocation: { type: DataTypes.STRING, defaultValue: 'local' },
+    startedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    completedAt: { type: DataTypes.DATE, allowNull: true },
+    status: { type: DataTypes.ENUM('IN_PROGRESS', 'SUCCESS', 'FAILED'), defaultValue: 'IN_PROGRESS' },
+    errorMessage: { type: DataTypes.TEXT, allowNull: true },
+    checksum: { type: DataTypes.STRING, allowNull: true },
+  },
+  { sequelize, modelName: 'backup_log', tableName: 'backup_logs' }
+);
