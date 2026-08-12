@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X } from 'lucide-react';
+import { DesignationSelect } from '../components/DesignationSelect';
+import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X, Stethoscope, SlidersHorizontal } from 'lucide-react';
 
 interface DesignationItem {
   title: string;
@@ -367,57 +368,23 @@ export const Staff: React.FC = () => {
           </div>
 
           {/* Designation & Monthly Salary */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Designation / Job Title
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsManageDesignationsOpen(true)}
-                    className="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold flex items-center gap-1 bg-brand-50 dark:bg-brand-950/40 px-2 py-0.5 rounded border border-brand-200 dark:border-brand-900/50"
-                  >
-                    <Settings className="h-3 w-3" /> Edit / Manage List
-                  </button>
-                </div>
-              </div>
-              <select
-                value={isCustomMode ? '__CUSTOM__' : selectedDesignation}
-                onChange={e => {
-                  const val = e.target.value;
-                  if (val === '__CUSTOM__') {
-                    setIsCustomMode(true);
-                    setDesignation(customDesignation);
-                  } else {
-                    setIsCustomMode(false);
-                    setSelectedDesignation(val);
-                    setDesignation(val);
-                  }
-                }}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-semibold bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                {designationItems.map((item, idx) => (
-                  <option key={idx} value={item.title}>{item.title}</option>
-                ))}
-                <option value="__CUSTOM__">✏️ Other / Type Custom Designation...</option>
-              </select>
-
-              {isCustomMode && (
-                <div className="mt-2">
-                  <Input
-                    placeholder="Type custom designation title..."
-                    value={customDesignation}
-                    onChange={e => {
-                      setCustomDesignation(e.target.value);
-                      setDesignation(e.target.value);
-                    }}
-                    required
-                  />
-                </div>
-              )}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            <DesignationSelect
+              items={designationItems}
+              value={selectedDesignation}
+              onChange={(title, isDoc) => {
+                setSelectedDesignation(title);
+                setDesignation(title);
+              }}
+              isCustomMode={isCustomMode}
+              setIsCustomMode={setIsCustomMode}
+              customValue={customDesignation}
+              setCustomValue={(val) => {
+                setCustomDesignation(val);
+                setDesignation(val);
+              }}
+              onOpenManageModal={() => setIsManageDesignationsOpen(true)}
+            />
 
             <Input label="Monthly Basic Salary (Rs.)" type="number" required value={salary} onChange={e => setSalary(e.target.value)} placeholder="50000" />
           </div>
@@ -497,49 +464,75 @@ export const Staff: React.FC = () => {
             </div>
           </div>
 
-          {/* Designations List (Clean Row UI - No Image 02 elements) */}
-          <div className="divide-y divide-slate-100 dark:divide-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+          {/* Designations List */}
+          <div className="divide-y divide-slate-100 dark:divide-slate-850 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
             {designationItems.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3.5 bg-white dark:bg-dark-900 hover:bg-slate-50/80 dark:hover:bg-dark-850/60 transition-colors text-xs font-semibold">
+              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-white dark:bg-dark-900 hover:bg-slate-50/80 dark:hover:bg-dark-850/60 transition-colors gap-2 text-xs">
                 {editingIndex === idx ? (
-                  <div className="flex items-center gap-2 w-full pr-2">
+                  <div className="flex items-center gap-2 w-full">
                     <Input
                       value={editingText}
                       onChange={e => setEditingText(e.target.value)}
                       className="!py-1 text-xs"
+                      autoFocus
                     />
                     <button
                       type="button"
                       onClick={() => handleSaveDesignationEdit(idx)}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1"
                     >
-                      Save
+                      <Check className="h-3.5 w-3.5" /> Save
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingIndex(null)}
-                      className="px-3 py-1.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+                      className="px-3 py-1.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1"
                     >
-                      Cancel
+                      <X className="h-3.5 w-3.5" /> Cancel
                     </button>
                   </div>
                 ) : (
                   <>
-                    <span className="text-slate-900 dark:text-slate-100 font-extrabold text-xs">{item.title}</span>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDoctorAssignment(idx)}
+                        title="Click to toggle Doctor vs Staff role behavior"
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border transition-all flex items-center gap-1 ${
+                          item.isDoctor
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {item.isDoctor ? (
+                          <>
+                            <Stethoscope className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                            <span>Doctor Role</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserCheck className="h-3 w-3 text-slate-500" />
+                            <span>Staff Role</span>
+                          </>
+                        )}
+                      </button>
+                      <span className="text-slate-900 dark:text-slate-100 font-extrabold text-xs">{item.title}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                       <button
                         type="button"
                         onClick={() => { setEditingIndex(idx); setEditingText(item.title); }}
-                        className="px-3 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors"
+                        className="px-2.5 py-1 text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/50 rounded-lg text-xs font-bold border border-brand-200 dark:border-brand-900/50 transition-colors flex items-center gap-1"
                       >
-                        Edit
+                        <Edit3 className="h-3 w-3" /> Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteDesignation(idx)}
-                        className="px-3 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors"
+                        className="px-2.5 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-900/50 transition-colors flex items-center gap-1"
                       >
-                        Delete
+                        <Trash2 className="h-3 w-3" /> Delete
                       </button>
                     </div>
                   </>
