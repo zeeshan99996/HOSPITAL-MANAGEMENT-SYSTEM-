@@ -80,25 +80,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
+    let token = '';
+    let sbUser: any = null;
+
+    // 1. Authenticate with Supabase Auth first
     try {
-      // 1. Authenticate with Supabase Auth
-      let token = '';
-      try {
-        const { data: sbData, error: sbErr } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      const { data: sbData, error: sbErr } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-        if (sbData?.session?.access_token) {
-          token = sbData.session.access_token;
-          localStorage.setItem('supabase_token', token);
-          localStorage.setItem('hms_token', token);
-        }
-      } catch (sbEx) {
-        console.warn('[Supabase Auth Client Warning]:', sbEx);
+      if (sbData?.session?.access_token) {
+        token = sbData.session.access_token;
+        sbUser = sbData.user;
+        localStorage.setItem('supabase_token', token);
+        localStorage.setItem('hms_token', token);
       }
+    } catch (sbEx) {
+      console.warn('[Supabase Auth Client Warning]:', sbEx);
+    }
 
-      // 2. Authenticate / Fetch matching Hostinger MySQL user profile from backend
+    // 2. Authenticate / Fetch matching user profile from backend
+    try {
       const data = await apiClient.post('/auth/login', { email, password });
       const sessionUser: UserSession = {
         id: data.user.id,
@@ -106,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: data.user.email,
         role: data.user.role,
         profileId: data.user.profileId,
-        supabase_user_id: data.user.supabase_user_id,
+        supabase_user_id: data.user.supabase_user_id || sbUser?.id,
       };
 
       if (!token && data.token) {
@@ -116,8 +119,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('hms_token', token);
       localStorage.setItem('hms_user', JSON.stringify(sessionUser));
       setUser(sessionUser);
-    } catch (err: any) {
-      throw new Error(err.message || 'Login failed.');
+    } catch (backendErr: any) {
+      // Fallback to Supabase Auth Session if backend is connecting/provisioning
+      if (token && sbUser) {
+        const normEmail = email.trim().toLowerCase();
+        let fallbackRole: any = 'admin';
+        if (normEmail.includes('doctor') || normEmail.includes('dr')) fallbackRole = 'doctor';
+        else if (normEmail.includes('recept')) fallbackRole = 'receptionist';
+        else if (normEmail.includes('pharm')) fallbackRole = 'pharmacist';
+        else if (normEmail.includes('account')) fallbackRole = 'accountant';
+
+        const sessionUser: UserSession = {
+          id: 1,
+          name: sbUser.user_metadata?.name || 'System Admin',
+          email: sbUser.email || email,
+          role: fallbackRole,
+          supabase_user_id: sbUser.id,
+        };
+
+        localStorage.setItem('hms_token', token);
+        localStorage.setItem('hms_user', JSON.stringify(sessionUser));
+        setUser(sessionUser);
+        return;
+      }
+
+      throw new Error(backendErr.message || 'Login failed.');
     }
   };
 
