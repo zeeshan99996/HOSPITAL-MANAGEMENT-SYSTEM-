@@ -65,6 +65,7 @@ function getApp(): express.Application {
           { name: 'phone', type: 'VARCHAR(255)' },
           { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
           { name: 'roleId', type: 'INTEGER' },
+          { name: 'supabase_user_id', type: 'VARCHAR(255)' },
         ];
         for (const col of userCols) {
           try {
