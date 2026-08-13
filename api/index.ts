@@ -41,6 +41,35 @@ function getApp(): express.Application {
     res.status(200).json({ status: 'UP', message: 'HMS API Service running healthy on Vercel.' });
   });
 
+  instance.get('/api/health/db', async (req, res) => {
+    try {
+      const sequelize = (await import('../backend/src/config/db')).default;
+      await sequelize.authenticate();
+      const dialect = sequelize.getDialect();
+      const [tables]: any = await sequelize.query(
+        dialect === 'mysql' ? 'SHOW TABLES;' : "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
+      );
+      return res.status(200).json({
+        status: 'CONNECTED',
+        dialect,
+        host: process.env.DB_HOST || '195.35.59.4',
+        database: process.env.DB_NAME || 'u526981273_BfYkc',
+        user: process.env.DB_USER || 'root',
+        tableCount: tables ? tables.length : 0,
+        message: `Successfully connected to Hostinger ${dialect.toUpperCase()} Database!`
+      });
+    } catch (err: any) {
+      return res.status(200).json({
+        status: 'DISCONNECTED',
+        host: process.env.DB_HOST || '195.35.59.4',
+        database: process.env.DB_NAME || 'u526981273_BfYkc',
+        user: process.env.DB_USER || 'root',
+        error: err.message,
+        message: 'Failed to connect to Hostinger MySQL Database. Please check DB_USER and DB_PASSWORD environment variables in Vercel settings.'
+      });
+    }
+  });
+
   // Lazy DB & Seeding Middleware
   instance.use(async (req, res, next) => {
     if (!isDbInitialized) {
