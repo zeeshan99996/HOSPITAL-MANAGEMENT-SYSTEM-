@@ -4,6 +4,8 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
 
+import mysql2 from 'mysql2';
+
 dotenv.config();
 
 const dbDialect = (process.env.DB_DIALECT || 'mysql').toLowerCase();
@@ -30,10 +32,10 @@ if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
       idle: 10000
     }
   });
-} else if (dbDialect === 'mysql' && process.env.DB_HOST) {
-  const host = process.env.DB_HOST || 'localhost';
+} else if (dbDialect === 'mysql' || process.env.DB_HOST) {
+  const host = process.env.DB_HOST || '195.35.59.4';
   const port = parseInt(process.env.DB_PORT || '3306');
-  const database = process.env.DB_NAME || 'hms_db';
+  const database = process.env.DB_NAME || 'u526981273_BfYkc';
   const user = process.env.DB_USER || 'root';
   const password = process.env.DB_PASSWORD || '';
 
@@ -42,6 +44,7 @@ if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
     host,
     port,
     dialect: 'mysql',
+    dialectModule: mysql2,
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     timezone: '+05:00',
     pool: {
@@ -49,6 +52,9 @@ if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
       min: parseInt(process.env.DB_POOL_MIN || '0'),
       acquire: 30000,
       idle: 10000,
+    },
+    dialectOptions: {
+      connectTimeout: 20000
     },
     define: {
       charset: 'utf8mb4',
