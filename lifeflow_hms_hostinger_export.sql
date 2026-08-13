@@ -1,6 +1,6 @@
 -- LifeFlow Hospital Management System - Hostinger MySQL Database Dump
 -- Target Database: u526981273_BfYkc
--- Generated: 2026-08-13T09:28:55.296Z
+-- Generated: 2026-08-13T09:32:24.273Z
 
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -29,9 +29,9 @@ CREATE TABLE `permissions` (
 -- Table structure for table `role_permissions`
 DROP TABLE IF EXISTS `role_permissions`;
 CREATE TABLE `role_permissions` (
-`roleId` INT AUTO_INCREMENT NOT NULL,
-`permissionId` INT AUTO_INCREMENT NOT NULL,
-  PRIMARY KEY (`permissionId`)
+`roleId` INT NULL,
+`permissionId` INT NULL,
+  PRIMARY KEY (`roleId`, `permissionId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `users`
