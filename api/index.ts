@@ -41,7 +41,7 @@ function getApp(): express.Application {
     res.status(200).json({ status: 'UP', message: 'HMS API Service running healthy on Vercel.' });
   });
 
-  instance.get('/api/health/db', async (req, res) => {
+  const handleDbHealth = async (req: any, res: any) => {
     try {
       const sequelize = (await import('../backend/src/config/db')).default;
       await sequelize.authenticate();
@@ -68,7 +68,10 @@ function getApp(): express.Application {
         message: 'Failed to connect to Hostinger MySQL Database. Please check DB_USER and DB_PASSWORD environment variables in Vercel settings.'
       });
     }
-  });
+  };
+
+  instance.get('/health/db', handleDbHealth);
+  instance.get('/api/health/db', handleDbHealth);
 
   // Lazy DB & Seeding Middleware
   instance.use(async (req, res, next) => {
