@@ -103,6 +103,31 @@ router.post('/auth/login', validateLogin, login);
 router.get('/auth/profile', authenticateToken, getProfile);
 router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 
+// Database Connection Health Verification
+router.get('/health/db', async (_req, res) => {
+  try {
+    await sequelize.authenticate();
+    const dialect = sequelize.getDialect();
+    const [tables]: any = await sequelize.query(
+      dialect === 'mysql' ? 'SHOW TABLES;' : "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
+    );
+    return res.status(200).json({
+      status: 'CONNECTED',
+      dialect,
+      host: process.env.DB_HOST || '195.35.59.4',
+      database: process.env.DB_NAME || 'u526981273_BfYkc',
+      tableCount: tables ? tables.length : 0,
+      message: `Successfully connected to Hostinger ${dialect.toUpperCase()} Database!`
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      status: 'DISCONNECTED',
+      error: err.message,
+      message: 'Failed to connect to Hostinger MySQL Database. Please verify DB_USER and DB_PASSWORD.'
+    });
+  }
+});
+
 // ==========================================
 // PATIENT MANAGEMENT
 // ==========================================
