@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import apiRouter from '../backend/src/routes/api';
+import sequelize from '../backend/src/config/db';
+import '../backend/src/models';
+import { seedDatabase } from '../backend/src/seeders/initialSeed';
 
 dotenv.config();
 
@@ -43,7 +46,6 @@ function getApp(): express.Application {
 
   const handleDbHealth = async (req: any, res: any) => {
     try {
-      const sequelize = (await import('../backend/src/config/db')).default;
       await sequelize.authenticate();
       const dialect = sequelize.getDialect();
       let showTablesQuery = "SELECT table_name FROM information_schema.tables WHERE table_schema='public';";
@@ -57,8 +59,8 @@ function getApp(): express.Application {
         status: 'CONNECTED',
         dialect,
         host: dialect === 'sqlite' ? 'local' : (process.env.DB_HOST || '195.35.59.4'),
-        database: dialect === 'sqlite' ? 'local_sqlite' : (process.env.DB_NAME || 'u526981273_BfYkc'),
-        user: dialect === 'sqlite' ? 'local' : (process.env.DB_USER || 'u526981273_8gj7P'),
+        database: dialect === 'sqlite' ? 'local_sqlite' : (process.env.DB_NAME || 'u526981273_drtalha_db'),
+        user: dialect === 'sqlite' ? 'local' : (process.env.DB_USER || 'u526981273_drtalha_db'),
         tableCount: tables ? tables.length : 0,
         message: `Successfully connected to ${dialect.toUpperCase()} Database!`
       });
@@ -66,8 +68,8 @@ function getApp(): express.Application {
       return res.status(200).json({
         status: 'DISCONNECTED',
         host: process.env.DB_HOST || '195.35.59.4',
-        database: process.env.DB_NAME || 'u526981273_BfYkc',
-        user: process.env.DB_USER || 'u526981273_8gj7P',
+        database: process.env.DB_NAME || 'u526981273_drtalha_db',
+        user: process.env.DB_USER || 'u526981273_drtalha_db',
         error: err.message,
         message: 'Failed to connect to Database. Please verify DB_USER and DB_PASSWORD.'
       });
@@ -82,9 +84,6 @@ function getApp(): express.Application {
     if (!isDbInitialized) {
       try {
         console.log('[Vercel Serverless] Initializing DB Connection & Seeding...');
-        await import('../backend/src/models');
-        const sequelize = (await import('../backend/src/config/db')).default;
-        const { seedDatabase } = await import('../backend/src/seeders/initialSeed');
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
