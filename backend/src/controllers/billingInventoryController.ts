@@ -309,15 +309,25 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const invoiceItems = [];
-    let subtotal = 0;
+    if (!Array.isArray(items) || items.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Cart is empty. Please select at least one medicine.' });
+    }
 
+    // Pre-validate all items before row locking to prevent partial lock acquisitions
     for (const item of items) {
       const qty = Number(item.quantity);
       if (isNaN(qty) || qty <= 0) {
         await transaction.rollback();
         return res.status(400).json({ message: 'Medicine quantity must be a positive number greater than zero.' });
       }
+    }
+
+    const invoiceItems = [];
+    let subtotal = 0;
+
+    for (const item of items) {
+      const qty = Number(item.quantity);
 
       const medicine = await Medicine.findByPk(item.medicineId, {
         transaction,

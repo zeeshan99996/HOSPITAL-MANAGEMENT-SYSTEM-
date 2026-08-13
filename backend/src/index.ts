@@ -56,58 +56,82 @@ const startServer = async () => {
     console.log('[Database] Models synchronized with the database.');
 
     // Safe DB column migrations for PostgreSQL / MySQL
-    if (sequelize.getDialect() !== 'sqlite') {
+    const dialect = sequelize.getDialect();
+    if (dialect === 'postgres') {
       try {
-      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "admissionCategory" VARCHAR DEFAULT 'medical';`);
-      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "stayType" VARCHAR DEFAULT 'short';`);
-      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "surgeryDetails" TEXT;`);
-      await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "treatmentPlan" TEXT;`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE;`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "roleId" INTEGER;`);
-      await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "supabase_user_id" VARCHAR(255);`);
-      await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS "system_users" (
-          "id" SERIAL PRIMARY KEY,
-          "name" VARCHAR(255) NOT NULL,
-          "email" VARCHAR(255) NOT NULL UNIQUE,
-          "password" VARCHAR(255) NOT NULL,
-          "phone" VARCHAR(50) DEFAULT '',
-          "role" VARCHAR(50) NOT NULL DEFAULT 'admin',
-          "status" VARCHAR(50) NOT NULL DEFAULT 'active',
-          "supabase_user_id" VARCHAR(255),
-          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          "deletedAt" TIMESTAMP WITH TIME ZONE
-        );
-      `);
-      await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS "staff" (
-          "id" SERIAL PRIMARY KEY,
-          "name" VARCHAR(255) NOT NULL,
-          "phone" VARCHAR(255) DEFAULT '',
-          "cnic" VARCHAR(255) DEFAULT '',
-          "address" TEXT DEFAULT '',
-          "designation" VARCHAR(255) NOT NULL DEFAULT 'Staff Member',
-          "salary" DECIMAL(10, 2) DEFAULT 0.00,
-          "status" VARCHAR(50) DEFAULT 'active',
-          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-          "deletedAt" TIMESTAMP WITH TIME ZONE
-        );
-      `);
-      await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
-      await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
+        await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "admissionCategory" VARCHAR DEFAULT 'medical';`);
+        await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "stayType" VARCHAR DEFAULT 'short';`);
+        await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "surgeryDetails" TEXT;`);
+        await sequelize.query(`ALTER TABLE admissions ADD COLUMN IF NOT EXISTS "treatmentPlan" TEXT;`);
+        await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP WITH TIME ZONE;`);
+        await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "roleId" INTEGER;`);
+        await sequelize.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "supabase_user_id" VARCHAR(255);`);
+        await sequelize.query(`
+          CREATE TABLE IF NOT EXISTS "system_users" (
+            "id" SERIAL PRIMARY KEY,
+            "name" VARCHAR(255) NOT NULL,
+            "email" VARCHAR(255) NOT NULL UNIQUE,
+            "password" VARCHAR(255) NOT NULL,
+            "phone" VARCHAR(50) DEFAULT '',
+            "role" VARCHAR(50) NOT NULL DEFAULT 'admin',
+            "status" VARCHAR(50) NOT NULL DEFAULT 'active',
+            "supabase_user_id" VARCHAR(255),
+            "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            "deletedAt" TIMESTAMP WITH TIME ZONE
+          );
+        `);
+        await sequelize.query(`
+          CREATE TABLE IF NOT EXISTS "staff" (
+            "id" SERIAL PRIMARY KEY,
+            "name" VARCHAR(255) NOT NULL,
+            "phone" VARCHAR(255) DEFAULT '',
+            "cnic" VARCHAR(255) DEFAULT '',
+            "address" TEXT DEFAULT '',
+            "designation" VARCHAR(255) NOT NULL DEFAULT 'Staff Member',
+            "salary" DECIMAL(10, 2) DEFAULT 0.00,
+            "status" VARCHAR(50) DEFAULT 'active',
+            "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            "deletedAt" TIMESTAMP WITH TIME ZONE
+          );
+        `);
+        await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
+        await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
 
-      // Drop extra staff columns from users table in Supabase
-      const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
-      for (const col of extraUserCols) {
-        try {
-          await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
-        } catch (e) {}
+        const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
+        for (const col of extraUserCols) {
+          try {
+            await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
+          } catch (e) {}
+        }
+      } catch (mErr) {
+        console.warn('[PostgreSQL Migration Warning]:', mErr);
       }
-    } catch (mErr) {
-      console.warn('[DB Migration Warning]:', mErr);
-    }
+    } else if (dialect === 'mysql') {
+      try {
+        const mysqlCols = [
+          { table: 'admissions', col: 'admissionCategory', type: 'VARCHAR(255) DEFAULT \'medical\'' },
+          { table: 'admissions', col: 'stayType', type: 'VARCHAR(255) DEFAULT \'short\'' },
+          { table: 'admissions', col: 'surgeryDetails', type: 'TEXT' },
+          { table: 'admissions', col: 'treatmentPlan', type: 'TEXT' },
+          { table: 'users', col: 'deletedAt', type: 'DATETIME' },
+          { table: 'users', col: 'roleId', type: 'INT' },
+          { table: 'users', col: 'supabase_user_id', type: 'VARCHAR(255)' },
+          { table: 'doctors', col: 'staffId', type: 'INT' },
+          { table: 'nurses', col: 'staffId', type: 'INT' }
+        ];
+
+        for (const item of mysqlCols) {
+          try {
+            await sequelize.query(`ALTER TABLE \`${item.table}\` ADD COLUMN \`${item.col}\` ${item.type};`);
+          } catch (e) {
+            // Column already exists or duplicate column error in MySQL
+          }
+        }
+      } catch (mErr) {
+        console.warn('[MySQL Migration Warning]:', mErr);
+      }
     }
 
     // Seed mock data if empty

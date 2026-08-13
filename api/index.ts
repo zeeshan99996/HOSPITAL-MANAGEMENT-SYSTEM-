@@ -117,6 +117,28 @@ function getApp(): express.Application {
           } catch (e) {
             console.warn('[Staff Migration Warning]:', e);
           }
+        } else if (sequelize.getDialect() === 'mysql') {
+          try {
+            const mysqlCols = [
+              { table: 'admissions', col: 'admissionCategory', type: 'VARCHAR(255) DEFAULT \'medical\'' },
+              { table: 'admissions', col: 'stayType', type: 'VARCHAR(255) DEFAULT \'short\'' },
+              { table: 'admissions', col: 'surgeryDetails', type: 'TEXT' },
+              { table: 'admissions', col: 'treatmentPlan', type: 'TEXT' },
+              { table: 'users', col: 'deletedAt', type: 'DATETIME' },
+              { table: 'users', col: 'roleId', type: 'INT' },
+              { table: 'users', col: 'supabase_user_id', type: 'VARCHAR(255)' },
+              { table: 'doctors', col: 'staffId', type: 'INT' },
+              { table: 'nurses', col: 'staffId', type: 'INT' }
+            ];
+
+            for (const item of mysqlCols) {
+              try {
+                await sequelize.query(`ALTER TABLE \`${item.table}\` ADD COLUMN \`${item.col}\` ${item.type};`);
+              } catch (e) {}
+            }
+          } catch (mErr) {
+            console.warn('[MySQL Serverless Migration Warning]:', mErr);
+          }
         }
 
         await seedDatabase();

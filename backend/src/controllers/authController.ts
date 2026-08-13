@@ -36,88 +36,28 @@ export const login = async (req: Request, res: Response) => {
     }
     const ipStr = String(req.headers['x-forwarded-for'] || req.ip || '127.0.0.1');
 
-    // Auto-create staff account for default emails if missing
     if (!user) {
-      const emailPrefix = normEmail.split('@')[0];
-      const rawWords = emailPrefix.split(/[\._\-]/).map((w: string) => w.charAt(0).toUpperCase() + w.slice(1));
-      let cleanName = rawWords.join(' ');
-
-      let role: any = 'doctor';
-      if (normEmail.includes('admin')) role = 'admin';
-      else if (normEmail.includes('recept')) role = 'receptionist';
-      else if (normEmail.includes('pharm')) role = 'pharmacist';
-      else if (normEmail.includes('account')) role = 'accountant';
-      else if (normEmail.includes('doctor') || normEmail.includes('dr') || normEmail.includes('salman') || normEmail.includes('gmail') || normEmail.includes('yahoo')) role = 'doctor';
-
-      if (role === 'doctor' && !cleanName.toLowerCase().startsWith('dr')) {
-        cleanName = `Dr. ${cleanName}`;
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      user = await User.create({
-        name: cleanName,
-        email: normEmail,
-        password: hashedPassword,
-        role,
-        phone: '0300-1234567',
-        status: 'active'
-      });
-
-      if (role === 'doctor') {
-        try {
-          let defaultDept = await Department.findOne();
-          if (!defaultDept) {
-            defaultDept = await Department.create({ name: 'General OPD', description: 'General Outpatient Clinic' });
-          }
-          await Doctor.create({
-            userId: user.id,
-            departmentId: defaultDept.id,
-            specialization: 'Consultant Physician',
-            consultationFee: 1500.00,
-            status: 'active'
-          });
-        } catch (dErr) {
-          console.warn('[Doctor Auto-Create Warning]:', dErr);
-        }
-      }
+      return res.status(401).json({ message: 'Invalid credentials. User account does not exist.' });
     }
 
     if (user.status === 'inactive') {
       return res.status(401).json({ message: 'Account is suspended. Please contact system admin.' });
     }
 
-    // Safe Password Matching
+    // Strict Bcrypt Password Verification
     let isMatch = false;
-
-    // 1. Direct string match check
-    if (user.password === password) {
-      isMatch = true;
-    }
-
-    // 2. Bcrypt comparison check (wrapped in try/catch to avoid unhandled throws on non-bcrypt hashes)
-    if (!isMatch && user.password) {
+    if (user.password) {
       try {
         if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$')) {
           isMatch = await bcrypt.compare(password, user.password);
+        } else if (user.password === password) {
+          // Re-hash legacy plaintext password securely
+          isMatch = true;
+          const newHash = await bcrypt.hash(password, 10);
+          await user.update({ password: newHash });
         }
       } catch (bErr) {
         console.warn('[Bcrypt Compare Warning]:', bErr);
-      }
-    }
-
-    // 3. Fallback comparison for default accounts / common password variations
-    if (!isMatch) {
-      const isDefaultAdmin = (normEmail === 'admin@lifeflow.com' && (password === 'Password123' || password === 'admin123'));
-      const isAltMatch = (user.password === 'Password123' || user.password === 'admin123');
-
-      if (isDefaultAdmin || isAltMatch) {
-        isMatch = true;
-        try {
-          const newHash = await bcrypt.hash(password, 10);
-          await user.update({ password: newHash, status: 'active' });
-        } catch (uErr) {
-          console.warn('[Password Re-hash Warning]:', uErr);
-        }
       }
     }
 

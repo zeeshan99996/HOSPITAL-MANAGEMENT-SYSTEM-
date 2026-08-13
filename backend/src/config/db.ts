@@ -58,9 +58,14 @@ if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
     },
   });
 } else {
-  const dbPath = process.env.VERCEL || process.env.TMPDIR
+  const isServerless = !!(process.env.VERCEL || process.env.TMPDIR);
+  const dbPath = isServerless
     ? path.join('/tmp', 'hms.db')
     : path.resolve(__dirname, '../../hms.db');
+
+  if (isServerless) {
+    console.warn('[INFRASTRUCTURE WARNING] Serverless environment detected without persistent DATABASE_URL / SUPABASE_DB_URL. Defaulting to ephemeral /tmp/hms.db.');
+  }
 
   console.log(`[Database] Initializing Local SQLite Database: ${dbPath}`);
   sequelize = new Sequelize({

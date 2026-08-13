@@ -34,9 +34,9 @@ export const createAppointment = async (req: Request, res: Response) => {
     await appointment.update({ queueToken });
 
     // Create a corresponding Consultation invoice automatically
-    const subtotal = Number(doctor.consultationFee);
-    const tax = Number((subtotal * 0.08).toFixed(2)); // 8% tax
-    const total = subtotal + tax;
+    const subtotal = Number(doctor.consultationFee) || 0;
+    const tax = 0.00;
+    const total = Math.round(subtotal * 100) / 100;
 
     const invoice = await Invoice.create({
       patientId,

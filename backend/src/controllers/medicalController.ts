@@ -119,8 +119,8 @@ export const admitPatient = async (req: Request, res: Response) => {
       const newTotal = allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0);
       const disc = Number(invoice.discount);
       const taxable = Math.max(0, newTotal - disc);
-      const newTax = Number((taxable * 0.08).toFixed(2));
-      const newGrandTotal = taxable + newTax;
+      const newTax = 0.00;
+      const newGrandTotal = Math.round(taxable * 100) / 100;
 
       let newStatus: 'unpaid' | 'partially_paid' | 'paid' = 'unpaid';
       const paid = Number(invoice.paidAmount);

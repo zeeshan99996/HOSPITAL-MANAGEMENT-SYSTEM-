@@ -37,6 +37,7 @@ const handleResponse = async (response: Response) => {
     }
     if (response.status === 401 && window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
       localStorage.removeItem('hms_token');
+      localStorage.removeItem('supabase_token');
       localStorage.removeItem('hms_user');
       window.location.href = '/';
     }

@@ -43,7 +43,7 @@ export const authenticateToken = async (
       }
     } catch (sbErr) {}
 
-    // 2. Decode/verify JWT payload
+    // 2. Verify JWT payload
     if (!supabaseUserId) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET) as any;
@@ -51,12 +51,7 @@ export const authenticateToken = async (
         supabaseUserId = decoded.sub || null;
         userEmail = decoded.email || null;
       } catch (jwtErr) {
-        const decodedUnverified = jwt.decode(token) as any;
-        if (decodedUnverified) {
-          supabaseUserId = decodedUnverified.sub || null;
-          userEmail = decodedUnverified.email || null;
-          userIdNum = decodedUnverified.id ? Number(decodedUnverified.id) : null;
-        }
+        return res.status(403).json({ message: 'Invalid or expired authentication token.' });
       }
     }
 

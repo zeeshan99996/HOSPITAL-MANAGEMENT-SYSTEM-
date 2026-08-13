@@ -251,10 +251,6 @@ export const getAllPatients = async (req: Request, res: Response) => {
             if (!t.doctorId && fallbackDoctor) {
               t.doctorId = fallbackDoctor.id;
               t.doctor = fallbackDoctor.toJSON ? fallbackDoctor.toJSON() : fallbackDoctor;
-              try {
-                const TokenQueueModel = (await import('../models')).TokenQueue;
-                await TokenQueueModel.update({ doctorId: fallbackDoctor.id }, { where: { id: t.id } });
-              } catch (uErr) {}
             } else if (t.doctorId && (!t.doctor || !t.doctor.user)) {
               try {
                 const docRecord = await Doctor.findByPk(t.doctorId, {

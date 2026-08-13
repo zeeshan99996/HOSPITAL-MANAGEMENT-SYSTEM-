@@ -197,8 +197,13 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
       whereCondition.doctorId = null;
     }
 
-    const countToday = await TokenQueue.count({ where: whereCondition, transaction });
-    docSeq = countToday + 1;
+    // Retrieve today's existing tokens within transaction lock for accurate sequence
+    const todayTokens = await TokenQueue.findAll({
+      where: whereCondition,
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+    docSeq = todayTokens.length + 1;
 
     const tokenId = `T-${String(docSeq).padStart(2, '0')}`;
 
@@ -331,7 +336,7 @@ router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
 router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivityLogs);
 router.get('/admin/backups', authenticateToken, requireRoles(['admin']), getBackupLogsHandler);
-router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), triggerBackupHandler);
+router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), rateLimiter(3, 300000), triggerBackupHandler);
 
 // ==========================================
 // RECEPTIONIST PORTAL ENDPOINTS
@@ -450,9 +455,15 @@ router.get('/doctors/schedule', authenticateToken, async (req, res) => {
       ]
     });
 
+    const now = new Date();
+    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
+    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
+
     const activeTokens = await TokenQueue.findAll({
       where: {
-        status: ['processing', 'waiting']
+        status: ['processing', 'waiting'],
+        createdAt: { [Op.between]: [startOfDay, endOfDay] }
       }
     });
 

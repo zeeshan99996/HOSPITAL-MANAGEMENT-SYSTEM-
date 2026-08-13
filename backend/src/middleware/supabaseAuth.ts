@@ -47,12 +47,7 @@ export const verifySupabaseToken = async (
         supabaseUserId = decoded.sub || decoded.id || null;
         userEmail = decoded.email || null;
       } catch (jwtErr) {
-        // Also try decoding without signature verification if fallback key is configured
-        const decodedUnverified: any = jwt.decode(token);
-        if (decodedUnverified && (decodedUnverified.sub || decodedUnverified.email)) {
-          supabaseUserId = decodedUnverified.sub || decodedUnverified.id || null;
-          userEmail = decodedUnverified.email || null;
-        }
+        return res.status(401).json({ message: 'Invalid or expired authentication token.' });
       }
     }
 
