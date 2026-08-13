@@ -188,6 +188,15 @@ function getApp(): express.Application {
   instance.use('/api', apiRouter);
   instance.use('/', apiRouter);
 
+  // API 404 Fallback - Ensures API routes never render frontend HTML
+  instance.use((req: express.Request, res: express.Response) => {
+    res.status(404).json({
+      status: 'NOT_FOUND',
+      path: req.originalUrl || req.url,
+      message: 'The requested API endpoint does not exist.'
+    });
+  });
+
   // Global Error Handler
   instance.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error('[Global Vercel Express Error]:', err);

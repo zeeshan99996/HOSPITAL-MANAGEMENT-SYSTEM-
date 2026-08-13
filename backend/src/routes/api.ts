@@ -104,7 +104,7 @@ router.get('/auth/profile', authenticateToken, getProfile);
 router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 
 // Database Connection Health Verification
-router.get('/health/db', async (_req, res) => {
+const handleDbHealthRoute = async (_req: any, res: any) => {
   try {
     await sequelize.authenticate();
     const dialect = sequelize.getDialect();
@@ -116,6 +116,7 @@ router.get('/health/db', async (_req, res) => {
       dialect,
       host: process.env.DB_HOST || '195.35.59.4',
       database: process.env.DB_NAME || 'u526981273_BfYkc',
+      user: process.env.DB_USER || 'u526981273_8gj7P',
       tableCount: tables ? tables.length : 0,
       message: `Successfully connected to Hostinger ${dialect.toUpperCase()} Database!`
     });
@@ -124,12 +125,16 @@ router.get('/health/db', async (_req, res) => {
       status: 'DISCONNECTED',
       host: process.env.DB_HOST || '195.35.59.4',
       database: process.env.DB_NAME || 'u526981273_BfYkc',
-      user: process.env.DB_USER || 'root',
+      user: process.env.DB_USER || 'u526981273_8gj7P',
       error: err.message,
       message: 'Failed to connect to Hostinger MySQL Database. Please verify DB_USER and DB_PASSWORD.'
     });
   }
-});
+};
+
+router.get('/health', (_req, res) => res.status(200).json({ status: 'UP', message: 'HMS API Service running healthy' }));
+router.get('/health/db', handleDbHealthRoute);
+router.get('/db-health', handleDbHealthRoute);
 
 // ==========================================
 // PATIENT MANAGEMENT
