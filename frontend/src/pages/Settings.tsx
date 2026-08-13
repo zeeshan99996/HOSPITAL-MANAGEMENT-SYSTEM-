@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, Button, Input } from '../components/UI';
 import { useAuth } from '../context/AuthContext';
-import { Settings as SettingsIcon, Shield, Server, BellRing, MapPin, CreditCard, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Server, BellRing, MapPin, CreditCard, Plus, Trash2, Edit2, Check, X, CheckCircle, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../services/api';
 
 export const Settings: React.FC = () => {
@@ -154,8 +154,17 @@ export const Settings: React.FC = () => {
       </div>
 
       {msg && (
-        <div className={`p-4 rounded-xl border text-xs font-semibold \${msg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400' : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900/50 dark:text-rose-400'}`}>
-          {msg.text}
+        <div className={`p-4 rounded-xl border text-xs font-semibold flex items-center gap-2.5 ${
+          msg.type === 'success' 
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300' 
+            : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-300'
+        }`}>
+          {msg.type === 'success' ? (
+            <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+          )}
+          <span>{msg.text}</span>
         </div>
       )}
 
