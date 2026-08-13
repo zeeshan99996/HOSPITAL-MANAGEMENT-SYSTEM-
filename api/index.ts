@@ -1,12 +1,36 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import apiRouter from '../backend/src/routes/api';
-import sequelize from '../backend/src/config/db';
-import '../backend/src/models';
-import { seedDatabase } from '../backend/src/seeders/initialSeed';
 
+// Load environment variables
 dotenv.config();
+
+// Safely load compiled backend modules
+let apiRouter: any;
+let sequelize: any;
+let seedDatabase: any;
+
+try {
+  const routesMod = require('../backend/dist/routes/api');
+  apiRouter = routesMod.default || routesMod;
+  const dbMod = require('../backend/dist/config/db');
+  sequelize = dbMod.default || dbMod;
+  require('../backend/dist/models');
+  const seedMod = require('../backend/dist/seeders/initialSeed');
+  seedDatabase = seedMod.seedDatabase;
+} catch (distErr) {
+  try {
+    const routesMod = require('../backend/src/routes/api');
+    apiRouter = routesMod.default || routesMod;
+    const dbMod = require('../backend/src/config/db');
+    sequelize = dbMod.default || dbMod;
+    require('../backend/src/models');
+    const seedMod = require('../backend/src/seeders/initialSeed');
+    seedDatabase = seedMod.seedDatabase;
+  } catch (srcErr) {
+    console.error('[API Module Loading Error]:', distErr, srcErr);
+  }
+}
 
 let app: express.Application | null = null;
 let isDbInitialized = false;
@@ -46,6 +70,9 @@ function getApp(): express.Application {
 
   const handleDbHealth = async (req: any, res: any) => {
     try {
+      if (!sequelize) {
+        throw new Error('Database module could not be loaded.');
+      }
       await sequelize.authenticate();
       const dialect = sequelize.getDialect();
       let showTablesQuery = "SELECT table_name FROM information_schema.tables WHERE table_schema='public';";
@@ -81,115 +108,29 @@ function getApp(): express.Application {
 
   // Lazy DB & Seeding Middleware
   instance.use(async (req, res, next) => {
-    if (!isDbInitialized) {
+    if (!isDbInitialized && sequelize) {
       try {
         console.log('[Vercel Serverless] Initializing DB Connection & Seeding...');
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
-        if (sequelize.getDialect() === 'postgres') {
-          // Run PostgreSQL-specific migrations safely
-          const patientCols = ['dob', 'age', 'tokenNumber', 'paymentAmount', 'area', 'guardianName', 'cnic', 'paymentMethod', 'email', 'phone', 'address', 'bloodGroup', 'allergies', 'insuranceProvider', 'insurancePolicyNum', 'emergencyContactName', 'emergencyContactPhone'];
-          for (const col of patientCols) {
-            try {
-              await sequelize.query(`ALTER TABLE "patients" ADD COLUMN IF NOT EXISTS "${col}" VARCHAR(255);`);
-            } catch (e) {}
-          }
-
-          const userCols = [
-            { name: 'deletedAt', type: 'TIMESTAMP WITH TIME ZONE' },
-            { name: 'phone', type: 'VARCHAR(255)' },
-            { name: 'status', type: 'VARCHAR(255) DEFAULT \'active\'' },
-            { name: 'roleId', type: 'INTEGER' },
-            { name: 'supabase_user_id', type: 'VARCHAR(255)' },
-          ];
-          for (const col of userCols) {
-            try {
-              await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};`);
-            } catch (e) {}
-          }
-
-          try {
-            await sequelize.query(`
-              CREATE TABLE IF NOT EXISTS "system_users" (
-                "id" SERIAL PRIMARY KEY,
-                "name" VARCHAR(255) NOT NULL,
-                "email" VARCHAR(255) NOT NULL UNIQUE,
-                "password" VARCHAR(255) NOT NULL,
-                "phone" VARCHAR(50) DEFAULT '',
-                "role" VARCHAR(50) NOT NULL DEFAULT 'admin',
-                "status" VARCHAR(50) NOT NULL DEFAULT 'active',
-                "supabase_user_id" VARCHAR(255),
-                "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                "deletedAt" TIMESTAMP WITH TIME ZONE
-              );
-            `);
-            await sequelize.query(`
-              CREATE TABLE IF NOT EXISTS "staff" (
-                "id" SERIAL PRIMARY KEY,
-                "name" VARCHAR(255) NOT NULL,
-                "phone" VARCHAR(255) DEFAULT '',
-                "cnic" VARCHAR(255) DEFAULT '',
-                "address" TEXT DEFAULT '',
-                "designation" VARCHAR(255) NOT NULL DEFAULT 'Staff Member',
-                "salary" DECIMAL(10, 2) DEFAULT 0.00,
-                "status" VARCHAR(50) DEFAULT 'active',
-                "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                "deletedAt" TIMESTAMP WITH TIME ZONE
-              );
-            `);
-            await sequelize.query(`ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
-            await sequelize.query(`ALTER TABLE "nurses" ADD COLUMN IF NOT EXISTS "staffId" INTEGER;`);
-
-            const extraUserCols = ['cnic', 'address', 'designation', 'salary', 'isStaffMember'];
-            for (const col of extraUserCols) {
-              try {
-                await sequelize.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "${col}";`);
-              } catch (e) {}
-            }
-          } catch (e) {
-            console.warn('[Staff Migration Warning]:', e);
-          }
-        } else if (sequelize.getDialect() === 'mysql') {
-          try {
-            const mysqlCols = [
-              { table: 'admissions', col: 'admissionCategory', type: 'VARCHAR(255) DEFAULT \'medical\'' },
-              { table: 'admissions', col: 'stayType', type: 'VARCHAR(255) DEFAULT \'short\'' },
-              { table: 'admissions', col: 'surgeryDetails', type: 'TEXT' },
-              { table: 'admissions', col: 'treatmentPlan', type: 'TEXT' },
-              { table: 'users', col: 'deletedAt', type: 'DATETIME' },
-              { table: 'users', col: 'roleId', type: 'INT' },
-              { table: 'users', col: 'supabase_user_id', type: 'VARCHAR(255)' },
-              { table: 'doctors', col: 'staffId', type: 'INT' },
-              { table: 'nurses', col: 'staffId', type: 'INT' }
-            ];
-
-            for (const item of mysqlCols) {
-              try {
-                await sequelize.query(`ALTER TABLE \`${item.table}\` ADD COLUMN \`${item.col}\` ${item.type};`);
-              } catch (e) {}
-            }
-          } catch (mErr) {
-            console.warn('[MySQL Serverless Migration Warning]:', mErr);
-          }
+        if (seedDatabase) {
+          await seedDatabase();
         }
-
-        await seedDatabase();
         isDbInitialized = true;
         console.log('[Serverless DB Init] Complete.');
       } catch (err: any) {
         console.error('[Serverless DB Init Error]:', err.message);
-        // Do not crash serverless request
       }
     }
     next();
   });
 
   // Mount API Router on both /api and root
-  instance.use('/api', apiRouter);
-  instance.use('/', apiRouter);
+  if (apiRouter) {
+    instance.use('/api', apiRouter);
+    instance.use('/', apiRouter);
+  }
 
   // API 404 Fallback - Ensures API routes never render frontend HTML
   instance.use((req: express.Request, res: express.Response) => {
