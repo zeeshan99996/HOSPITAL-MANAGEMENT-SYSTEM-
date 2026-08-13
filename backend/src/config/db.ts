@@ -8,11 +8,13 @@ import mysql2 from 'mysql2';
 
 dotenv.config();
 
-const dbDialect = (process.env.DB_DIALECT || 'mysql').toLowerCase();
+const dbDialect = (process.env.DB_DIALECT || '').toLowerCase();
+const hasDatabaseUrl = !!(process.env.DATABASE_URL || process.env.SUPABASE_DB_URL);
+const hasMysqlConfig = !!(process.env.DB_HOST && process.env.DB_USER && process.env.DB_USER !== 'root' && process.env.DB_HOST !== 'your_hostinger_mysql_host_or_ip');
 
 let sequelize: Sequelize;
 
-if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
+if (hasDatabaseUrl) {
   const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
   console.log('[Database] Initializing Sequelize with PostgreSQL URL');
   sequelize = new Sequelize(databaseUrl, {
@@ -32,11 +34,11 @@ if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
       idle: 10000
     }
   });
-} else if (dbDialect === 'mysql' || process.env.DB_HOST) {
+} else if (hasMysqlConfig || (dbDialect === 'mysql' && process.env.DB_HOST && process.env.DB_USER && process.env.DB_HOST !== 'your_hostinger_mysql_host_or_ip')) {
   const host = process.env.DB_HOST || '195.35.59.4';
   const port = parseInt(process.env.DB_PORT || '3306');
   const database = process.env.DB_NAME || 'u526981273_BfYkc';
-  const user = process.env.DB_USER || 'root';
+  const user = process.env.DB_USER || '';
   const password = process.env.DB_PASSWORD || '';
 
   console.log(`[Hostinger MySQL] Initializing Sequelize Pool with Hostinger MySQL Database: ${user}@${host}:${port}/${database}`);
