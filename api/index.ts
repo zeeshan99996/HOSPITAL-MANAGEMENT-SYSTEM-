@@ -54,7 +54,7 @@ function getApp(): express.Application {
         dialect,
         host: process.env.DB_HOST || '195.35.59.4',
         database: process.env.DB_NAME || 'u526981273_BfYkc',
-        user: process.env.DB_USER || 'root',
+        user: process.env.DB_USER || 'u526981273_8gj7P',
         tableCount: tables ? tables.length : 0,
         message: `Successfully connected to Hostinger ${dialect.toUpperCase()} Database!`
       });
@@ -63,7 +63,7 @@ function getApp(): express.Application {
         status: 'DISCONNECTED',
         host: process.env.DB_HOST || '195.35.59.4',
         database: process.env.DB_NAME || 'u526981273_BfYkc',
-        user: process.env.DB_USER || 'root',
+        user: process.env.DB_USER || 'u526981273_8gj7P',
         error: err.message,
         message: 'Failed to connect to Hostinger MySQL Database. Please check DB_USER and DB_PASSWORD environment variables in Vercel settings.'
       });
