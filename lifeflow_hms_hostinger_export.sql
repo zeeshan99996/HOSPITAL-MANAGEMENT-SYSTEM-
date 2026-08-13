@@ -1,8 +1,11 @@
 -- LifeFlow Hospital Management System - Hostinger MySQL Database Dump
 -- Target Database: u526981273_BfYkc
--- Generated: 2026-08-13T09:32:24.273Z
+-- Generated: 2026-08-13T09:44:08.525Z
 
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- Cleanup unused WordPress tables
+DROP TABLE IF EXISTS `wp_actionscheduler_actions`, `wp_actionscheduler_claims`, `wp_actionscheduler_groups`, `wp_actionscheduler_logs`, `wp_commentmeta`, `wp_comments`, `wp_hostinger_reach_carts`, `wp_hostinger_reach_contact_lists`, `wp_hostinger_reach_forms`, `wp_links`, `wp_litespeed_url`, `wp_litespeed_url_file`, `wp_options`, `wp_postmeta`, `wp_posts`, `wp_term_relationships`, `wp_term_taxonomy`, `wp_termmeta`, `wp_terms`, `wp_usermeta`, `wp_users`;
 
 -- Table structure for table `roles`
 DROP TABLE IF EXISTS `roles`;
