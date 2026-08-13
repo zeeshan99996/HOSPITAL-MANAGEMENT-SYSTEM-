@@ -108,17 +108,21 @@ const handleDbHealthRoute = async (_req: any, res: any) => {
   try {
     await sequelize.authenticate();
     const dialect = sequelize.getDialect();
-    const [tables]: any = await sequelize.query(
-      dialect === 'mysql' ? 'SHOW TABLES;' : "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
-    );
+    let showTablesQuery = "SELECT table_name FROM information_schema.tables WHERE table_schema='public';";
+    if (dialect === 'mysql') {
+      showTablesQuery = 'SHOW TABLES;';
+    } else if (dialect === 'sqlite') {
+      showTablesQuery = "SELECT name FROM sqlite_master WHERE type='table';";
+    }
+    const [tables]: any = await sequelize.query(showTablesQuery);
     return res.status(200).json({
       status: 'CONNECTED',
       dialect,
-      host: process.env.DB_HOST || '195.35.59.4',
-      database: process.env.DB_NAME || 'u526981273_BfYkc',
-      user: process.env.DB_USER || 'u526981273_8gj7P',
+      host: dialect === 'sqlite' ? 'local' : (process.env.DB_HOST || '195.35.59.4'),
+      database: dialect === 'sqlite' ? 'local_sqlite' : (process.env.DB_NAME || 'u526981273_BfYkc'),
+      user: dialect === 'sqlite' ? 'local' : (process.env.DB_USER || 'u526981273_8gj7P'),
       tableCount: tables ? tables.length : 0,
-      message: `Successfully connected to Hostinger ${dialect.toUpperCase()} Database!`
+      message: `Successfully connected to ${dialect.toUpperCase()} Database!`
     });
   } catch (err: any) {
     return res.status(200).json({
