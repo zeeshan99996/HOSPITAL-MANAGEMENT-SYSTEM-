@@ -1,14 +1,11 @@
 import { Sequelize } from 'sequelize';
-import sqlite3 from 'sqlite3';
-import pg from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
-
 import mysql2 from 'mysql2';
 
 dotenv.config();
 
-const dbDialect = (process.env.DB_DIALECT || '').toLowerCase();
+const dbDialect = (process.env.DB_DIALECT || 'mysql').toLowerCase();
 const hasDatabaseUrl = !!(process.env.DATABASE_URL || process.env.SUPABASE_DB_URL);
 const hasMysqlConfig = !!(
   process.env.DB_HOST &&
@@ -19,6 +16,7 @@ const hasMysqlConfig = !!(
 let sequelize: Sequelize;
 
 if (hasDatabaseUrl) {
+  const pg = require('pg');
   const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
   console.log('[Database] Initializing Sequelize with PostgreSQL URL');
   sequelize = new Sequelize(databaseUrl, {
@@ -39,11 +37,11 @@ if (hasDatabaseUrl) {
     }
   });
 } else if (hasMysqlConfig || dbDialect === 'mysql') {
-  const host = process.env.DB_HOST || '195.35.59.4';
+  const host = (process.env.DB_HOST || '195.35.59.4').trim();
   const port = parseInt(process.env.DB_PORT || '3306');
-  const database = process.env.DB_NAME || 'u526981273_BfYkc';
-  const user = process.env.DB_USER || 'u526981273_8gj7P';
-  const password = process.env.DB_PASSWORD || '';
+  const database = (process.env.DB_NAME || 'u526981273_drtalha_db').trim();
+  const user = (process.env.DB_USER || 'u526981273_drtalha_db').trim();
+  const password = process.env.DB_PASSWORD || 'Pak@pass.3499';
 
   console.log(`[Hostinger MySQL] Initializing Sequelize Pool with Hostinger MySQL Database: ${user}@${host}:${port}/${database}`);
   sequelize = new Sequelize(database, user, password, {
@@ -70,6 +68,7 @@ if (hasDatabaseUrl) {
     },
   });
 } else {
+  const sqlite3 = require('sqlite3');
   const isServerless = !!(process.env.VERCEL || process.env.TMPDIR);
   const dbPath = isServerless
     ? path.join('/tmp', 'hms.db')
@@ -89,3 +88,4 @@ if (hasDatabaseUrl) {
 }
 
 export default sequelize;
+
