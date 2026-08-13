@@ -529,6 +529,7 @@ router.put('/auth/profile', authenticateToken, async (req, res) => {
 // ==========================================
 router.get('/settings/areas', authenticateToken, async (_req, res) => {
   try {
+    await Area.sync({ force: false });
     const areas = await Area.findAll({ order: [['name', 'ASC']] });
     return res.status(200).json(areas);
   } catch (err: any) {
@@ -541,17 +542,25 @@ router.post('/settings/areas', authenticateToken, requireRoles(['admin']), async
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'Area name is required' });
   }
+  const cleanName = name.trim();
   try {
-    const area = await Area.create({ name: name.trim() });
+    await Area.sync({ force: false });
+    const existing = await Area.findOne({ where: { name: cleanName } });
+    if (existing) {
+      return res.status(200).json(existing);
+    }
+    const area = await Area.create({ name: cleanName });
     return res.status(201).json(area);
   } catch (err: any) {
-    return res.status(500).json({ message: 'Error creating area', error: err.message });
+    console.error('[Settings Area Create Error]:', err);
+    return res.status(500).json({ message: err.message || 'Error creating area', error: err.message });
   }
 });
 
 router.delete('/settings/areas/:id', authenticateToken, requireRoles(['admin']), async (req, res) => {
   const { id } = req.params;
   try {
+    await Area.sync({ force: false });
     const area = await Area.findByPk(id);
     if (!area) return res.status(404).json({ message: 'Area not found' });
     await area.destroy();
@@ -567,10 +576,12 @@ router.put('/settings/areas/:id', authenticateToken, requireRoles(['admin']), as
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'Area name is required' });
   }
+  const cleanName = name.trim();
   try {
+    await Area.sync({ force: false });
     const area = await Area.findByPk(id);
     if (!area) return res.status(404).json({ message: 'Area not found' });
-    await area.update({ name: name.trim() });
+    await area.update({ name: cleanName });
     return res.status(200).json(area);
   } catch (err: any) {
     return res.status(500).json({ message: 'Error updating area', error: err.message });
@@ -582,6 +593,7 @@ router.put('/settings/areas/:id', authenticateToken, requireRoles(['admin']), as
 // ==========================================
 router.get('/settings/payment-modes', authenticateToken, async (_req, res) => {
   try {
+    await PaymentOption.sync({ force: false });
     const options = await PaymentOption.findAll({ order: [['name', 'ASC']] });
     return res.status(200).json(options);
   } catch (err: any) {
@@ -594,17 +606,25 @@ router.post('/settings/payment-modes', authenticateToken, requireRoles(['admin']
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'Payment mode name is required' });
   }
+  const cleanName = name.trim();
   try {
-    const option = await PaymentOption.create({ name: name.trim() });
+    await PaymentOption.sync({ force: false });
+    const existing = await PaymentOption.findOne({ where: { name: cleanName } });
+    if (existing) {
+      return res.status(200).json(existing);
+    }
+    const option = await PaymentOption.create({ name: cleanName });
     return res.status(201).json(option);
   } catch (err: any) {
-    return res.status(500).json({ message: 'Error creating payment option', error: err.message });
+    console.error('[Settings PaymentOption Create Error]:', err);
+    return res.status(500).json({ message: err.message || 'Error creating payment option', error: err.message });
   }
 });
 
 router.delete('/settings/payment-modes/:id', authenticateToken, requireRoles(['admin']), async (req, res) => {
   const { id } = req.params;
   try {
+    await PaymentOption.sync({ force: false });
     const option = await PaymentOption.findByPk(id);
     if (!option) return res.status(404).json({ message: 'Payment option not found' });
     await option.destroy();
@@ -620,10 +640,12 @@ router.put('/settings/payment-modes/:id', authenticateToken, requireRoles(['admi
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'Payment option name is required' });
   }
+  const cleanName = name.trim();
   try {
+    await PaymentOption.sync({ force: false });
     const option = await PaymentOption.findByPk(id);
     if (!option) return res.status(404).json({ message: 'Payment option not found' });
-    await option.update({ name: name.trim() });
+    await option.update({ name: cleanName });
     return res.status(200).json(option);
   } catch (err: any) {
     return res.status(500).json({ message: 'Error updating payment option', error: err.message });
