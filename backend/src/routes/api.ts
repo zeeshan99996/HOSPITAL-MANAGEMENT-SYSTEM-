@@ -120,8 +120,11 @@ router.get('/health/db', async (_req, res) => {
       message: `Successfully connected to Hostinger ${dialect.toUpperCase()} Database!`
     });
   } catch (err: any) {
-    return res.status(500).json({
+    return res.status(200).json({
       status: 'DISCONNECTED',
+      host: process.env.DB_HOST || '195.35.59.4',
+      database: process.env.DB_NAME || 'u526981273_BfYkc',
+      user: process.env.DB_USER || 'root',
       error: err.message,
       message: 'Failed to connect to Hostinger MySQL Database. Please verify DB_USER and DB_PASSWORD.'
     });
