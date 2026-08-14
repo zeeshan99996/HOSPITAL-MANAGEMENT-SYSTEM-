@@ -3,6 +3,7 @@ import { Card, Input, Button } from '../components/UI';
 import { User, Lock, Phone, Save, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
+import { formatPhone } from '../utils/formatters';
 
 export const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -131,7 +132,9 @@ export const Profile: React.FC = () => {
                 <Input
                   label="Mobile Contact Phone"
                   value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  onChange={e => setPhone(formatPhone(e.target.value))}
+                  placeholder="e.g. 0300-1234567"
+                  maxLength={12}
                   className="pl-10"
                 />
                 <Phone className="absolute left-3.5 top-[38px] h-4 w-4 text-slate-400" />

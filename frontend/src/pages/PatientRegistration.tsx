@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Input, Button } from '../components/UI';
 import { Printer, Save, Calendar, UserPlus, CreditCard, MapPin } from 'lucide-react';
 import { apiClient } from '../services/api';
+import { formatCNIC, formatPhone } from '../utils/formatters';
 
 export const PatientRegistration: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -99,10 +100,12 @@ export const PatientRegistration: React.FC = () => {
   const handleInputChange = (key: string, value: string) => {
     let val = value;
     if (key === 'phone' || key === 'emergencyContactPhone') {
-      val = value.replace(/\D/g, '').slice(0, 11);
+      val = formatPhone(value);
+    } else if (key === 'cnic') {
+      val = formatCNIC(value);
+    } else if (key === 'email') {
+      val = value.slice(0, 50);
     }
-    if (key === 'cnic') val = value.slice(0, 20);
-    if (key === 'email') val = value.slice(0, 50);
     setFormData({ ...formData, [key]: val });
   };
 
@@ -156,8 +159,16 @@ export const PatientRegistration: React.FC = () => {
       return;
     }
 
-    if (formData.phone.length !== 11) {
-      setErrorMsg('Please enter a valid 11-digit Mobile Phone Number (e.g. 03116353044).');
+    const phoneDigits = (formData.phone || '').replace(/\D/g, '');
+    if (phoneDigits.length !== 11) {
+      setErrorMsg('Please enter a valid 11-digit Mobile Phone Number (e.g. 0300-1234567).');
+      setLoading(false);
+      return;
+    }
+
+    const cnicDigits = (formData.cnic || '').replace(/\D/g, '');
+    if (cnicDigits.length > 0 && cnicDigits.length !== 13) {
+      setErrorMsg('Please enter a valid 13-digit CNIC Number (e.g. 42101-1234567-1).');
       setLoading(false);
       return;
     }
@@ -390,14 +401,16 @@ export const PatientRegistration: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="CNIC / Passport Number (Optional)"
-              maxLength={20}
+              maxLength={15}
+              placeholder="e.g. 42101-1234567-1"
               value={formData.cnic}
               onChange={e => handleInputChange('cnic', e.target.value)}
             />
             <Input
               label="Mobile Phone Number"
               required
-              maxLength={11}
+              maxLength={12}
+              placeholder="e.g. 0300-1234567"
               value={formData.phone}
               onChange={e => handleInputChange('phone', e.target.value)}
             />
@@ -517,7 +530,8 @@ export const PatientRegistration: React.FC = () => {
             />
             <Input
               label="Emergency Contact Phone"
-              maxLength={11}
+              maxLength={12}
+              placeholder="e.g. 0300-1234567"
               value={formData.emergencyContactPhone}
               onChange={e => handleInputChange('emergencyContactPhone', e.target.value)}
             />

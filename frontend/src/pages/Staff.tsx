@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X } from 'lucide-react';
+import { formatCNIC, formatPhone } from '../utils/formatters';
 
 interface DesignationItem {
   title: string;
@@ -354,8 +355,8 @@ export const Staff: React.FC = () => {
 
           {/* CNIC & Phone Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="CNIC Number" required value={cnic} onChange={e => setCnic(e.target.value)} placeholder="e.g. 42101-1234567-1" />
-            <Input label="Phone Contact" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 0300-1234567" />
+            <Input label="CNIC Number" required value={cnic} onChange={e => setCnic(formatCNIC(e.target.value))} placeholder="e.g. 42101-1234567-1" maxLength={15} />
+            <Input label="Phone Contact" required value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="e.g. 0300-1234567" maxLength={12} />
           </div>
 
           {/* Address */}

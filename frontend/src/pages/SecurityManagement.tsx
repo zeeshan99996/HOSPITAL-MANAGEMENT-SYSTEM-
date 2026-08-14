@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
+import { formatPhone } from '../utils/formatters';
 import {
   ShieldCheck,
   Search,
@@ -609,9 +610,10 @@ export const SecurityManagement: React.FC = () => {
           <Input
             label="Phone Contact (Optional)"
             type="text"
+            maxLength={12}
             value={addPhone}
-            onChange={e => setAddPhone(e.target.value)}
-            placeholder="0300-1234567"
+            onChange={e => setAddPhone(formatPhone(e.target.value))}
+            placeholder="e.g. 0300-1234567"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
