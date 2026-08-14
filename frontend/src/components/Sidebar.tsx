@@ -35,13 +35,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
   if (!user || user.role === 'doctor') return null;
 
-  // Define sidebar navigation items and their role access list (removed patient and nurse)
+  // Define sidebar navigation items and their role access list
   const menuItems = [
     {
       name: 'Dashboard',
       path: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'doctor', 'receptionist', 'accountant'],
+      roles: ['admin', 'doctor', 'receptionist', 'accountant', 'nurse'],
     },
     {
       name: 'Patient Registration',
@@ -59,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Patients',
       path: '/patients',
       icon: Users,
-      roles: ['admin', 'doctor', 'receptionist', 'accountant'],
+      roles: ['admin', 'doctor', 'receptionist', 'accountant', 'nurse'],
     },
     {
       name: 'Token Queue',
@@ -71,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Bed Admissions',
       path: '/admissions',
       icon: BedDouble,
-      roles: ['admin', 'doctor', 'receptionist'],
+      roles: ['admin', 'doctor', 'receptionist', 'nurse'],
     },
     {
       name: 'Laboratory Tests',

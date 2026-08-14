@@ -149,24 +149,10 @@ export const Admissions: React.FC = () => {
         surgeryDetails: admissionCategory === 'surgical' ? surgeryDetails : null,
         treatmentPlan,
         notes,
-        baselineCost: Number(baselineCost),
-        advancePaid: Number(advancePaid),
-        discount: Number(discount),
+        baselineCost: 0,
+        advancePaid: Number(advancePaid) || 0,
+        discount: 0,
       });
-
-      // Optionally log initial vitals if patient file selected
-      if (vitalBP) {
-        try {
-          await apiClient.post(`/patients/${patientId}/vitals`, {
-            bp: vitalBP,
-            temperature: Number(vitalTemp) || 98.6,
-            pulse: Number(vitalPulse) || 72,
-            respRate: 16,
-            spo2: Number(vitalSpo2) || 98,
-            notes: `Initial Admission Vitals (${admissionCategory.toUpperCase()} - ${stayType.toUpperCase()} STAY)`
-          });
-        } catch (e) {}
-      }
 
       setIsAdmitOpen(false);
       fetchData();
@@ -179,9 +165,7 @@ export const Admissions: React.FC = () => {
       setSurgeryDetails('');
       setTreatmentPlan('');
       setNotes('');
-      setBaselineCost('15000');
       setAdvancePaid('5000');
-      setDiscount('1000');
     } catch (err) {
       alert('Error admitting patient. Please verify bed availability and required fields.');
     }
@@ -838,23 +822,8 @@ export const Admissions: React.FC = () => {
             />
           </div>
 
-          {/* Initial Vitals Input Block */}
-          <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
-              Initial Intake Vitals (Blood Pressure & Temperature)
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Input label="BP (Systolic/Diastolic)" value={vitalBP} onChange={e => setVitalBP(e.target.value)} placeholder="120/80" />
-              <Input label="Temp (°F)" value={vitalTemp} onChange={e => setVitalTemp(e.target.value)} placeholder="98.6" />
-              <Input label="Pulse (bpm)" value={vitalPulse} onChange={e => setVitalPulse(e.target.value)} placeholder="72" />
-              <Input label="SpO2 (%)" value={vitalSpo2} onChange={e => setVitalSpo2(e.target.value)} placeholder="98" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input label="Baseline Cost (Rs.)" required type="number" value={baselineCost} onChange={e => setBaselineCost(e.target.value)} />
-            <Input label="Advance Paid (Rs.)" required type="number" value={advancePaid} onChange={e => setAdvancePaid(e.target.value)} />
-            <Input label="Discount (Rs.)" required type="number" value={discount} onChange={e => setDiscount(e.target.value)} />
+          <div>
+            <Input label="Advance Paid / Security Deposit (Rs.)" required type="number" value={advancePaid} onChange={e => setAdvancePaid(e.target.value)} placeholder="5000" />
           </div>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
