@@ -490,9 +490,26 @@ export const Admissions: React.FC = () => {
           </p>
         </div>
         {user?.role !== 'patient' && (
-          <Button onClick={() => setIsAdmitOpen(true)} className="flex items-center gap-2 self-start sm:self-center">
-            <Plus className="h-4 w-4" /> Admit Patient
-          </Button>
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const activeAdmissions = admissions.filter(a => a.status === 'admitted');
+                if (activeAdmissions.length === 0) {
+                  alert('There are currently no admitted patients in the inpatient registry.');
+                  return;
+                }
+                handleOpenDischarge(activeAdmissions[0]);
+              }}
+              className="flex items-center gap-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-500 hover:text-white font-bold transition-all shadow-sm"
+            >
+              <UserMinus className="h-4 w-4" /> Discharge Patient
+            </Button>
+            <Button onClick={() => setIsAdmitOpen(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Admit Patient
+            </Button>
+          </div>
         )}
       </div>
 
@@ -968,6 +985,27 @@ export const Admissions: React.FC = () => {
         title="Discharge Patient & Generate Final Inpatient Bill"
       >
         <form onSubmit={handleDischargeSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Admitted Patient Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+              Select Admitted Patient To Discharge *
+            </label>
+            <select
+              value={selectedAdmission?.id || ''}
+              onChange={e => {
+                const adm = admissions.find(a => String(a.id) === e.target.value);
+                if (adm) handleOpenDischarge(adm);
+              }}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-brand-400 dark:border-brand-600 text-xs bg-white dark:bg-dark-900 font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30 shadow-sm"
+            >
+              {admissions.filter(a => a.status === 'admitted').map(a => (
+                <option key={a.id} value={a.id}>
+                  {a.patient?.name} • (MRN: {a.patient?.mrNumber || 'N/A'}) • Bed: {a.bed?.bedNumber} ({a.bed?.wardName})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {selectedAdmission && (
             <div className="p-3.5 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
               <div className="flex justify-between items-start">
