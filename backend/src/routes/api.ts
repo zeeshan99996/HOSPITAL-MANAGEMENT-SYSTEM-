@@ -21,7 +21,7 @@ import {
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
 import sequelize from '../config/db';
-import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption, Invoice, InvoiceItem, SystemUser } from '../models';
+import { TokenQueue, Doctor, Department, Patient, User, StaffMember, Area, PaymentOption, Invoice, InvoiceItem, SystemUser } from '../models';
 import { getPktDayBounds } from '../utils/timezone';
 
 import {
@@ -228,32 +228,43 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     if (doctorId) {
       const numDocId = Number(doctorId);
       let docObj = await Doctor.findByPk(numDocId, {
-        include: [{ model: User, attributes: ['name'] }],
+        include: [
+          { model: User, attributes: ['name'] },
+          { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+        ],
         transaction
       });
 
       if (!docObj) {
         docObj = await Doctor.findOne({
           where: { userId: numDocId },
-          include: [{ model: User, attributes: ['name'] }],
+          include: [
+            { model: User, attributes: ['name'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+          ],
           transaction
         });
       }
 
       if (docObj) {
         validDocId = docObj.id;
-        doctorName = docObj.user?.name || `Doctor #${docObj.id}`;
+        const dName = docObj.staffMember?.name || docObj.user?.name || `Doctor #${docObj.id}`;
+        doctorName = dName.startsWith('Dr') ? dName : `Dr. ${dName}`;
       }
     }
 
     if (!validDocId) {
       const fallbackDoc = await Doctor.findOne({
-        include: [{ model: User, attributes: ['name'] }],
+        include: [
+          { model: User, attributes: ['name'] },
+          { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+        ],
         transaction
       });
       if (fallbackDoc) {
         validDocId = fallbackDoc.id;
-        doctorName = fallbackDoc.user?.name || `Doctor #${fallbackDoc.id}`;
+        const dName = fallbackDoc.staffMember?.name || fallbackDoc.user?.name || `Doctor #${fallbackDoc.id}`;
+        doctorName = dName.startsWith('Dr') ? dName : `Dr. ${dName}`;
       }
     }
 
@@ -417,14 +428,20 @@ router.get('/tokens', authenticateToken, async (req, res) => {
   try {
     const { startOfDay, endOfDay } = getPktDayBounds();
 
-
     const tokens = await TokenQueue.findAll({
       where: {
         createdAt: { [Op.between]: [startOfDay, endOfDay] }
       },
       include: [
-        { model: Patient, attributes: ['name', 'mrNumber'] },
-        { model: Doctor, include: [{ model: User, attributes: ['name'] }] }
+        { model: Patient, attributes: ['id', 'name', 'mrNumber', 'phone'] },
+        {
+          model: Doctor,
+          include: [
+            { model: User, attributes: ['id', 'name', 'email'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['id', 'name', 'designation', 'phone'] },
+            { model: Department, attributes: ['id', 'name'] }
+          ]
+        }
       ],
       order: [['createdAt', 'ASC']]
     });
@@ -449,68 +466,42 @@ router.put('/tokens/:id/status', authenticateToken, requireRoles(['admin', 'rece
 
 router.get('/doctors', authenticateToken, async (req, res) => {
   try {
-    // 1. Fetch all users with role 'doctor'
-    const doctorUsers = await User.findAll({ where: { role: 'doctor' } });
-
-    // 2. Ensure default department exists
-    let defaultDept = await Department.findOne();
-    if (!defaultDept) {
-      defaultDept = await Department.create({ name: 'General OPD', description: 'General Outpatient Clinic' });
-    }
-
-    // 3. Auto-sync missing Doctor records for any User with role 'doctor'
-    for (const docUser of doctorUsers) {
-      const existingDoc = await Doctor.findOne({ where: { userId: docUser.id } });
-      if (!existingDoc) {
-        await Doctor.create({
-          userId: docUser.id,
-          departmentId: defaultDept.id,
-          specialization: 'Consultant Physician',
-          consultationFee: 1500.00,
-          status: 'active'
-        });
-      }
-    }
-
-    // 4. If no doctor users exist, auto-seed default OPD doctors
-    if (doctorUsers.length === 0) {
-      const bcrypt = (await import('bcryptjs')).default;
-      const passHash = await bcrypt.hash('Password123', 10);
-      
-      const defaultDocs = [
-        { name: 'Dr. Sarah Khan', email: 'sarah.khan@lifeflow.com', spec: 'Cardiology' },
-        { name: 'Dr. Salman Malik', email: 'salman.malik@lifeflow.com', spec: 'General OPD' },
-        { name: 'Dr. Ayesha Ahmed', email: 'ayesha.ahmed@lifeflow.com', spec: 'Pediatrics' },
-      ];
-
-      for (const d of defaultDocs) {
-        const u = await User.create({
-          name: d.name,
-          email: d.email,
-          password: passHash,
-          role: 'doctor',
-          phone: '0300-1234567',
-          status: 'active'
-        });
-
-        await Doctor.create({
-          userId: u.id,
-          departmentId: defaultDept.id,
-          specialization: d.spec,
-          consultationFee: 1500.00,
-          status: 'active'
-        });
-      }
-    }
-
     const doctors = await Doctor.findAll({
       include: [
         { model: User, attributes: ['id', 'name', 'email', 'phone', 'status'] },
+        { model: StaffMember, as: 'staffMember', attributes: ['id', 'name', 'phone', 'cnic', 'designation', 'status'] },
         { model: Department, attributes: ['id', 'name'] }
       ]
     });
 
-    return res.status(200).json(doctors);
+    const formatted = doctors
+      .filter((d: any) => d.staffMember || d.user || d.specialization)
+      .map((d: any) => {
+        const staff = d.staffMember;
+        const user = d.user;
+        const rawName = staff?.name || user?.name || `Doctor #${d.id}`;
+        const cleanName = rawName.startsWith('Dr') ? rawName : `Dr. ${rawName}`;
+        const spec = d.specialization || staff?.designation || 'General OPD';
+        const fee = d.consultationFee || 500;
+        const status = d.status === 'inactive' || staff?.status === 'inactive' || user?.status === 'inactive' ? 'inactive' : 'active';
+
+        return {
+          id: d.id,
+          userId: d.userId,
+          staffId: d.staffId,
+          name: cleanName,
+          specialization: spec,
+          consultationFee: fee,
+          departmentId: d.departmentId,
+          department: d.department || { id: 1, name: 'General OPD' },
+          status,
+          phone: staff?.phone || user?.phone || '',
+          user: user || (staff ? { id: staff.id, name: cleanName, phone: staff.phone, email: '' } : null),
+          staffMember: staff || null,
+        };
+      });
+
+    return res.status(200).json(formatted);
   } catch (err: any) {
     return res.status(500).json({ message: 'Error fetching doctors', error: err.message });
   }
@@ -521,12 +512,12 @@ router.get('/doctors/schedule', authenticateToken, async (req, res) => {
     const doctors = await Doctor.findAll({
       include: [
         { model: User, attributes: ['name', 'email', 'phone'] },
+        { model: StaffMember, as: 'staffMember', attributes: ['name', 'phone', 'designation', 'status'] },
         { model: Department, attributes: ['name'] }
       ]
     });
 
     const { startOfDay, endOfDay } = getPktDayBounds();
-
 
     const activeTokens = await TokenQueue.findAll({
       where: {
@@ -535,32 +526,39 @@ router.get('/doctors/schedule', authenticateToken, async (req, res) => {
       }
     });
 
-    const scheduledDoctors = doctors.map((doc: any) => {
-      const isProcessing = activeTokens.some((t: any) => t.doctorId === doc.id && t.status === 'processing');
-      const isWaiting = activeTokens.some((t: any) => t.doctorId === doc.id && t.status === 'waiting');
+    const scheduledDoctors = doctors
+      .filter((d: any) => d.staffMember || d.user)
+      .map((doc: any) => {
+        const rawName = doc.staffMember?.name || doc.user?.name || `Doctor #${doc.id}`;
+        const docName = rawName.startsWith('Dr') ? rawName : `Dr. ${rawName}`;
+        const isProcessing = activeTokens.some((t: any) => t.doctorId === doc.id && t.status === 'processing');
+        const isWaiting = activeTokens.some((t: any) => t.doctorId === doc.id && t.status === 'waiting');
 
-      let currentStatus = 'available';
-      if (doc.status === 'inactive') {
-        currentStatus = 'on_break';
-      } else if (isProcessing) {
-        currentStatus = 'in_consultation';
-      }
+        let currentStatus = 'available';
+        if (doc.status === 'inactive' || doc.staffMember?.status === 'inactive') {
+          currentStatus = 'on_break';
+        } else if (isProcessing) {
+          currentStatus = 'in_consultation';
+        }
 
-      return {
-        id: doc.id,
-        doctorName: doc.user?.name || 'Unknown Doctor',
-        department: doc.department?.name || 'General Medicine',
-        roomNumber: `OPD-${100 + doc.id}`,
-        availableTime: '09:00 AM - 05:00 PM',
-        currentStatus,
-        nextAvailableSlot: isProcessing ? '15 mins' : (isWaiting ? '10 mins' : 'Immediate'),
-        leaveStatus: doc.status === 'active' ? 'active' : 'on_leave'
-      };
-    });
+        return {
+          id: doc.id,
+          doctorName: docName,
+          name: docName,
+          specialization: doc.specialization || doc.staffMember?.designation || 'General OPD',
+          department: doc.department?.name || 'General OPD',
+          roomNumber: `OPD-${100 + doc.id}`,
+          availableTime: '09:00 AM - 05:00 PM',
+          currentStatus,
+          consultationFee: doc.consultationFee || 500,
+          nextAvailableSlot: isProcessing ? '15 mins' : (isWaiting ? '10 mins' : 'Immediate'),
+          leaveStatus: (doc.status === 'active' && doc.staffMember?.status !== 'inactive') ? 'active' : 'on_leave'
+        };
+      });
 
     return res.status(200).json(scheduledDoctors);
   } catch (err: any) {
-    return res.status(500).json({ message: 'Error fetching doctors schedule', error: err.message });
+    return res.status(500).json({ message: 'Error fetching doctor schedule', error: err.message });
   }
 });
 

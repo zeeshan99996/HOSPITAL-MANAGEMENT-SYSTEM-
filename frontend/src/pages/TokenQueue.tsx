@@ -110,7 +110,7 @@ export const TokenQueue: React.FC = () => {
           <div class="divider"></div>
 
           <div class="info-row"><span class="info-label">Patient Name:</span> <span>${patObj?.name || 'Patient'}</span></div>
-          <div class="info-row"><span class="info-label">Doctor Name:</span> <span>${docObj?.user?.name || docObj?.name || 'General OPD'}</span></div>
+          <div class="info-row"><span class="info-label">Doctor Name:</span> <span>${docObj?.name || docObj?.staffMember?.name || docObj?.user?.name || 'General OPD'}</span></div>
           <div class="info-row"><span class="info-label">Room / Ward:</span> <span>${docObj?.roomNumber || 'Room 101'}</span></div>
           <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date(tokenObj.createdAt || Date.now()).toLocaleString()}</span></div>
 
@@ -171,9 +171,8 @@ export const TokenQueue: React.FC = () => {
 
   // Compute Doctor-Wise Queue Cards Data
   const doctorQueues = doctors.map((doc: any) => {
-    const docName = doc.user?.name
-      ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`)
-      : `Dr. Physician #${doc.id}`;
+    const rawName = doc.name || doc.staffMember?.name || doc.user?.name || `Doctor #${doc.id}`;
+    const docName = rawName.startsWith('Dr') ? rawName : `Dr. ${rawName}`;
     
     const rawDocTokens = tokens.filter(t => t.doctorId === doc.id || (t.doctor && t.doctor.id === doc.id));
     
@@ -279,7 +278,7 @@ export const TokenQueue: React.FC = () => {
               <option value="">-- Choose Doctor --</option>
               {doctors.map(d => (
                 <option key={d.id} value={d.id}>
-                  {d.user?.name ? (d.user.name.startsWith('Dr.') ? d.user.name : `Dr. ${d.user.name}`) : `Dr. ${d.specialization || 'Physician'}`} ({d.specialization || 'General OPD'})
+                  {d.name || d.staffMember?.name || d.user?.name || `Dr. ${d.specialization || 'Doctor'}`} ({d.specialization || 'General OPD'})
                 </option>
               ))}
             </select>

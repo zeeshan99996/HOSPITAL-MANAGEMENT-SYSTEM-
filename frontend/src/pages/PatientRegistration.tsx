@@ -487,7 +487,7 @@ export const PatientRegistration: React.FC = () => {
                 <option value="">-- Select Available Doctor --</option>
                 {doctors.map((d: any) => (
                   <option key={d.id} value={d.id}>
-                    {d.user?.name ? (d.user.name.startsWith('Dr.') ? d.user.name : `Dr. ${d.user.name}`) : `Dr. ${d.specialization || 'Physician'}`} ({d.specialization || d.department?.name || 'OPD'}) - Rs. {d.consultationFee || 1500}
+                    {d.name || d.user?.name || `Dr. ${d.specialization || 'Doctor'}`} ({d.specialization || d.department?.name || 'General OPD'}) - Rs. {d.consultationFee || 500}
                   </option>
                 ))}
               </select>
