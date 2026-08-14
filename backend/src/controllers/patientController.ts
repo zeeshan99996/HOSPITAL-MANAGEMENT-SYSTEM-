@@ -76,31 +76,6 @@ export const createPatient = async (req: Request, res: Response) => {
       }
     }
 
-    // Auto-create TokenQueue entry if doctorId was provided in request
-    const assignedDocId = Number(req.body.doctorId || patientData.doctorId);
-    if (assignedDocId > 0) {
-      try {
-        const countToday = await TokenQueue.count({
-          where: {
-            doctorId: assignedDocId,
-            createdAt: { [Op.between]: [startOfDay, endOfDay] }
-          },
-          transaction
-        });
-        const docSeq = countToday + 1;
-        const tokenNoStr = `T-${String(docSeq).padStart(2, '0')}`;
-
-        await TokenQueue.create({
-          patientId: patient.id,
-          doctorId: assignedDocId,
-          tokenNumber: tokenNoStr,
-          status: 'waiting',
-        }, { transaction });
-      } catch (tErr) {
-        console.warn('[patientController] Auto TokenQueue creation error:', tErr);
-      }
-    }
-
     await transaction.commit();
     return res.status(201).json({ message: 'Patient registered successfully.', patient });
   } catch (error: any) {
