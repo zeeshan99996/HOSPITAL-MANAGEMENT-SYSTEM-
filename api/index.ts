@@ -8,7 +8,6 @@ dotenv.config();
 // Safely load compiled backend modules
 let apiRouter: any;
 let sequelize: any;
-let seedDatabase: any;
 
 try {
   const routesMod = require('../backend/dist/routes/api');
@@ -16,8 +15,6 @@ try {
   const dbMod = require('../backend/dist/config/db');
   sequelize = dbMod.default || dbMod;
   require('../backend/dist/models');
-  const seedMod = require('../backend/dist/seeders/initialSeed');
-  seedDatabase = seedMod.seedDatabase;
 } catch (distErr) {
   try {
     const routesMod = require('../backend/src/routes/api');
@@ -25,8 +22,6 @@ try {
     const dbMod = require('../backend/src/config/db');
     sequelize = dbMod.default || dbMod;
     require('../backend/src/models');
-    const seedMod = require('../backend/src/seeders/initialSeed');
-    seedDatabase = seedMod.seedDatabase;
   } catch (srcErr) {
     console.error('[API Module Loading Error]:', distErr, srcErr);
   }
@@ -106,17 +101,13 @@ function getApp(): express.Application {
   instance.get('/health/db', handleDbHealth);
   instance.get('/api/health/db', handleDbHealth);
 
-  // Lazy DB & Seeding Middleware
+  // Lazy DB Middleware without mock data seeding
   instance.use(async (req, res, next) => {
     if (!isDbInitialized && sequelize) {
       try {
-        console.log('[Vercel Serverless] Initializing DB Connection & Seeding...');
+        console.log('[Vercel Serverless] Initializing DB Connection...');
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
-
-        if (seedDatabase) {
-          await seedDatabase();
-        }
         isDbInitialized = true;
         console.log('[Serverless DB Init] Complete.');
       } catch (err: any) {

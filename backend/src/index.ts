@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import sequelize from './config/db';
 import apiRouter from './routes/api';
-import { seedDatabase } from './seeders/initialSeed';
 
 dotenv.config();
 
@@ -133,9 +132,6 @@ const startServer = async () => {
         console.warn('[MySQL Migration Warning]:', mErr);
       }
     }
-
-    // Seed mock data if empty
-    await seedDatabase();
 
     // Start server
     app.listen(PORT, () => {
