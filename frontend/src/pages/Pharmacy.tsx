@@ -278,7 +278,7 @@ export const Pharmacy: React.FC = () => {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
           {/* Left Column: Title & Subtitle */}
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-semibold tracking-wide">
@@ -287,7 +287,7 @@ export const Pharmacy: React.FC = () => {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400">
+              <div className="p-2.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 shrink-0">
                 <Pill className="h-6 w-6" />
               </div>
               <span>Pharmacy Dispensary & Inventory Desk</span>
@@ -299,68 +299,71 @@ export const Pharmacy: React.FC = () => {
           </div>
 
           {/* Right Column: Key Indicators & Action */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
             {/* Metric Cards Grid */}
-            <div className="grid grid-cols-3 gap-2.5 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 backdrop-blur-sm">
-              <div className="px-3.5 py-2 rounded-lg bg-slate-900/80 border border-slate-800 text-left min-w-[95px]">
+            <div className="flex items-center gap-2 bg-slate-950/80 p-2 rounded-xl border border-slate-800 backdrop-blur-sm shrink-0">
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-left min-w-[85px]">
                 <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Stock Types</span>
                 <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-lg font-bold text-white tracking-tight">{medicines.length}</span>
-                  <span className="text-[11px] text-slate-400 font-normal">items</span>
+                  <span className="text-base font-bold text-white tracking-tight">{medicines.length}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">items</span>
                 </div>
               </div>
 
-              <div className="px-3.5 py-2 rounded-lg bg-slate-900/80 border border-amber-500/20 text-left min-w-[95px]">
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-amber-500/30 text-left min-w-[85px]">
                 <span className="text-[10px] text-amber-400/90 font-medium uppercase tracking-wider block flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />
                   Low Stock
                 </span>
                 <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-lg font-bold text-amber-300 tracking-tight">{lowStockMeds.length}</span>
-                  <span className="text-[11px] text-amber-400/70 font-normal">alert</span>
+                  <span className="text-base font-bold text-amber-300 tracking-tight">{lowStockMeds.length}</span>
+                  <span className="text-[10px] text-amber-400/70 font-normal">alert</span>
                 </div>
               </div>
 
-              <div className="px-3.5 py-2 rounded-lg bg-slate-900/80 border border-emerald-500/20 text-left min-w-[95px]">
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-emerald-500/30 text-left min-w-[85px]">
                 <span className="text-[10px] text-emerald-400/90 font-medium uppercase tracking-wider block flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                   OPD/IPD
                 </span>
                 <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-lg font-bold text-emerald-300 tracking-tight">{todayPatients.length + admitPatients.length}</span>
-                  <span className="text-[11px] text-emerald-400/70 font-normal">active</span>
+                  <span className="text-base font-bold text-emerald-300 tracking-tight">{todayPatients.length + admitPatients.length}</span>
+                  <span className="text-[10px] text-emerald-400/70 font-normal">active</span>
                 </div>
               </div>
             </div>
 
-            {/* Dedicated Action Button */}
-            <button
-              onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
-              className={`px-4 py-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap ${
-                mainTab === 'store'
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20'
-                  : 'bg-brand-600 hover:bg-brand-500 text-white border-brand-500 shadow-brand-900/20'
-              }`}
-            >
-              {mainTab === 'patient' ? (
-                <>
-                  <Package className="h-4 w-4" />
-                  <span>Store Inventory Register ({medicines.length})</span>
-                </>
-              ) : (
-                <>
-                  <UserCheck className="h-4 w-4" />
-                  <span>← Dispensing Console</span>
-                </>
-              )}
-            </button>
+            {/* Dedicated Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap ${
+                  mainTab === 'store'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20'
+                    : 'bg-brand-600 hover:bg-brand-500 text-white border-brand-500 shadow-brand-900/20'
+                }`}
+              >
+                {mainTab === 'patient' ? (
+                  <>
+                    <Package className="h-4 w-4" />
+                    <span>Store Inventory ({medicines.length})</span>
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="h-4 w-4" />
+                    <span>← Dispensing Console</span>
+                  </>
+                )}
+              </button>
 
-            {isSysAdmin && mainTab === 'store' && (
-              <Button onClick={() => setIsAddMedOpen(true)} className="px-4 py-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm text-xs border border-brand-500">
-                <Plus className="h-4 w-4" />
-                <span>Add Stock Item</span>
-              </Button>
-            )}
+              {isSysAdmin && mainTab === 'store' && (
+                <Button onClick={() => setIsAddMedOpen(true)} className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-xs border border-brand-500">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Stock</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>
