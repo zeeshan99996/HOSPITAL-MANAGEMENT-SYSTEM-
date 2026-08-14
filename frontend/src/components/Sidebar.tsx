@@ -196,13 +196,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         }`}
       >
         {/* Header Logo */}
-        <div className="flex h-16 items-center gap-2.5 px-6 border-b border-slate-100 dark:border-slate-850">
-          <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-brand-500 text-white animate-pulse">
-            <HeartPulse className="h-5 w-5" />
+        <div className="flex h-16 items-center gap-3 px-5 border-b border-slate-100 dark:border-slate-850">
+          <div className="flex items-center justify-center h-10 w-10 rounded-xl overflow-hidden shadow-sm border border-brand-500/20 bg-white dark:bg-dark-950 p-0.5 shrink-0">
+            <img src="/logo.png" alt="Dr. Talha Clinic Logo" className="h-full w-full object-contain" />
           </div>
-          <div>
-            <span className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Dr. Talha</span>
-            <span className="text-[10px] block font-medium uppercase tracking-wider text-brand-500 -mt-1 font-semibold">Clinic EMR</span>
+          <div className="min-w-0">
+            <span className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight truncate block">Dr. Talha Clinic</span>
+            <span className="text-[10px] block font-bold uppercase tracking-wider text-brand-500 -mt-0.5">Clinical EMR & HMS</span>
           </div>
         </div>
 

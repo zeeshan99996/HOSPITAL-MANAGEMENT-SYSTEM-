@@ -75,11 +75,11 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md z-10">
         {/* Brand Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-white shadow-lg shadow-brand-500/30 mb-3">
-            <HeartPulse className="h-6 w-6" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white dark:bg-dark-900 border border-brand-500/30 shadow-xl shadow-brand-500/10 mb-3 p-1.5 overflow-hidden">
+            <img src="/logo.png" alt="Dr. Talha Clinic" className="h-full w-full object-contain" />
           </div>
-          <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dr. Talha Clinic</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Clinical Medical EMR Portal</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dr. Talha Clinic</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Hospital & Clinical EMR Portal</p>
         </div>
 
         {/* Auth Forms Card */}
