@@ -61,21 +61,41 @@ export const ClinicExpenses: React.FC = () => {
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const [expensesData, payrollData, staffData] = await Promise.all([
+      const [expensesRes, payrollRes, staffRes] = await Promise.allSettled([
         apiClient.get('/expenses'),
         apiClient.get(`/payroll?month=${selectedMonth}`),
         apiClient.get('/admin/staff')
       ]);
 
-      setExpenses(Array.isArray(expensesData) ? expensesData : []);
-
-      if (payrollData) {
-        setPayrolls(Array.isArray(payrollData.payroll) ? payrollData.payroll : (Array.isArray(payrollData) ? payrollData : []));
+      if (expensesRes.status === 'fulfilled' && expensesRes.value) {
+        setExpenses(Array.isArray(expensesRes.value) ? expensesRes.value : []);
       }
 
-      if (Array.isArray(staffData)) {
-        setStaffList(staffData);
+      let loadedStaff: any[] = [];
+
+      if (staffRes.status === 'fulfilled' && Array.isArray(staffRes.value)) {
+        loadedStaff = staffRes.value;
       }
+
+      if (payrollRes.status === 'fulfilled' && payrollRes.value) {
+        const pData = payrollRes.value;
+        const pList = Array.isArray(pData.payroll) ? pData.payroll : (Array.isArray(pData) ? pData : []);
+        setPayrolls(pList);
+
+        if (loadedStaff.length === 0 && Array.isArray(pData.staffMembers)) {
+          loadedStaff = pData.staffMembers;
+        }
+      }
+
+      // If still empty, try fallback to /staff
+      if (loadedStaff.length === 0) {
+        try {
+          const fallbackStaff = await apiClient.get('/staff');
+          if (Array.isArray(fallbackStaff)) loadedStaff = fallbackStaff;
+        } catch (_) {}
+      }
+
+      setStaffList(loadedStaff);
     } catch (err) {
       console.error('Error loading clinic expenses & payroll', err);
     } finally {
@@ -852,7 +872,7 @@ export const ClinicExpenses: React.FC = () => {
               onChange={e => handleStaffSelect(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-brand-400 text-xs bg-white dark:bg-dark-900 font-bold text-slate-900 dark:text-slate-100"
             >
-              <option value="">-- Select Registered Staff --</option>
+              <option value="">-- Select Registered Staff ({staffList.length} Available) --</option>
               {staffList.map((s: any) => (
                 <option key={s.id} value={s.id}>
                   {s.name} • ({s.designation || 'Staff'}) • Salary: Rs. {Number(s.salary || 0).toLocaleString()}
