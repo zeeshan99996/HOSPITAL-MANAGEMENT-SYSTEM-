@@ -228,89 +228,108 @@ export const Patients: React.FC = () => {
         )}
       </div>
 
-      {/* Filter panel - 4 Separate Search Boxes (Image 02) */}
-      <Card className="p-4 bg-slate-50/50 dark:bg-dark-900/50 border border-slate-200 dark:border-slate-800">
-        <form onSubmit={handleSearchSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Box 1: Name / MR Number */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
-                <User className="h-3 w-3 text-brand-500" /> Patient Name / MR#
-              </label>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search Name or MR..."
-                  value={searchName}
-                  onChange={e => setSearchName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
-                />
+      {/* Filter panel - Hidden for Nurse (Nurse only sees full Admitted Inpatients) */}
+      {!isNurse ? (
+        <Card className="p-4 bg-slate-50/50 dark:bg-dark-900/50 border border-slate-200 dark:border-slate-800">
+          <form onSubmit={handleSearchSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Box 1: Name / MR Number */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                  <User className="h-3 w-3 text-brand-500" /> Patient Name / MR#
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Name or MR..."
+                    value={searchName}
+                    onChange={e => setSearchName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Box 2: Phone Number */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                  <Phone className="h-3 w-3 text-brand-500" /> Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Phone..."
+                    value={searchPhone}
+                    onChange={e => setSearchPhone(e.target.value)}
+                    className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Box 3: Area */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                  <MapPin className="h-3 w-3 text-brand-500" /> Area / Colony
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Area..."
+                    value={searchArea}
+                    onChange={e => setSearchArea(e.target.value)}
+                    className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Box 4: Date */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
+                  <Calendar className="h-3 w-3 text-brand-500" /> Date
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={searchDate}
+                    onChange={e => setSearchDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 px-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Box 2: Phone Number */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
-                <Phone className="h-3 w-3 text-brand-500" /> Phone Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search Phone..."
-                  value={searchPhone}
-                  onChange={e => setSearchPhone(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Box 3: Area */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
-                <MapPin className="h-3 w-3 text-brand-500" /> Area / Colony
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search Area..."
-                  value={searchArea}
-                  onChange={e => setSearchArea(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 pl-8 pr-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Box 4: Date */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1 uppercase tracking-wider">
-                <Calendar className="h-3 w-3 text-brand-500" /> Date
-              </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={searchDate}
-                  onChange={e => setSearchDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 dark:border-slate-800 bg-white dark:bg-dark-950 py-1.5 px-3 text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10 text-slate-800 dark:text-slate-100 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end items-center gap-2 pt-1">
-            {hasActiveFilters && (
-              <Button type="button" variant="secondary" size="sm" onClick={handleResetFilters} className="flex items-center gap-1 text-slate-600">
-                <RotateCcw className="h-3.5 w-3.5" /> Clear Filters
+            <div className="flex justify-end items-center gap-2 pt-1">
+              {hasActiveFilters && (
+                <Button type="button" variant="secondary" size="sm" onClick={handleResetFilters} className="flex items-center gap-1 text-slate-600">
+                  <RotateCcw className="h-3.5 w-3.5" /> Clear Filters
+                </Button>
+              )}
+              <Button type="submit" size="sm" className="flex items-center gap-1">
+                <Search className="h-3.5 w-3.5" /> Search Patient
               </Button>
-            )}
-            <Button type="submit" size="sm" className="flex items-center gap-1">
-              <Search className="h-3.5 w-3.5" /> Search Patient
-            </Button>
+            </div>
+          </form>
+        </Card>
+      ) : (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 rounded-xl">
+          <div className="flex items-center gap-2.5 text-xs font-bold text-rose-800 dark:text-rose-300">
+            <BedDouble className="h-5 w-5 text-rose-600" />
+            <span>Currently Active Admitted Inpatients ({admittedPatients.length} Admitted in Ward Beds)</span>
           </div>
-        </form>
-      </Card>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search Admitted Patient / Bed..."
+              value={searchName}
+              onChange={e => setSearchName(e.target.value)}
+              className="w-full rounded-lg border border-rose-200 dark:border-rose-900/50 bg-white dark:bg-dark-900 py-1.5 pl-8 pr-3 text-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/10 text-slate-800 dark:text-slate-100"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Patients Data Table */}
       {activeTab === 'today' && todayPatients.length === 0 && !loading && (
@@ -327,10 +346,14 @@ export const Patients: React.FC = () => {
         </div>
       ) : displayedPatients.length === 0 ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
-          <p className="text-sm font-semibold text-slate-555 dark:text-slate-400">No patient records found in {activeTab === 'today' ? "Today's Intake" : activeTab === 'admitted' ? "Admitted IPD Registry" : "Master Records"}.</p>
-          <p className="text-xs text-slate-450 dark:text-slate-500 mt-1">Try switching tabs or refining your search parameters.</p>
+          <p className="text-sm font-semibold text-slate-555 dark:text-slate-400">
+            {isNurse ? "No active admitted patients found in the inpatient ward." : `No patient records found in ${activeTab === 'today' ? "Today's Intake" : activeTab === 'admitted' ? "Admitted IPD Registry" : "Master Records"}.`}
+          </p>
+          <p className="text-xs text-slate-450 dark:text-slate-500 mt-1">
+            {isNurse ? "Admissions are processed by the Reception desk." : "Try switching tabs or refining your search parameters."}
+          </p>
         </Card>
-      ) : activeTab === 'admitted' ? (
+      ) : activeTab === 'admitted' || isNurse ? (
         /* ADMITTED PATIENTS TABLE */
         <Card className="overflow-x-auto p-0 border border-slate-200 dark:border-slate-850">
           <table className="w-full text-left text-xs border-collapse">
@@ -342,9 +365,7 @@ export const Patients: React.FC = () => {
                 <th className="px-6 py-3.5">Alotted Bed & Ward</th>
                 <th className="px-6 py-3.5">Attending Doctor</th>
                 <th className="px-6 py-3.5">Condition / Diagnosis</th>
-                {(user?.role === 'doctor' || user?.role === 'admin') && (
-                  <th className="px-6 py-3.5 text-right font-semibold">EMR Action</th>
-                )}
+                <th className="px-6 py-3.5 text-right font-semibold">EMR & Vitals</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -399,16 +420,14 @@ export const Patients: React.FC = () => {
                     <td className="px-6 py-4">
                       <span className="font-semibold text-slate-800 dark:text-slate-200">{activeAdmission?.condition || 'Under Observation'}</span>
                     </td>
-                    {(user?.role === 'doctor' || user?.role === 'admin') && (
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handlePatientClick(p.id)}
-                          className="inline-flex items-center gap-1 p-1.5 bg-slate-100 hover:bg-brand-500 dark:bg-dark-950 hover:text-white rounded-lg border border-slate-200 dark:border-slate-850 text-slate-600 dark:text-slate-400 text-[10px] font-bold transition-all"
-                        >
-                          <Eye className="h-3 w-3" /> EMR File
-                        </button>
-                      </td>
-                    )}
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handlePatientClick(p.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:text-white rounded-xl border border-rose-200 dark:border-rose-900/50 text-xs font-bold transition-all shadow-sm"
+                      >
+                        <Thermometer className="h-3.5 w-3.5" /> Log Vitals / EMR
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
