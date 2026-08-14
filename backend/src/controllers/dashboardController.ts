@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { User, SystemUser, StaffMember, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog, TokenQueue } from '../models';
-import { supabaseAdmin } from '../config/supabase';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
 
@@ -520,23 +519,6 @@ export const updateUserCredentials = async (req: Request, res: Response) => {
     if (sysUser) try { await sysUser.update(updates); } catch (e) {}
     if (user) try { await user.update(updates); } catch (e) {}
 
-    // Also update in Supabase public.system_users table
-    try {
-      await supabaseAdmin.from('system_users').update(updates).eq('id', id);
-    } catch (sErr) {}
-
-    // Update password/metadata in Supabase Auth if UUID exists
-    const sbUuid = sysUser?.supabase_user_id || user?.supabase_user_id;
-    if (sbUuid) {
-      try {
-        const sbAttrs: any = {};
-        if (password) sbAttrs.password = password;
-        if (email) sbAttrs.email = email;
-        if (name || role) sbAttrs.user_metadata = { name, role };
-        await supabaseAdmin.auth.admin.updateUserById(sbUuid, sbAttrs);
-      } catch (sbErr) {}
-    }
-
     return res.status(200).json({
       message: `System user credentials updated successfully.`,
       user: sysUser || user || { id, name, email, role, status, phone },
@@ -565,7 +547,6 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
 
     const targetEmail = (sysUser?.email || user?.email || '').trim().toLowerCase();
     const deletedName = sysUser?.name || user?.name || 'User';
-    const sbUuid = sysUser?.supabase_user_id || user?.supabase_user_id;
 
     // Hard delete permanently from both system_users and users tables by ID and email
     if (targetEmail) {
@@ -578,20 +559,6 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
       if (user) try { await user.destroy({ force: true }); } catch (e) {}
     }
 
-    // Also delete from Supabase public.system_users table if exists
-    try {
-      await supabaseAdmin.from('system_users').delete().eq('id', id);
-      if (targetEmail) {
-        await supabaseAdmin.from('system_users').delete().eq('email', targetEmail);
-      }
-    } catch (sErr) {}
-
-    if (sbUuid) {
-      try {
-        await supabaseAdmin.auth.admin.deleteUser(sbUuid);
-      } catch (sbErr) {}
-    }
-
     return res.status(200).json({
       message: `System user account '${deletedName}' (${targetEmail || id}) deleted successfully.`,
     });
@@ -602,7 +569,6 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
   }
 };
 
-
 export const createSystemUserAdmin = async (req: Request, res: Response) => {
   const { name, email, password, role, status, phone } = req.body;
 
@@ -611,10 +577,6 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
   }
 
   try {
-    // Auto-sync SystemUser table if not present
-    try { await SystemUser.sync(); } catch (e) {}
-    try { await User.sync(); } catch (e) {}
-
     const normEmail = String(email).trim().toLowerCase();
 
     let existingSys: any = null;
@@ -626,36 +588,9 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'System User with this email address already exists.' });
     }
 
-    let supabaseUserId: string | null = null;
-
-    // 1. Create User in Supabase Auth (Identity Verification Provider)
-    try {
-      const { data: sbData, error: sbError } = await supabaseAdmin.auth.admin.createUser({
-        email: normEmail,
-        password: password || 'Password123',
-        email_confirm: true,
-        user_metadata: { name, role: role || 'admin' },
-      });
-
-      if (sbData?.user) {
-        supabaseUserId = sbData.user.id;
-        console.log(`✅ [Supabase Auth] Created System User UUID: ${supabaseUserId}`);
-      } else if (sbError) {
-        console.warn(`[Supabase Auth Create Notice]: ${sbError.message}`);
-        // If user exists in Auth, fetch existing UUID
-        try {
-          const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-          const found = listData?.users?.find((u: any) => u.email?.toLowerCase() === normEmail);
-          if (found) supabaseUserId = found.id;
-        } catch (lErr) {}
-      }
-    } catch (sbEx: any) {
-      console.warn('[Supabase Auth Admin Ex]:', sbEx.message);
-    }
-
     const hashed = await bcrypt.hash(password || 'Password123', 10);
 
-    // 2. Save into dedicated system_users table
+    // 1. Save into dedicated system_users table
     let sysUser: any = null;
     try {
       sysUser = await SystemUser.create({
@@ -665,38 +600,12 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
         role: role || 'admin',
         phone: phone || '',
         status: status || 'active',
-        supabase_user_id: supabaseUserId,
       });
     } catch (sErr: any) {
       console.warn('[SystemUser.create Warning]:', sErr?.message);
     }
 
-    // 3. Save into Supabase PostgreSQL system_users table via Supabase Client API
-    let supaCreatedUser: any = null;
-    try {
-      const { data: supaData, error: supaErr } = await supabaseAdmin.from('system_users').insert([
-        {
-          name,
-          email: normEmail,
-          password: hashed,
-          phone: phone || '',
-          role: role || 'admin',
-          status: status || 'active',
-          supabase_user_id: supabaseUserId,
-        }
-      ]).select();
-
-      if (supaErr) {
-        console.error('❌ [Supabase system_users Table Insert Error]:', supaErr.message);
-      } else if (supaData && supaData.length > 0) {
-        supaCreatedUser = supaData[0];
-        console.log(`✅ [Supabase Table] Inserted System User into Supabase 'system_users' table:`, supaCreatedUser);
-      }
-    } catch (supaTableErr: any) {
-      console.warn('[Supabase system_users Table Insert Notice]:', supaTableErr?.message);
-    }
-
-    // 4. Also insert into User model for legacy joins
+    // 2. Also insert into User model for legacy joins
     try {
       await User.create({
         name,
@@ -705,7 +614,6 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
         role: role || 'admin',
         phone: phone || '',
         status: status || 'active',
-        supabase_user_id: supabaseUserId,
       });
     } catch (uErr) {}
 
@@ -720,14 +628,13 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
     } catch (aErr) {}
 
     return res.status(201).json({
-      message: `System user account for '${name}' created successfully in Supabase Auth & DB.`,
+      message: `System user account for '${name}' created successfully.`,
       user: sysUser || { name, email: normEmail, role: role || 'admin', status: status || 'active', phone: phone || '' },
     });
   } catch (error: any) {
     console.error('Error creating system user account:', error);
-    return res.status(201).json({
-      message: `System user account created successfully.`,
-      user: { name, email, role: role || 'admin', status: status || 'active', phone: phone || '' },
+    return res.status(500).json({
+      message: `Error creating system user account: ${error.message}`,
     });
   }
 };

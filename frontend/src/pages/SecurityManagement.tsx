@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
-import { supabase } from '../config/supabaseClient';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   ShieldCheck,

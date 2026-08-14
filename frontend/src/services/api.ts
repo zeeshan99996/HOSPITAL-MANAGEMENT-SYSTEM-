@@ -1,5 +1,3 @@
-import { supabase } from '../config/supabaseClient';
-
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 interface RequestOptions extends RequestInit {
@@ -7,16 +5,7 @@ interface RequestOptions extends RequestInit {
 }
 
 const getHeaders = async () => {
-  let token = localStorage.getItem('hms_token') || localStorage.getItem('supabase_token');
-
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      token = session.access_token;
-      localStorage.setItem('hms_token', token);
-    }
-  } catch (err) {}
-
+  const token = localStorage.getItem('hms_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
