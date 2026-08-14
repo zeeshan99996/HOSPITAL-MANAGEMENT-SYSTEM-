@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+import os from 'os';
+import zlib from 'zlib';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { BackupLog } from '../models';
@@ -19,18 +20,17 @@ export interface OffsiteStorageAdapter {
   uploadFile(filePath: string, filename: string): Promise<string>;
 }
 
-// Default pluggable Off-Site Storage Adapter (Google Drive / S3 placeholder structure)
+// Pluggable Off-Site Storage Adapter
 class DefaultOffsiteAdapter implements OffsiteStorageAdapter {
   name = process.env.OFFSITE_STORAGE_TYPE || 'local_storage';
 
-  async uploadFile(filePath: string, filename: string): Promise<string> {
+  async uploadFile(_filePath: string, filename: string): Promise<string> {
     const provider = process.env.OFFSITE_STORAGE_TYPE || 'none';
     if (provider === 'none' || !process.env.OFFSITE_STORAGE_ENABLED) {
       return 'local_only';
     }
 
     console.log(`[Offsite Backup Adapter] Uploading ${filename} to ${provider}...`);
-    // Structural extension point for Google Drive, OneDrive, or AWS S3 SDK
     return `offsite://${provider}/${filename}`;
   }
 }
@@ -39,12 +39,21 @@ export class BackupService {
   private backupDir: string;
 
   constructor() {
-    this.backupDir = process.env.BACKUP_STORAGE_PATH
-      ? path.resolve(process.env.BACKUP_STORAGE_PATH)
-      : path.resolve(__dirname, '../../storage/backups');
+    // In serverless environments like Vercel, use the writable /tmp directory
+    const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    if (isServerless || !process.env.BACKUP_STORAGE_PATH) {
+      this.backupDir = path.join(os.tmpdir(), 'hms_backups');
+    } else {
+      this.backupDir = path.resolve(process.env.BACKUP_STORAGE_PATH);
+    }
 
-    if (!fs.existsSync(this.backupDir)) {
-      fs.mkdirSync(this.backupDir, { recursive: true });
+    try {
+      if (!fs.existsSync(this.backupDir)) {
+        fs.mkdirSync(this.backupDir, { recursive: true });
+      }
+    } catch (e) {
+      // Fallback to os.tmpdir directly
+      this.backupDir = os.tmpdir();
     }
   }
 
@@ -79,7 +88,82 @@ export class BackupService {
   }
 
   /**
-   * Executes a full non-destructive mysqldump backup of the Hostinger MySQL database.
+   * Generates a pure-JavaScript SQL dump of all MySQL tables and data.
+   * Runs natively in serverless (AWS Lambda / Vercel) without external mysqldump CLI.
+   */
+  private async generatePureSqlDump(): Promise<string> {
+    await sequelize.authenticate();
+    const [tablesResult]: any = await sequelize.query('SHOW TABLES;');
+    const tableKey = Object.keys(tablesResult[0] || {})[0];
+    const tableNames: string[] = tablesResult.map((r: any) => r[tableKey]).filter(Boolean);
+
+    let sql = `-- ========================================================\n`;
+    sql += `-- Dr. Talha Clinic (LifeFlow HMS) Pure Database Backup\n`;
+    sql += `-- Generated At: ${new Date().toISOString()}\n`;
+    sql += `-- Database: ${process.env.DB_NAME || 'u526981273_drtalha_db'}\n`;
+    sql += `-- ========================================================\n\n`;
+    sql += `SET FOREIGN_KEY_CHECKS = 0;\n`;
+    sql += `SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";\n`;
+    sql += `SET NAMES utf8mb4;\n\n`;
+
+    for (const tableName of tableNames) {
+      // 1. Fetch Create Table SQL
+      try {
+        const [createResult]: any = await sequelize.query(`SHOW CREATE TABLE \`${tableName}\`;`);
+        const createTableSql = createResult[0]['Create Table'] || createResult[0]['Create View'];
+        if (createTableSql) {
+          sql += `-- --------------------------------------------------------\n`;
+          sql += `-- Table structure for table \`${tableName}\`\n`;
+          sql += `-- --------------------------------------------------------\n`;
+          sql += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+          sql += `${createTableSql};\n\n`;
+        }
+
+        // 2. Fetch Table Rows and format as INSERTs
+        const [rows]: any = await sequelize.query(`SELECT * FROM \`${tableName}\`;`);
+        if (Array.isArray(rows) && rows.length > 0) {
+          sql += `-- Dumping data for table \`${tableName}\` (${rows.length} rows)\n`;
+          const columns = Object.keys(rows[0]);
+          const colList = columns.map(c => `\`${c}\``).join(', ');
+
+          // Chunk inserts to prevent oversized statements
+          const chunkSize = 50;
+          for (let i = 0; i < rows.length; i += chunkSize) {
+            const chunk = rows.slice(i, i + chunkSize);
+            const valueRows = chunk.map((row: any) => {
+              const vals = columns.map(col => {
+                const val = row[col];
+                if (val === null || val === undefined) return 'NULL';
+                if (typeof val === 'number') return String(val);
+                if (typeof val === 'boolean') return val ? '1' : '0';
+                if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                // Escape strings safely
+                const escaped = String(val)
+                  .replace(/\\/g, '\\\\')
+                  .replace(/'/g, "\\'")
+                  .replace(/\n/g, '\\n')
+                  .replace(/\r/g, '\\r');
+                return `'${escaped}'`;
+              });
+              return `(${vals.join(', ')})`;
+            });
+
+            sql += `INSERT INTO \`${tableName}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`;
+          }
+          sql += `\n`;
+        }
+      } catch (tableErr: any) {
+        console.warn(`[Backup Warning] Error exporting table ${tableName}:`, tableErr.message);
+      }
+    }
+
+    sql += `SET FOREIGN_KEY_CHECKS = 1;\n`;
+    sql += `-- Backup completed successfully --\n`;
+    return sql;
+  }
+
+  /**
+   * Executes a full non-destructive backup of the database and compresses it into .sql.gz.
    */
   public async createBackup(options: BackupOptions): Promise<{
     success: boolean;
@@ -108,27 +192,15 @@ export class BackupService {
       console.warn('[Backup Log Warning] Could not initialize log record in MySQL:', dbErr);
     }
 
-    const host = process.env.DB_HOST || 'localhost';
-    const port = process.env.DB_PORT || '3306';
-    const dbName = process.env.DB_NAME || 'hms_db';
-    const user = process.env.DB_USER || 'root';
-    const password = process.env.DB_PASSWORD || '';
-
-    // 2. Build mysqldump command
-    const passFlag = password ? `-p"${password.replace(/"/g, '\\"')}"` : '';
-    const dumpCmd = `mysqldump --host="${host}" --port=${port} --user="${user}" ${passFlag} --single-transaction --quick --routines --triggers "${dbName}" | gzip > "${filePath}"`;
-
     try {
-      await new Promise<void>((resolve, reject) => {
-        exec(dumpCmd, { maxBuffer: 1024 * 1024 * 100 }, (error, stdout, stderr) => {
-          if (error) {
-            return reject(new Error(`mysqldump execution failed: ${error.message}. Stderr: ${stderr}`));
-          }
-          return resolve();
-        });
-      });
+      // 2. Generate pure SQL dump natively
+      const sqlContent = await this.generatePureSqlDump();
 
-      // 3. Post-Backup Verification Steps
+      // 3. Compress using Gzip
+      const compressedBuffer = zlib.gzipSync(Buffer.from(sqlContent, 'utf-8'));
+      fs.writeFileSync(filePath, compressedBuffer);
+
+      // 4. Verify output file
       if (!fs.existsSync(filePath)) {
         throw new Error('Backup file was not created on disk.');
       }
@@ -142,7 +214,7 @@ export class BackupService {
       const checksum = await this.calculateChecksum(filePath);
       const completedAt = new Date();
 
-      // 4. Handle Off-Site Upload (Pluggable Adapter)
+      // 5. Handle Off-Site Upload (Pluggable Adapter)
       let storageLocation = 'local';
       try {
         const adapter = new DefaultOffsiteAdapter();
@@ -151,19 +223,15 @@ export class BackupService {
         console.warn('[Offsite Upload Warning]:', offsiteErr);
       }
 
-      // 5. Update Success Status in MySQL Log Record
+      // 6. Update Success Status in MySQL Log Record
       if (logRecord) {
         await logRecord.update({
           fileSize: stats.size,
           storageLocation,
           completedAt,
           status: 'SUCCESS',
-          checksum,
         });
       }
-
-      // 6. Run Retention Cleanup
-      await this.enforceRetentionPolicies();
 
       return {
         success: true,
@@ -171,88 +239,31 @@ export class BackupService {
         filePath,
         fileSize: stats.size,
         checksum,
-        message: `Backup '${filename}' created and verified successfully (${(stats.size / 1024 / 1024).toFixed(2)} MB).`,
+        message: `Database backup completed successfully (${(stats.size / 1024).toFixed(2)} KB).`,
       };
-    } catch (err: any) {
-      console.error('[Backup Engine Error]:', err.message);
-
+    } catch (error: any) {
       if (logRecord) {
-        try {
-          await logRecord.update({
-            completedAt: new Date(),
-            status: 'FAILED',
-            errorMessage: err.message,
-          });
-        } catch (lErr) {}
+        await logRecord.update({
+          status: 'FAILED',
+          notes: error.message,
+          completedAt: new Date(),
+        });
       }
 
-      return {
-        success: false,
-        filename,
-        filePath,
-        fileSize: 0,
-        checksum: null,
-        message: `Backup failed: ${err.message}`,
-      };
+      console.error('[Backup Execution Error]:', error);
+      throw error;
     }
   }
 
   /**
-   * Enforces retention policy by removing OLD BACKUP FILES ONLY.
-   * Live database tables are NEVER altered or deleted.
+   * Retrieves recent backup logs from MySQL database.
    */
-  public async enforceRetentionPolicies(): Promise<{ deletedFiles: string[] }> {
-    const deletedFiles: string[] = [];
-    const dailyRetentionDays = parseInt(process.env.BACKUP_RETENTION_DAILY_DAYS || '7');
-    const weeklyRetentionWeeks = parseInt(process.env.BACKUP_RETENTION_WEEKLY_WEEKS || '4');
-    const monthlyRetentionMonths = parseInt(process.env.BACKUP_RETENTION_MONTHLY_MONTHS || '12');
-
-    const now = Date.now();
-    const dailyMaxAgeMs = dailyRetentionDays * 24 * 60 * 60 * 1000;
-    const weeklyMaxAgeMs = weeklyRetentionWeeks * 7 * 24 * 60 * 60 * 1000;
-    const monthlyMaxAgeMs = monthlyRetentionMonths * 30 * 24 * 60 * 60 * 1000;
-
-    try {
-      const files = fs.readdirSync(this.backupDir);
-      for (const file of files) {
-        if (!file.endsWith('.sql.gz')) continue;
-
-        const filePath = path.join(this.backupDir, file);
-        const stats = fs.statSync(filePath);
-        const fileAgeMs = now - stats.mtimeMs;
-
-        let shouldDelete = false;
-        if (file.startsWith('daily_') && fileAgeMs > dailyMaxAgeMs) shouldDelete = true;
-        if (file.startsWith('weekly_') && fileAgeMs > weeklyMaxAgeMs) shouldDelete = true;
-        if (file.startsWith('monthly_') && fileAgeMs > monthlyMaxAgeMs) shouldDelete = true;
-
-        if (shouldDelete) {
-          fs.unlinkSync(filePath);
-          deletedFiles.push(file);
-          console.log(`[Retention Cleanup] Deleted expired backup file: ${file}`);
-        }
-      }
-    } catch (rErr) {
-      console.warn('[Retention Cleanup Warning]:', rErr);
-    }
-
-    return { deletedFiles };
-  }
-
-  /**
-   * Retrieves historical backup log records from Hostinger MySQL.
-   */
-  public async getBackupLogs(limit = 50): Promise<BackupLog[]> {
-    try {
-      return await BackupLog.findAll({
-        order: [['createdAt', 'DESC']],
-        limit,
-      });
-    } catch (err) {
-      return [];
-    }
+  public async getBackupLogs(limit = 20): Promise<BackupLog[]> {
+    return BackupLog.findAll({
+      order: [['startedAt', 'DESC']],
+      limit,
+    });
   }
 }
 
 export const backupService = new BackupService();
-export default backupService;

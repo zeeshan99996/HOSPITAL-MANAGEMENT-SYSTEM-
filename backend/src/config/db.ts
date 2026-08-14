@@ -43,7 +43,11 @@ if (hasDatabaseUrl) {
   const user = (process.env.DB_USER || 'u526981273_drtalha_db').trim();
   const password = process.env.DB_PASSWORD || 'Pak@pass.3499';
 
-  console.log(`[Hostinger MySQL] Initializing Sequelize Pool with Hostinger MySQL Database: ${user}@${host}:${port}/${database}`);
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const maxPool = isServerless ? parseInt(process.env.DB_POOL_MAX || '2') : parseInt(process.env.DB_POOL_MAX || '5');
+  const idleTimeout = isServerless ? 5000 : 10000;
+
+  console.log(`[Hostinger MySQL] Initializing Sequelize Pool (Serverless: ${isServerless}, PoolMax: ${maxPool}) with Hostinger MySQL Database: ${user}@${host}:${port}/${database}`);
   sequelize = new Sequelize(database, user, password, {
     host,
     port,
@@ -52,13 +56,15 @@ if (hasDatabaseUrl) {
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     timezone: '+05:00',
     pool: {
-      max: parseInt(process.env.DB_POOL_MAX || '10'),
-      min: parseInt(process.env.DB_POOL_MIN || '0'),
+      max: maxPool,
+      min: 0,
       acquire: 30000,
-      idle: 10000,
+      idle: idleTimeout,
+      evict: 5000,
     },
     dialectOptions: {
-      connectTimeout: 20000
+      connectTimeout: 20000,
+      decimalNumbers: true
     },
     define: {
       charset: 'utf8mb4',

@@ -839,18 +839,19 @@ Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'roleId' }
 Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permissionId' });
 
 // User Profiles
-User.hasOne(Doctor, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Doctor.belongsTo(User, { foreignKey: 'userId' });
+User.hasOne(Doctor, { foreignKey: 'userId', onDelete: 'SET NULL' });
+Doctor.belongsTo(User, { foreignKey: 'userId', onDelete: 'SET NULL' });
 
-User.hasOne(Nurse, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Nurse.belongsTo(User, { foreignKey: 'userId' });
+User.hasOne(Nurse, { foreignKey: 'userId', onDelete: 'SET NULL' });
+Nurse.belongsTo(User, { foreignKey: 'userId', onDelete: 'SET NULL' });
 
 // StaffMember Profiles (Separate table)
-StaffMember.hasOne(Doctor, { foreignKey: 'staffId', onDelete: 'CASCADE' });
-Doctor.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember' });
+StaffMember.hasOne(Doctor, { foreignKey: 'staffId', onDelete: 'SET NULL' });
+Doctor.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember', onDelete: 'SET NULL' });
 
-StaffMember.hasOne(Nurse, { foreignKey: 'staffId', onDelete: 'CASCADE' });
-Nurse.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember' });
+StaffMember.hasOne(Nurse, { foreignKey: 'staffId', onDelete: 'SET NULL' });
+Nurse.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember', onDelete: 'SET NULL' });
+
 
 User.hasOne(Patient, { foreignKey: 'userId', onDelete: 'SET NULL' });
 Patient.belongsTo(User, { foreignKey: 'userId' });
