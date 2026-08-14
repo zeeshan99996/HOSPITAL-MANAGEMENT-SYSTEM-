@@ -241,6 +241,8 @@ Patient.init(
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     userId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
     name: { type: DataTypes.STRING, allowNull: false },
+    guardianName: { type: DataTypes.STRING, allowNull: true, defaultValue: 'N/A' },
+    cnic: { type: DataTypes.STRING, allowNull: true, defaultValue: 'N/A' },
     email: { type: DataTypes.STRING, allowNull: true },
     phone: { type: DataTypes.STRING, allowNull: true },
     gender: { type: DataTypes.STRING, allowNull: true, defaultValue: 'male' },
@@ -261,6 +263,7 @@ Patient.init(
   },
   { sequelize, modelName: 'patient', paranoid: true }
 );
+
 
 // ==========================================
 // 6B. AREA & PAYMENT OPTION CONFIG MODELS
