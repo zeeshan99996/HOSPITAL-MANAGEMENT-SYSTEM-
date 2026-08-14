@@ -351,7 +351,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 // BED & ADMISSION MANAGEMENT (IPD & SURGERY)
 // ==========================================
 router.get('/beds', authenticateToken, getBeds);
-router.post('/admissions', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist']), validateAdmission, admitPatient);
+router.post('/admissions', authenticateToken, requireRoles(['admin', 'receptionist']), validateAdmission, admitPatient);
 router.get('/admissions', authenticateToken, getAdmissions);
 router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse']), updateAdmissionNotes);
 router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin', 'doctor']), dischargePatient);

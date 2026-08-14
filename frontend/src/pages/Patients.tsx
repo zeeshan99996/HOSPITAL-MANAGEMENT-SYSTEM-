@@ -16,7 +16,8 @@ export const Patients: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Active Tab View: 'today' (Current Today Patients), 'admitted' (Admit Patients), 'all' (All Patients)
-  const [activeTab, setActiveTab] = useState<'today' | 'admitted' | 'all'>('today');
+  const isNurse = user?.role === 'nurse';
+  const [activeTab, setActiveTab] = useState<'today' | 'admitted' | 'all'>(isNurse ? 'admitted' : 'today');
 
   // Modal / Drawer controls
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -178,23 +179,29 @@ export const Patients: React.FC = () => {
       {/* Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Patient Directory & EMR Records</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Track Today's Intake Patients, Live OPD Doctor Tokens, and Active Inpatient Admissions.</p>
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            {isNurse ? 'Nurse Ward Monitoring & Inpatient Directory' : 'Patient Directory & EMR Records'}
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {isNurse ? 'Active Admitted Inpatients requiring routine BP, Temperature, and Clinical Care logging.' : "Track Today's Intake Patients, Live OPD Doctor Tokens, and Active Inpatient Admissions."}
+          </p>
         </div>
       </div>
 
       {/* Tabs Selection Bar */}
       <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <button
-          onClick={() => setActiveTab('today')}
-          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
-            activeTab === 'today'
-              ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
-              : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          <Clock className="h-4 w-4" /> Current Today Patients ({todayPatients.length})
-        </button>
+        {!isNurse && (
+          <button
+            onClick={() => setActiveTab('today')}
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+              activeTab === 'today'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+            }`}
+          >
+            <Clock className="h-4 w-4" /> Current Today Patients ({todayPatients.length})
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTab('admitted')}
@@ -204,19 +211,21 @@ export const Patients: React.FC = () => {
               : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
           }`}
         >
-          <BedDouble className="h-4 w-4" /> Admitted Patients ({admittedPatients.length})
+          <BedDouble className="h-4 w-4" /> Admitted Inpatients ({admittedPatients.length})
         </button>
 
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
-            activeTab === 'all'
-              ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-md'
-              : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          <User className="h-4 w-4" /> All Master Patients ({patients.length})
-        </button>
+        {!isNurse && (
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+              activeTab === 'all'
+                ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-md'
+                : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+            }`}
+          >
+            <User className="h-4 w-4" /> All Master Patients ({patients.length})
+          </button>
+        )}
       </div>
 
       {/* Filter panel - 4 Separate Search Boxes (Image 02) */}

@@ -490,9 +490,11 @@ export const Admissions: React.FC = () => {
             >
               <UserMinus className="h-4 w-4" /> Discharge Patient
             </Button>
-            <Button onClick={() => setIsAdmitOpen(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Admit Patient
-            </Button>
+            {(user?.role === 'receptionist' || user?.role === 'admin') && (
+              <Button onClick={() => setIsAdmitOpen(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Admit Patient
+              </Button>
+            )}
           </div>
         )}
       </div>
