@@ -267,7 +267,8 @@ export const PatientRegistration: React.FC = () => {
     const doctorName = target.doctorName || (assignedDoc 
       ? (assignedDoc.staffMember?.name || assignedDoc.name || assignedDoc.user?.name || `Dr. ${assignedDoc.name}`)
       : 'General OPD');
-    const doctorSpecialization = target.doctorSpecialization || assignedDoc?.specialization || assignedDoc?.department?.name || '';
+    const rawSpec = target.doctorSpecialization || assignedDoc?.specialization || assignedDoc?.department?.name || '';
+    const cleanSpec = (rawSpec && rawSpec.toLowerCase() !== 'opd' && rawSpec.toLowerCase() !== 'general') ? rawSpec : '';
     const roomNumber = target.doctorRoom || (assignedDoc?.roomNumber ? `Room: ${assignedDoc.roomNumber}` : '');
 
     const printWindow = window.open('', '_blank', 'width=380,height=600');
@@ -289,8 +290,8 @@ export const PatientRegistration: React.FC = () => {
             .hospital-info { font-size: 10px; color: #222; line-height: 1.3; }
             .token-box { border: 2px solid #000; padding: 8px; margin: 10px 0; text-align: center; background-color: #f8f9fa; }
             .token-label { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
-            .token-number { font-size: 24px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+            .token-number { font-size: 26px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; }
             .info-label { font-weight: bold; }
             .footer-text { font-size: 9px; text-align: center; margin-top: 12px; font-weight: bold; line-height: 1.3; }
           </style>
@@ -305,22 +306,18 @@ export const PatientRegistration: React.FC = () => {
           <div class="token-box">
             <div class="token-label">TODAY'S DAILY TOKEN</div>
             <div class="token-number">TOKEN # ${target.tokenNumber || 'T-01'}</div>
-            <div style="font-size: 11px; margin-top: 5px; font-weight: 900; color: #000; letter-spacing: 0.3px;">
+            <div style="font-size: 12px; margin-top: 5px; font-weight: 900; color: #000; letter-spacing: 0.3px;">
               👨‍⚕️ ${doctorName}
             </div>
-            ${doctorSpecialization ? `<div style="font-size: 9px; color: #444; font-weight: bold;">(${doctorSpecialization})</div>` : ''}
+            ${cleanSpec ? `<div style="font-size: 9px; color: #444; font-weight: bold;">(${cleanSpec})</div>` : ''}
             <div style="font-size: 10px; margin-top: 4px; font-weight: bold; color: #333;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
           </div>
 
           <div class="divider"></div>
 
           <div class="info-row"><span class="info-label">Patient Name:</span> <span>${target.name}</span></div>
-          <div class="info-row"><span class="info-label">Doctor Assigned:</span> <span class="bold">${doctorName}${doctorSpecialization ? ` (${doctorSpecialization})` : ''}</span></div>
-          ${roomNumber ? `<div class="info-row"><span class="info-label">Doctor Room:</span> <span>${roomNumber}</span></div>` : ''}
           <div class="info-row"><span class="info-label">Age / Gender:</span> <span>${target.age || 'N/A'} Yrs / ${(target.gender || 'male').toUpperCase()}</span></div>
           <div class="info-row"><span class="info-label">Phone:</span> <span>${target.phone}</span></div>
-          <div class="info-row"><span class="info-label">Area / Colony:</span> <span>${target.area || 'N/A'}</span></div>
-          <div class="info-row"><span class="info-label">Payment Mode:</span> <span>${target.paymentMethod || 'Initial Payment'}</span></div>
           <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. ${target.paymentAmount || '1500'}</span></div>
           <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleString()}</span></div>
 
