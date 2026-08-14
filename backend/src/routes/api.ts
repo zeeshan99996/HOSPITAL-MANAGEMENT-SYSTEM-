@@ -21,7 +21,7 @@ import {
 import { login, registerPatient, getProfile } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
 import sequelize from '../config/db';
-import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption, Invoice, InvoiceItem } from '../models';
+import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption, Invoice, InvoiceItem, SystemUser } from '../models';
 
 import {
   createPatient,
@@ -102,6 +102,42 @@ router.post('/auth/register', registerPatient);
 router.post('/auth/login', validateLogin, login);
 router.get('/auth/profile', authenticateToken, getProfile);
 router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
+
+// Public endpoint for Login page to list registered active system accounts
+router.get('/auth/system-users', async (_req, res) => {
+  try {
+    const systemUsers = await SystemUser.findAll({
+      where: { status: 'active' },
+      attributes: ['id', 'name', 'email', 'role'],
+      order: [['id', 'ASC']]
+    });
+
+    const users = await User.findAll({
+      where: { status: 'active' },
+      attributes: ['id', 'name', 'email', 'role'],
+      order: [['id', 'ASC']]
+    });
+
+    const userMap = new Map();
+    [...systemUsers, ...users].forEach((u: any) => {
+      const emailLower = (u.email || '').trim().toLowerCase();
+      if (emailLower && !userMap.has(emailLower)) {
+        userMap.set(emailLower, {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role
+        });
+      }
+    });
+
+    return res.status(200).json(Array.from(userMap.values()));
+  } catch (err: any) {
+    console.error('Error fetching registered system users:', err);
+    return res.status(200).json([]);
+  }
+});
+
 
 // Database Connection Health Verification
 const handleDbHealthRoute = async (_req: any, res: any) => {

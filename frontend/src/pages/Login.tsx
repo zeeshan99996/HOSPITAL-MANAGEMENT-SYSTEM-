@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../services/api';
 import { Input, Button, Card } from '../components/UI';
 import { HeartPulse, Lock, Mail, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
@@ -8,25 +9,46 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Login form fields & Role selection
-  const [selectedRole, setSelectedRole] = useState('admin');
-  const [email, setEmail] = useState('admin@lifeflow.com');
+  // Dynamic registered system users
+  const [systemUsers, setSystemUsers] = useState<any[]>([]);
+  const [fetchingUsers, setFetchingUsers] = useState(true);
+
+  // Login form fields & selection
+  const [selectedRole, setSelectedRole] = useState('custom');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const roleAccounts: Record<string, { name: string; email: string }> = {
-    admin: { name: 'System Administrator', email: 'admin@lifeflow.com' },
-    doctor: { name: 'Medical Doctor', email: 'doctor@lifeflow.com' },
-    receptionist: { name: 'Front Desk Receptionist', email: 'receptionist@lifeflow.com' },
-    pharmacist: { name: 'Clinical Pharmacist', email: 'pharmacist@lifeflow.com' },
-    accountant: { name: 'Financial Accountant', email: 'accountant@lifeflow.com' },
-    custom: { name: 'Other / Custom Email', email: '' }
-  };
+  useEffect(() => {
+    const loadRegisteredUsers = async () => {
+      try {
+        const data = await apiClient.get('/auth/system-users');
+        if (Array.isArray(data) && data.length > 0) {
+          setSystemUsers(data);
+          setSelectedRole(data[0].email);
+          setEmail(data[0].email);
+        } else {
+          setSelectedRole('custom');
+          setEmail('');
+        }
+      } catch (err) {
+        console.warn('Error loading registered users:', err);
+        setSelectedRole('custom');
+        setEmail('');
+      } finally {
+        setFetchingUsers(false);
+      }
+    };
 
-  const handleRoleChange = (roleKey: string) => {
-    setSelectedRole(roleKey);
-    if (roleKey !== 'custom') {
-      setEmail(roleAccounts[roleKey]?.email || '');
+    loadRegisteredUsers();
+  }, []);
+
+  const handleRoleChange = (val: string) => {
+    setSelectedRole(val);
+    if (val !== 'custom') {
+      setEmail(val);
+    } else {
+      setEmail('');
     }
   };
 
@@ -76,19 +98,20 @@ export const Login: React.FC = () => {
             {/* Account Role Selector Dropdown */}
             <div>
               <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
-                Select Account Role
+                Select Registered Account
               </label>
               <div className="relative">
                 <select
                   value={selectedRole}
                   onChange={(e) => handleRoleChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 pl-10 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium"
+                  disabled={fetchingUsers}
+                  className="w-full px-3.5 py-2.5 pl-10 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium disabled:opacity-60"
                 >
-                  <option value="admin">System Administrator (admin@lifeflow.com)</option>
-                  <option value="doctor">Medical Doctor (doctor@lifeflow.com)</option>
-                  <option value="receptionist">Front Desk Receptionist (receptionist@lifeflow.com)</option>
-                  <option value="pharmacist">Clinical Pharmacist (pharmacist@lifeflow.com)</option>
-                  <option value="accountant">Financial Accountant (accountant@lifeflow.com)</option>
+                  {systemUsers.map((u: any) => (
+                    <option key={u.email} value={u.email}>
+                      {u.name} ({u.email}) - {String(u.role || 'User').toUpperCase()}
+                    </option>
+                  ))}
                   <option value="custom">Other / Custom Email</option>
                 </select>
                 <ShieldCheck className="absolute left-3.5 top-[11px] h-4 w-4 text-slate-400" />
@@ -99,7 +122,7 @@ export const Login: React.FC = () => {
               <Input
                 label="Email Address"
                 type="email"
-                placeholder="name@lifeflow.com"
+                placeholder="name@clinic.com"
                 required
                 value={email}
                 onChange={e => {
