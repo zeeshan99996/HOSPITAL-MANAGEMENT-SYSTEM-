@@ -188,31 +188,168 @@ export const updateAdmissionNotes = async (req: Request, res: Response) => {
 
 export const dischargePatient = async (req: Request, res: Response) => {
   const { id } = req.params;
+  const {
+    dischargeDate,
+    dischargeNotes,
+    bedCharges,
+    doctorFee,
+    nursingFee,
+    medicationCharges,
+    otherCharges,
+    discount,
+    advancePaid,
+    paidAmount,
+    paymentMethod,
+    createInvoice = true
+  } = req.body;
+
   const transaction = await sequelize.transaction();
 
   try {
-    const admission = await Admission.findByPk(id, { transaction });
+    const admission = await Admission.findByPk(id, {
+      include: [
+        { model: Patient },
+        { model: Bed },
+        { model: Doctor, include: [{ model: User, attributes: ['name'] }] }
+      ],
+      transaction
+    });
+
     if (!admission || admission.status === 'discharged') {
       await transaction.rollback();
-      return res.status(400).json({ message: 'Admission record not found or already discharged.' });
+      return res.status(400).json({ message: 'Admission record not found or patient is already discharged.' });
     }
 
-    const bed = await Bed.findByPk(admission.bedId, { transaction });
+    const actualDischargeDate = dischargeDate ? new Date(dischargeDate) : new Date();
+    const admDate = new Date(admission.admissionDate || (admission as any).createdAt);
+    const diffMs = actualDischargeDate.getTime() - admDate.getTime();
+    const stayDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+    const bed = admission.bed || (await Bed.findByPk(admission.bedId, { transaction }));
+
+    // 1. Update Admission record
+    const updatedNotes = dischargeNotes
+      ? (admission.notes ? `${admission.notes}\n[Discharge Summary]: ${dischargeNotes}` : `[Discharge Summary]: ${dischargeNotes}`)
+      : admission.notes;
 
     await admission.update({
       status: 'discharged',
-      dischargeDate: new Date(),
+      dischargeDate: actualDischargeDate,
+      notes: updatedNotes,
     }, { transaction });
 
+    // 2. Free up the Bed
     if (bed) {
       await bed.update({ status: 'available' }, { transaction });
     }
 
+    let generatedInvoice: any = null;
+
+    // 3. Generate Final Inpatient Invoice in Billing
+    if (createInvoice) {
+      const roomChargeVal = bedCharges !== undefined ? Number(bedCharges) : (Number(admission.baselineCost) || (stayDays * 2500));
+      const docFeeVal = doctorFee !== undefined ? Number(doctorFee) : 1500;
+      const nurseFeeVal = nursingFee !== undefined ? Number(nursingFee) : 1000;
+      const medChargeVal = medicationCharges !== undefined ? Number(medicationCharges) : 0;
+      const otherChargeVal = otherCharges !== undefined ? Number(otherCharges) : 0;
+      const discountVal = discount !== undefined ? Number(discount) : (Number(admission.discount) || 0);
+      const advanceVal = advancePaid !== undefined ? Number(advancePaid) : (Number(admission.advancePaid) || 0);
+      const paidVal = paidAmount !== undefined ? Number(paidAmount) : advanceVal;
+      const payMethodVal = paymentMethod || (paidVal > 0 ? 'cash' : 'pending');
+
+      const invoiceTotal = roomChargeVal + docFeeVal + nurseFeeVal + medChargeVal + otherChargeVal;
+      const grandTotal = Math.max(0, invoiceTotal - discountVal);
+
+      let invoiceStatus: 'unpaid' | 'partially_paid' | 'paid' = 'unpaid';
+      if (paidVal >= grandTotal && grandTotal > 0) {
+        invoiceStatus = 'paid';
+      } else if (paidVal > 0) {
+        invoiceStatus = 'partially_paid';
+      }
+
+      generatedInvoice = await Invoice.create({
+        patientId: admission.patientId,
+        totalAmount: invoiceTotal,
+        discount: discountVal,
+        tax: 0.00,
+        grandTotal: grandTotal,
+        paidAmount: paidVal,
+        status: invoiceStatus,
+        paymentMethod: payMethodVal,
+      }, { transaction });
+
+      // Create itemized billing records
+      const itemsToCreate: any[] = [];
+
+      if (roomChargeVal > 0) {
+        itemsToCreate.push({
+          invoiceId: generatedInvoice.id,
+          itemName: `Inpatient Bed & Room Stay Charges (${stayDays} Days @ Bed ${bed?.bedNumber || 'Ward'} - ${bed?.wardName || 'General Ward'})`,
+          itemCategory: 'Room Charge',
+          unitPrice: roomChargeVal,
+          quantity: 1,
+          totalPrice: roomChargeVal,
+        });
+      }
+
+      if (docFeeVal > 0) {
+        itemsToCreate.push({
+          invoiceId: generatedInvoice.id,
+          itemName: `Inpatient Doctor & Consultant Visitation Fees (${admission.doctor?.user?.name || 'Assigned Consultant'})`,
+          itemCategory: 'Doctor Fee',
+          unitPrice: docFeeVal,
+          quantity: 1,
+          totalPrice: docFeeVal,
+        });
+      }
+
+      if (nurseFeeVal > 0) {
+        itemsToCreate.push({
+          invoiceId: generatedInvoice.id,
+          itemName: `Nursing Care, Vitals Monitoring & Hospital Sanitation Services`,
+          itemCategory: 'Nursing Care',
+          unitPrice: nurseFeeVal,
+          quantity: 1,
+          totalPrice: nurseFeeVal,
+        });
+      }
+
+      if (medChargeVal > 0) {
+        itemsToCreate.push({
+          invoiceId: generatedInvoice.id,
+          itemName: `Inpatient Medications, Injections & Clinical Treatment Supplies`,
+          itemCategory: 'Medication',
+          unitPrice: medChargeVal,
+          quantity: 1,
+          totalPrice: medChargeVal,
+        });
+      }
+
+      if (otherChargeVal > 0) {
+        itemsToCreate.push({
+          invoiceId: generatedInvoice.id,
+          itemName: `Miscellaneous Clinical Support & Hospital Services`,
+          itemCategory: 'Hospital Services',
+          unitPrice: otherChargeVal,
+          quantity: 1,
+          totalPrice: otherChargeVal,
+        });
+      }
+
+      for (const itm of itemsToCreate) {
+        await InvoiceItem.create(itm, { transaction });
+      }
+    }
+
     await transaction.commit();
-    return res.status(200).json({ message: 'Patient discharged successfully.', admission });
+    return res.status(200).json({
+      message: `Patient ${admission.patient?.name || 'admitted'} discharged successfully. Inpatient final invoice generated in Billing section.`,
+      admission,
+      invoice: generatedInvoice,
+    });
   } catch (error: any) {
     await transaction.rollback();
-    return res.status(500).json({ message: 'Error discharging patient.', error: error.message });
+    return res.status(500).json({ message: 'Error discharging patient and creating invoice.', error: error.message });
   }
 };
 

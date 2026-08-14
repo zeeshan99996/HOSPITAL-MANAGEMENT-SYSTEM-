@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer } from 'lucide-react';
+import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const Admissions: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +24,24 @@ export const Admissions: React.FC = () => {
   const [isAdministerOpen, setIsAdministerOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState<any>(null);
+
+  // Discharge & Inpatient Billing Modal States
+  const [isDischargeOpen, setIsDischargeOpen] = useState(false);
+  const [dischargeDate, setDischargeDate] = useState('');
+  const [dischargeNotes, setDischargeNotes] = useState('');
+  const [dischargeStayDays, setDischargeStayDays] = useState(1);
+  const [dischargeBedCharges, setDischargeBedCharges] = useState('2500');
+  const [dischargeDoctorFee, setDischargeDoctorFee] = useState('1500');
+  const [dischargeNursingFee, setDischargeNursingFee] = useState('1000');
+  const [dischargeMedCharges, setDischargeMedCharges] = useState('0');
+  const [dischargeOtherCharges, setDischargeOtherCharges] = useState('0');
+  const [dischargeDiscount, setDischargeDiscount] = useState('0');
+  const [dischargeAdvancePaid, setDischargeAdvancePaid] = useState('0');
+  const [dischargePaidAmount, setDischargePaidAmount] = useState('0');
+  const [dischargePaymentMethod, setDischargePaymentMethod] = useState('cash');
+  const [dischargeSubmitting, setDischargeSubmitting] = useState(false);
+  const [generatedDischargeInvoice, setGeneratedDischargeInvoice] = useState<any>(null);
+  const [isDischargeSuccessOpen, setIsDischargeSuccessOpen] = useState(false);
 
   // Admit Form states
   const [patientId, setPatientId] = useState('');
@@ -238,15 +256,214 @@ export const Admissions: React.FC = () => {
     }
   };
 
-  const handleDischarge = async (id: number) => {
-    if (window.confirm('Approve discharge for this patient? This will release the allocated bed.')) {
-      try {
-        await apiClient.put(`/admissions/${id}/discharge`, {});
-        fetchData();
-      } catch (err) {
-        alert('Failed to process discharge approval.');
+  const handleOpenDischarge = (adm: any) => {
+    setSelectedAdmission(adm);
+    const now = new Date();
+    const nowStr = now.toISOString().slice(0, 16);
+    setDischargeDate(nowStr);
+
+    const admDate = new Date(adm.admissionDate || adm.createdAt);
+    const diffTime = Math.abs(now.getTime() - admDate.getTime());
+    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    setDischargeStayDays(diffDays);
+
+    const dailyBedRate = adm.bed?.type === 'icu' ? 5000 : adm.bed?.type === 'private' ? 3500 : 2000;
+    const initialBedCost = Number(adm.baselineCost) > 0 ? Number(adm.baselineCost) : (diffDays * dailyBedRate);
+    setDischargeBedCharges(String(initialBedCost));
+    setDischargeDoctorFee(adm.doctor?.consultationFee ? String(adm.doctor.consultationFee) : '1500');
+    setDischargeNursingFee('1000');
+    setDischargeMedCharges('0');
+    setDischargeOtherCharges('0');
+    setDischargeDiscount(adm.discount ? String(adm.discount) : '0');
+    setDischargeAdvancePaid(adm.advancePaid ? String(adm.advancePaid) : '0');
+    setDischargePaidAmount(adm.advancePaid ? String(adm.advancePaid) : '0');
+    setDischargePaymentMethod('cash');
+    setDischargeNotes('Patient has completed the course of clinical treatment, vitals are stable, and is cleared for discharge.');
+    setIsDischargeOpen(true);
+  };
+
+  const handleDischargeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAdmission) return;
+    setDischargeSubmitting(true);
+
+    try {
+      const payload = {
+        dischargeDate,
+        dischargeNotes,
+        bedCharges: Number(dischargeBedCharges) || 0,
+        doctorFee: Number(dischargeDoctorFee) || 0,
+        nursingFee: Number(dischargeNursingFee) || 0,
+        medicationCharges: Number(dischargeMedCharges) || 0,
+        otherCharges: Number(dischargeOtherCharges) || 0,
+        discount: Number(dischargeDiscount) || 0,
+        advancePaid: Number(dischargeAdvancePaid) || 0,
+        paidAmount: Number(dischargePaidAmount) || 0,
+        paymentMethod: dischargePaymentMethod,
+        createInvoice: true,
+      };
+
+      const res = await apiClient.put(`/admissions/${selectedAdmission.id}/discharge`, payload);
+
+      setIsDischargeOpen(false);
+      fetchData();
+
+      if (res?.invoice) {
+        setGeneratedDischargeInvoice(res.invoice);
+        setIsDischargeSuccessOpen(true);
+      } else {
+        alert('Patient discharged successfully. Inpatient invoice generated in Billing section.');
       }
+    } catch (err: any) {
+      alert(err.message || 'Failed to process patient discharge.');
+    } finally {
+      setDischargeSubmitting(false);
     }
+  };
+
+  const handlePrintDischargeSlip = () => {
+    if (!selectedAdmission) return;
+    const printWindow = window.open('', '_blank', 'width=750,height=900');
+    if (!printWindow) {
+      alert('Pop-up window blocked. Please allow pop-ups to print the discharge summary slip.');
+      return;
+    }
+
+    const adm = selectedAdmission;
+    const patientName = adm.patient?.name || 'Patient';
+    const mrn = adm.patient?.mrNumber || 'MR-N/A';
+    const bedName = `${adm.bed?.bedNumber || 'Bed'} (${adm.bed?.wardName || 'Ward'})`;
+    const docName = adm.doctor?.user?.name || adm.doctor?.staffMember?.name || adm.doctor?.name || 'Assigned Consultant';
+    const admDateStr = new Date(adm.admissionDate || adm.createdAt).toLocaleString();
+    const disDateStr = new Date(dischargeDate || Date.now()).toLocaleString();
+
+    const roomC = Number(dischargeBedCharges) || 0;
+    const docC = Number(dischargeDoctorFee) || 0;
+    const nurseC = Number(dischargeNursingFee) || 0;
+    const medC = Number(dischargeMedCharges) || 0;
+    const otherC = Number(dischargeOtherCharges) || 0;
+    const discC = Number(dischargeDiscount) || 0;
+    const advC = Number(dischargeAdvancePaid) || 0;
+    const grandT = Math.max(0, (roomC + docC + nurseC + medC + otherC) - discC);
+    const paidA = Number(dischargePaidAmount) || 0;
+    const duesA = Math.max(0, grandT - paidA);
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Discharge Summary & Final Bill - ${mrn}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; color: #1e293b; max-width: 700px; margin: 0 auto; font-size: 13px; line-height: 1.5; }
+          .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 18px; }
+          .clinic-name { font-size: 22px; font-weight: 900; color: #0284c7; letter-spacing: 0.5px; }
+          .clinic-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+          .title-badge { display: inline-block; background: #0f172a; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 14px; border-radius: 4px; text-transform: uppercase; margin-top: 8px; }
+          .section { margin-bottom: 16px; }
+          .section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; color: #334155; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; font-size: 12px; }
+          .grid-row { display: flex; justify-content: space-between; }
+          .label { color: #64748b; font-weight: 600; }
+          .val { font-weight: 700; color: #0f172a; }
+          .table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+          .table th { background: #f1f5f9; padding: 6px 10px; text-align: left; font-weight: 700; border-bottom: 1px solid #cbd5e1; }
+          .table td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; }
+          .table tr:last-child td { border-bottom: none; }
+          .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-top: 14px; }
+          .summary-total { font-size: 14px; font-weight: 800; display: flex; justify-content: space-between; border-top: 1px dashed #94a3b8; padding-top: 6px; margin-top: 6px; }
+          .notes-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; font-size: 12px; margin-top: 14px; }
+          .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+          .sig-row { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 20px; }
+          .sig-line { width: 180px; border-top: 1px solid #000; text-align: center; font-size: 11px; font-weight: bold; padding-top: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="clinic-name">DR. TALHA CLINIC</div>
+          <div class="clinic-sub">12-B, Main Boulevard, Gulberg III, Lahore • Tel: (042) 35889900 • Emergency: 0311-6353044</div>
+          <div class="title-badge">INPATIENT DISCHARGE SUMMARY & FINAL BILL</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Patient & Admission Details</div>
+          <div class="grid">
+            <div class="grid-row"><span class="label">Patient Name:</span> <span class="val">${patientName}</span></div>
+            <div class="grid-row"><span class="label">MR Number:</span> <span class="val">${mrn}</span></div>
+            <div class="grid-row"><span class="label">Admission Date:</span> <span class="val">${admDateStr}</span></div>
+            <div class="grid-row"><span class="label">Discharge Date:</span> <span class="val">${disDateStr}</span></div>
+            <div class="grid-row"><span class="label">Ward & Bed:</span> <span class="val">${bedName}</span></div>
+            <div class="grid-row"><span class="label">Total Stay Duration:</span> <span class="val">${dischargeStayDays} Day(s)</span></div>
+            <div class="grid-row"><span class="label">Consultant Doctor:</span> <span class="val">${docName}</span></div>
+            <div class="grid-row"><span class="label">Clinical Category:</span> <span class="val" style="text-transform: capitalize;">${adm.admissionCategory || 'Medical'} (${adm.stayType || 'Short'} Stay)</span></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Inpatient Itemized Bill Statement</div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Service / Charge Description</th>
+                <th style="text-align: center;">Duration / Qty</th>
+                <th style="text-align: right;">Amount (PKR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Room & Bed Stay Charges (${bedName})</td>
+                <td style="text-align: center;">${dischargeStayDays} Day(s)</td>
+                <td style="text-align: right;">Rs. ${roomC.toLocaleString()}</td>
+              </tr>
+              ${docC > 0 ? `<tr><td>Doctor & Consultant Visitation Fees</td><td style="text-align: center;">-</td><td style="text-align: right;">Rs. ${docC.toLocaleString()}</td></tr>` : ''}
+              ${nurseC > 0 ? `<tr><td>Nursing Care & Clinical Monitoring</td><td style="text-align: center;">-</td><td style="text-align: right;">Rs. ${nurseC.toLocaleString()}</td></tr>` : ''}
+              ${medC > 0 ? `<tr><td>Medications, Injections & IV Supplies</td><td style="text-align: center;">-</td><td style="text-align: right;">Rs. ${medC.toLocaleString()}</td></tr>` : ''}
+              ${otherC > 0 ? `<tr><td>Miscellaneous Hospital Services</td><td style="text-align: center;">-</td><td style="text-align: right;">Rs. ${otherC.toLocaleString()}</td></tr>` : ''}
+            </tbody>
+          </table>
+
+          <div class="summary-box">
+            <div class="grid-row" style="margin-bottom: 4px;"><span class="label">Total Gross Bill:</span> <span>Rs. ${(roomC + docC + nurseC + medC + otherC).toLocaleString()}</span></div>
+            ${discC > 0 ? `<div class="grid-row" style="margin-bottom: 4px; color: #e11d48;"><span class="label" style="color: #e11d48;">Special Discount:</span> <span>- Rs. ${discC.toLocaleString()}</span></div>` : ''}
+            ${advC > 0 ? `<div class="grid-row" style="margin-bottom: 4px; color: #0284c7;"><span class="label" style="color: #0284c7;">Advance Deposit Paid:</span> <span>- Rs. ${advC.toLocaleString()}</span></div>` : ''}
+            <div class="summary-total">
+              <span>Grand Total Payable:</span>
+              <span style="color: #0284c7;">Rs. ${grandT.toLocaleString()}</span>
+            </div>
+            <div class="grid-row" style="margin-top: 6px; font-weight: 700;">
+              <span>Amount Paid at Discharge:</span>
+              <span style="color: #16a34a;">Rs. ${paidA.toLocaleString()}</span>
+            </div>
+            <div class="grid-row" style="margin-top: 4px; font-weight: 700;">
+              <span>Remaining Balance / Dues:</span>
+              <span style="color: ${duesA > 0 ? '#e11d48' : '#16a34a'};">Rs. ${duesA.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes-box">
+          <div style="font-weight: 800; color: #166534; margin-bottom: 4px; text-transform: uppercase;">Doctor's Discharge Summary & Advice:</div>
+          <div>${dischargeNotes || 'Patient is discharged in a stable condition with advice for follow-up.'}</div>
+        </div>
+
+        <div class="sig-row">
+          <div class="sig-line">Patient / Attendant Signature</div>
+          <div class="sig-line">Medical Officer / Consultant</div>
+        </div>
+
+        <div class="footer">
+          This is an official computer-generated Discharge Summary and Invoice from LifeFlow HMS.<br/>
+          Thank you for choosing Dr. Talha Clinic. We wish you a speedy recovery!
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const filteredAdmissions = admissions.filter(adm => {
@@ -476,10 +693,11 @@ export const Admissions: React.FC = () => {
                             )}
                             {adm.status === 'admitted' && user?.role !== 'nurse' && user?.role !== 'patient' && (
                               <button
-                                onClick={() => handleDischarge(adm.id)}
-                                className="inline-flex items-center gap-1 p-1 px-2 bg-rose-50 dark:bg-rose-950/20 text-rose-600 border border-rose-200 dark:border-rose-900/50 rounded-lg text-[10px] font-bold hover:bg-rose-100 transition-colors"
+                                onClick={() => handleOpenDischarge(adm)}
+                                className="inline-flex items-center gap-1 p-1 px-2.5 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 rounded-lg text-[10px] font-bold hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                                title="Discharge Patient & Generate Inpatient Bill"
                               >
-                                <UserMinus className="h-3 w-3" /> Discharge
+                                <UserMinus className="h-3 w-3" /> Discharge & Bill
                               </button>
                             )}
                           </td>
@@ -741,6 +959,293 @@ export const Admissions: React.FC = () => {
             <Button type="submit">Confirm Clinical Administration</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Discharge Patient & Final Inpatient Billing Modal */}
+      <Modal
+        isOpen={isDischargeOpen}
+        onClose={() => setIsDischargeOpen(false)}
+        title="Discharge Patient & Generate Final Inpatient Bill"
+      >
+        <form onSubmit={handleDischargeSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          {selectedAdmission && (
+            <div className="p-3.5 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    {selectedAdmission.patient?.name}
+                  </h4>
+                  <span className="text-[10px] font-mono text-slate-500 block">
+                    MRN: {selectedAdmission.patient?.mrNumber || 'N/A'} • {selectedAdmission.patient?.gender || 'N/A'}
+                  </span>
+                </div>
+                <Badge type="warning">Inpatient Admission</Badge>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs pt-1 border-t border-slate-200/60 dark:border-slate-850">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Allocated Bed:</span>
+                  <span className="font-bold text-brand-600 dark:text-brand-400">
+                    {selectedAdmission.bed?.bedNumber} ({selectedAdmission.bed?.wardName})
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Admission Date:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {new Date(selectedAdmission.admissionDate || selectedAdmission.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Stay Duration:</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    {dischargeStayDays} Day(s) Stayed
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Discharge Date and Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                Discharge Date & Time *
+              </label>
+              <input
+                required
+                type="datetime-local"
+                value={dischargeDate}
+                onChange={e => {
+                  setDischargeDate(e.target.value);
+                  if (selectedAdmission && e.target.value) {
+                    const admDate = new Date(selectedAdmission.admissionDate || selectedAdmission.createdAt);
+                    const disDate = new Date(e.target.value);
+                    const diffDays = Math.max(1, Math.ceil(Math.abs(disDate.getTime() - admDate.getTime()) / (1000 * 60 * 60 * 24)));
+                    setDischargeStayDays(diffDays);
+                    const dailyBedRate = selectedAdmission.bed?.type === 'icu' ? 5000 : selectedAdmission.bed?.type === 'private' ? 3500 : 2000;
+                    setDischargeBedCharges(String(diffDays * dailyBedRate));
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                Payment Method
+              </label>
+              <select
+                value={dischargePaymentMethod}
+                onChange={e => setDischargePaymentMethod(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+              >
+                <option value="cash">Cash Counter</option>
+                <option value="card">Debit / Credit Card</option>
+                <option value="online">Online / Bank Transfer</option>
+                <option value="pending">Pending / Due at Checkout</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Itemized Inpatient Bill Breakdown */}
+          <div className="space-y-3 p-3.5 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h5 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Receipt className="h-3.5 w-3.5 text-brand-500" />
+              Itemized Inpatient Hospital Charges (PKR)
+            </h5>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label={`Room / Bed Charges (${dischargeStayDays} days)`}
+                type="number"
+                min="0"
+                value={dischargeBedCharges}
+                onChange={e => setDischargeBedCharges(e.target.value)}
+                required
+              />
+              <Input
+                label="Doctor & Consultant Fee"
+                type="number"
+                min="0"
+                value={dischargeDoctorFee}
+                onChange={e => setDischargeDoctorFee(e.target.value)}
+                required
+              />
+              <Input
+                label="Nursing & Care Services"
+                type="number"
+                min="0"
+                value={dischargeNursingFee}
+                onChange={e => setDischargeNursingFee(e.target.value)}
+                required
+              />
+              <Input
+                label="Medications & Injections"
+                type="number"
+                min="0"
+                value={dischargeMedCharges}
+                onChange={e => setDischargeMedCharges(e.target.value)}
+              />
+              <Input
+                label="Other Clinical Charges"
+                type="number"
+                min="0"
+                value={dischargeOtherCharges}
+                onChange={e => setDischargeOtherCharges(e.target.value)}
+              />
+              <Input
+                label="Discount Allowed (Rs.)"
+                type="number"
+                min="0"
+                value={dischargeDiscount}
+                onChange={e => setDischargeDiscount(e.target.value)}
+              />
+            </div>
+
+            {/* Inpatient Billing Calculation Summary */}
+            {(() => {
+              const rC = Number(dischargeBedCharges) || 0;
+              const dC = Number(dischargeDoctorFee) || 0;
+              const nC = Number(dischargeNursingFee) || 0;
+              const mC = Number(dischargeMedCharges) || 0;
+              const oC = Number(dischargeOtherCharges) || 0;
+              const disc = Number(dischargeDiscount) || 0;
+              const adv = Number(dischargeAdvancePaid) || 0;
+              const gross = rC + dC + nC + mC + oC;
+              const netPayable = Math.max(0, gross - disc);
+              const remainingDues = Math.max(0, netPayable - Number(dischargePaidAmount || 0));
+
+              return (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 text-xs">
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>Total Gross Bill:</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Rs. {gross.toLocaleString()}</span>
+                  </div>
+                  {disc > 0 && (
+                    <div className="flex justify-between text-rose-600 dark:text-rose-400">
+                      <span>Discount Deducted:</span>
+                      <span>- Rs. {disc.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {adv > 0 && (
+                    <div className="flex justify-between text-brand-600 dark:text-brand-400">
+                      <span>Advance Deposit Paid at Admission:</span>
+                      <span>- Rs. {adv.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-extrabold text-brand-600 dark:text-brand-400 pt-1 border-t border-slate-200/50 dark:border-slate-800">
+                    <span>Net Grand Total:</span>
+                    <span>Rs. {netPayable.toLocaleString()}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <Input
+                      label="Amount Paid at Discharge Counter (Rs.)"
+                      type="number"
+                      min="0"
+                      value={dischargePaidAmount}
+                      onChange={e => setDischargePaidAmount(e.target.value)}
+                    />
+                    <div className="flex flex-col justify-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-500">Remaining Balance / Dues</span>
+                      <span className={`text-sm font-black ${remainingDues > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        Rs. {remainingDues.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Discharge Clinical Remarks */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+              Discharge Summary & Physician Advice
+            </label>
+            <textarea
+              rows={3}
+              value={dischargeNotes}
+              onChange={e => setDischargeNotes(e.target.value)}
+              placeholder="e.g. Patient recovered from acute condition. Vitals stable. Prescribed follow-up medications."
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+            />
+          </div>
+
+          {/* Submit Actions */}
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setIsDischargeOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={dischargeSubmitting} className="bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5">
+              <UserMinus className="h-4 w-4" />
+              {dischargeSubmitting ? 'Processing Discharge...' : 'Confirm Discharge & Send to Billing'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Discharge Success & Invoice Slip Modal */}
+      <Modal
+        isOpen={isDischargeSuccessOpen}
+        onClose={() => setIsDischargeSuccessOpen(false)}
+        title="Discharge Approved & Inpatient Invoice Generated"
+      >
+        <div className="space-y-4 text-center py-2">
+          <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="h-7 w-7" />
+          </div>
+          <div>
+            <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
+              Patient Successfully Discharged!
+            </h4>
+            <p className="text-xs text-slate-500 mt-1">
+              Bed has been released to available status. The final inpatient bill has been created and synced directly into the <strong>Billing</strong> section.
+            </p>
+          </div>
+
+          {generatedDischargeInvoice && (
+            <div className="p-3.5 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-850 text-left text-xs space-y-1">
+              <div className="flex justify-between font-semibold">
+                <span className="text-slate-500">Invoice ID:</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-slate-100">INV-#{generatedDischargeInvoice.id}</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span className="text-slate-500">Grand Total:</span>
+                <span className="font-bold text-brand-600 dark:text-brand-400">Rs. {Number(generatedDischargeInvoice.grandTotal).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span className="text-slate-500">Paid Amount:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">Rs. {Number(generatedDischargeInvoice.paidAmount).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span className="text-slate-500">Billing Status:</span>
+                <Badge type={generatedDischargeInvoice.status === 'paid' ? 'success' : 'warning'}>
+                  {generatedDischargeInvoice.status}
+                </Badge>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handlePrintDischargeSlip}
+              className="flex items-center justify-center gap-1.5 text-xs"
+            >
+              <Printer className="h-4 w-4" /> Print Discharge Summary Slip
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setIsDischargeSuccessOpen(false);
+                window.location.href = '/billing';
+              }}
+              className="flex items-center justify-center gap-1.5 text-xs"
+            >
+              <ArrowRight className="h-4 w-4" /> View in Billing Section
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
