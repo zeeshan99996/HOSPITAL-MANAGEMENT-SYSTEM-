@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
 import { Patient, Appointment, Prescription, PrescriptionItem, LabRequest, Admission, Bed, Doctor, User, PatientVital, TokenQueue } from '../models';
 import { Op } from 'sequelize';
+import sequelize from '../config/db';
+import { getPktDayBounds } from '../utils/timezone';
 
 export const createPatient = async (req: Request, res: Response) => {
+  const transaction = await sequelize.transaction();
   try {
     const tempUuid = `TEMP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const patientData = {
@@ -41,11 +44,8 @@ export const createPatient = async (req: Request, res: Response) => {
       patientData.paymentAmount = 1500;
     }
 
-    // Calculate daily sequence token number starting from 1 every midnight (using MAX for concurrent safety)
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    // Calculate daily sequence token number starting from 1 every midnight in PKT (UTC+5)
+    const { startOfDay, endOfDay } = getPktDayBounds();
 
     let maxToken = 0;
     try {
@@ -55,7 +55,8 @@ export const createPatient = async (req: Request, res: Response) => {
             [Op.gte]: startOfDay,
             [Op.lte]: endOfDay
           }
-        }
+        },
+        transaction
       }) as number) || 0;
     } catch (e) {
       console.warn('[patientController] Error getting max today token number:', e);
@@ -63,13 +64,13 @@ export const createPatient = async (req: Request, res: Response) => {
 
     patientData.tokenNumber = maxToken + 1;
 
-    const patient = await Patient.create(patientData);
+    const patient = await Patient.create(patientData, { transaction });
 
     if (patientData.mrNumber === tempUuid) {
       const year = new Date().getFullYear();
       const formattedMr = `MR-${year}-${String(patient.id).padStart(4, '0')}`;
       try {
-        await patient.update({ mrNumber: formattedMr });
+        await patient.update({ mrNumber: formattedMr }, { transaction });
       } catch (e) {
         // Ignore if update fails
       }
@@ -79,29 +80,31 @@ export const createPatient = async (req: Request, res: Response) => {
     const assignedDocId = Number(req.body.doctorId || patientData.doctorId);
     if (assignedDocId > 0) {
       try {
-        const TokenQueueModel = (await import('../models')).TokenQueue;
-        const countToday = await TokenQueueModel.count({
+        const countToday = await TokenQueue.count({
           where: {
             doctorId: assignedDocId,
             createdAt: { [Op.between]: [startOfDay, endOfDay] }
-          }
+          },
+          transaction
         });
         const docSeq = countToday + 1;
         const tokenNoStr = `T-${String(docSeq).padStart(2, '0')}`;
 
-        await TokenQueueModel.create({
+        await TokenQueue.create({
           patientId: patient.id,
           doctorId: assignedDocId,
           tokenNumber: tokenNoStr,
           status: 'waiting',
-        });
+        }, { transaction });
       } catch (tErr) {
         console.warn('[patientController] Auto TokenQueue creation error:', tErr);
       }
     }
 
+    await transaction.commit();
     return res.status(201).json({ message: 'Patient registered successfully.', patient });
   } catch (error: any) {
+    await transaction.rollback();
     console.error('[patientController] Error creating patient:', error);
     return res.status(500).json({ message: error.message || 'Error creating patient.', error: error.message });
   }

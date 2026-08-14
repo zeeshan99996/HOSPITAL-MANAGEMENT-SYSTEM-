@@ -22,6 +22,7 @@ import { login, registerPatient, getProfile } from '../controllers/authControlle
 import { aiChat } from '../controllers/aiController';
 import sequelize from '../config/db';
 import { TokenQueue, Doctor, Department, Patient, User, Area, PaymentOption, Invoice, InvoiceItem, SystemUser } from '../models';
+import { getPktDayBounds } from '../utils/timezone';
 
 import {
   createPatient,
@@ -203,10 +204,8 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
   const transaction = await sequelize.transaction();
 
   try {
-    const now = new Date();
-    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
-    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
+    const { startOfDay, endOfDay, dateString: localDateStr } = getPktDayBounds();
+
 
     // Validate Patient ID
     let validPatientId = Number(patientId);
@@ -416,10 +415,8 @@ router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), ra
 // ==========================================
 router.get('/tokens', authenticateToken, async (req, res) => {
   try {
-    const now = new Date();
-    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
-    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
+    const { startOfDay, endOfDay } = getPktDayBounds();
+
 
     const tokens = await TokenQueue.findAll({
       where: {
@@ -528,10 +525,8 @@ router.get('/doctors/schedule', authenticateToken, async (req, res) => {
       ]
     });
 
-    const now = new Date();
-    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
-    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
+    const { startOfDay, endOfDay } = getPktDayBounds();
+
 
     const activeTokens = await TokenQueue.findAll({
       where: {
@@ -602,22 +597,11 @@ router.put('/auth/profile', authenticateToken, async (req, res) => {
 // ==========================================
 router.get('/settings/areas', authenticateToken, async (_req, res) => {
   try {
-    let areas = await Area.findAll({ order: [['name', 'ASC']] });
-    if (!areas || areas.length === 0) {
-      const defaultAreas = ['Model Town', 'Satellite Town', 'Jinnah Town', 'Airport Road', 'Cantt', 'City Center', '18 Kassi'];
-      for (const aName of defaultAreas) {
-        try { await Area.create({ name: aName }); } catch (e) {}
-      }
-      areas = await Area.findAll({ order: [['name', 'ASC']] });
-    }
-    return res.status(200).json(areas);
+    const areas = await Area.findAll({ order: [['name', 'ASC']] });
+    return res.status(200).json(areas || []);
   } catch (err: any) {
     console.warn('[Settings Areas GET Notice]:', err?.message);
-    return res.status(200).json([
-      { id: 1, name: 'Model Town' },
-      { id: 2, name: 'Satellite Town' },
-      { id: 3, name: '18 Kassi' }
-    ]);
+    return res.status(500).json({ message: 'Error retrieving areas', error: err?.message });
   }
 });
 
@@ -677,22 +661,11 @@ router.put('/settings/areas/:id', authenticateToken, requireRoles(['admin', 'rec
 // ==========================================
 router.get('/settings/payment-modes', authenticateToken, async (_req, res) => {
   try {
-    let options = await PaymentOption.findAll({ order: [['name', 'ASC']] });
-    if (!options || options.length === 0) {
-      const defaultModes = ['Cash', 'Card / POS', 'EasyPaisa', 'JazzCash', 'Bank Transfer', 'Online'];
-      for (const pName of defaultModes) {
-        try { await PaymentOption.create({ name: pName }); } catch (e) {}
-      }
-      options = await PaymentOption.findAll({ order: [['name', 'ASC']] });
-    }
-    return res.status(200).json(options);
+    const options = await PaymentOption.findAll({ order: [['name', 'ASC']] });
+    return res.status(200).json(options || []);
   } catch (err: any) {
     console.warn('[Settings Payment Modes GET Notice]:', err?.message);
-    return res.status(200).json([
-      { id: 1, name: 'Cash' },
-      { id: 2, name: 'Card / POS' },
-      { id: 3, name: 'EasyPaisa' }
-    ]);
+    return res.status(500).json({ message: 'Error retrieving payment modes', error: err?.message });
   }
 });
 

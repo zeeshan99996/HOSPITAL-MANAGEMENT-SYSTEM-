@@ -33,11 +33,13 @@ const isString = (v: any, minLen = 1, maxLen = 255): boolean => {
   return len >= minLen && len <= maxLen;
 };
 
-/** Validates email format and max length (max 254 chars per RFC 5321) */
+/** Validates email format and max length (max 254 chars per RFC 5321) with whitespace trimming */
 const isValidEmail = (v: any): boolean => {
-  if (!isString(v, 3, 254)) return false;
+  if (typeof v !== 'string') return false;
+  const trimmed = v.trim().toLowerCase();
+  if (trimmed.length < 3 || trimmed.length > 254) return false;
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailRegex.test(v.trim());
+  return emailRegex.test(trimmed);
 };
 
 /** Validates phone number format (flexible 3 to 50 characters) */

@@ -1,37 +1,38 @@
 import { Request, Response } from 'express';
 import { Appointment, Patient, Doctor, User, Prescription, PrescriptionItem, Invoice, InvoiceItem } from '../models';
 import { Op } from 'sequelize';
+import sequelize from '../config/db';
 
 export const createAppointment = async (req: Request, res: Response) => {
   const { patientId, doctorId, appointmentDate, type, symptoms } = req.body;
+  const transaction = await sequelize.transaction();
 
   try {
-    const patient = await Patient.findByPk(patientId);
+    const patient = await Patient.findByPk(patientId, { transaction });
     const doctor = await Doctor.findByPk(doctorId, {
       include: [{ model: User, attributes: ['name'] }],
+      transaction
     });
 
     if (!patient || !doctor) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Patient or Doctor not found.' });
     }
 
     // Step 1: Insert appointment with a temporary placeholder token.
-    // Using the DB auto-increment id for the final token eliminates the
-    // count-based race condition under concurrent bookings.
     const appointment = await Appointment.create({
       patientId,
       doctorId,
       appointmentDate,
-      queueToken: 'PENDING',          // temporary — updated immediately below
+      queueToken: 'PENDING',
       status: 'pending',
       type: type || 'walk-in',
       symptoms,
-    });
+    }, { transaction });
 
-    // Step 2: Derive a permanently unique, human-readable token from the
-    // database-assigned primary key.
+    // Step 2: Derive a permanently unique, human-readable token from the database primary key.
     const queueToken = `LF-${1000 + appointment.id}`;
-    await appointment.update({ queueToken });
+    await appointment.update({ queueToken }, { transaction });
 
     // Create a corresponding Consultation invoice automatically
     const subtotal = Number(doctor.consultationFee) || 0;
@@ -48,7 +49,7 @@ export const createAppointment = async (req: Request, res: Response) => {
       status: 'unpaid',
       insuranceClaimed: false,
       paymentMethod: 'pending',
-    });
+    }, { transaction });
 
     await InvoiceItem.create({
       invoiceId: invoice.id,
@@ -57,7 +58,9 @@ export const createAppointment = async (req: Request, res: Response) => {
       unitPrice: subtotal,
       quantity: 1,
       totalPrice: subtotal,
-    });
+    }, { transaction });
+
+    await transaction.commit();
 
     return res.status(201).json({
       message: 'Appointment booked successfully.',
@@ -65,6 +68,7 @@ export const createAppointment = async (req: Request, res: Response) => {
       invoice,
     });
   } catch (error: any) {
+    await transaction.rollback();
     return res.status(500).json({ message: 'Error booking appointment.', error: error.message });
   }
 };

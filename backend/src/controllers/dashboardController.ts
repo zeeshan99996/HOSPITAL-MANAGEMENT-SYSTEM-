@@ -482,48 +482,17 @@ export const getActivityLogs = async (req: Request, res: Response) => {
 // ==========================================
 // SECURITY & USER CREDENTIALS MANAGEMENT (ADMIN)
 // ==========================================
-export const getAllUsersAdmin = async (req: Request, res: Response) => {
+export const getAllUsersAdmin = async (_req: Request, res: Response) => {
   try {
-    // 1. Attempt to fetch from Supabase public.system_users table
-    try {
-      const { data: supaUsers } = await supabaseAdmin.from('system_users').select('*').order('id', { ascending: false });
-      if (supaUsers && supaUsers.length > 0) {
-        return res.status(200).json(supaUsers);
-      }
-    } catch (supaErr) {
-      console.warn('[Supabase system_users fetch notice]:', supaErr);
-    }
-
-    // 2. Fallback to local DB
-    let sysUsers = await SystemUser.findAll({
+    const sysUsers = await SystemUser.findAll({
       attributes: { exclude: ['password'] },
       order: [['createdAt', 'DESC']],
     });
 
-    if (!sysUsers || sysUsers.length === 0) {
-      const hashedPassword = await bcrypt.hash('Password123', 10);
-      try {
-        await SystemUser.bulkCreate([
-          { name: 'System Admin', email: 'admin@lifeflow.com', password: hashedPassword, role: 'admin', phone: '0300-1234567', status: 'active' },
-          { name: 'System Admin', email: 'admin@gmail.com', password: hashedPassword, role: 'admin', phone: '0300-1234567', status: 'active' },
-        ]);
-        sysUsers = await SystemUser.findAll({
-          attributes: { exclude: ['password'] },
-          order: [['createdAt', 'DESC']],
-        });
-      } catch (e) {}
-    }
-
-    return res.status(200).json(sysUsers && sysUsers.length > 0 ? sysUsers : [
-      { id: 1, name: 'System Admin', email: 'admin@lifeflow.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-      { id: 2, name: 'System Admin', email: 'admin@gmail.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-    ]);
+    return res.status(200).json(sysUsers || []);
   } catch (error: any) {
     console.warn('[getAllUsersAdmin Warning]:', error.message);
-    return res.status(200).json([
-      { id: 1, name: 'System Admin', email: 'admin@lifeflow.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-      { id: 2, name: 'System Admin', email: 'admin@gmail.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-    ]);
+    return res.status(500).json({ message: 'Error retrieving system users.', error: error.message });
   }
 };
 

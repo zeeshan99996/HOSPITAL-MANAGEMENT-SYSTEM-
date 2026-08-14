@@ -84,37 +84,13 @@ export const SecurityManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-
-    // 1. Direct Supabase Query
-    try {
-      const { data: sbData } = await supabase.from('system_users').select('*').order('id', { ascending: false });
-      if (Array.isArray(sbData) && sbData.length > 0) {
-        setUsers(sbData);
-        setFeedback(null);
-        setLoading(false);
-        return;
-      }
-    } catch (sbErr) {}
-
-    // 2. Backend API Query Fallback
     try {
       const data = await apiClient.get('/admin/users');
-      if (Array.isArray(data) && data.length > 0) {
-        setUsers(data);
-      } else {
-        setUsers([
-          { id: 1, name: 'System Admin', email: 'admin@lifeflow.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-          { id: 2, name: 'System Admin', email: 'admin@gmail.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-        ]);
-      }
+      setUsers(Array.isArray(data) ? data : []);
       setFeedback(null);
     } catch (err: any) {
-      console.warn('Error fetching user accounts, displaying system admin fallback:', err);
-      setUsers([
-        { id: 1, name: 'System Admin', email: 'admin@lifeflow.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-        { id: 2, name: 'System Admin', email: 'admin@gmail.com', role: 'admin', status: 'active', phone: '0300-1234567' },
-      ]);
-      setFeedback(null);
+      console.error('Error fetching user accounts:', err);
+      setFeedback({ type: 'error', message: 'Failed to load user accounts from database.' });
     } finally {
       setLoading(false);
     }
