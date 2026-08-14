@@ -590,20 +590,31 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
     try { user = await User.findByPk(id); } catch (e) {}
 
     const adminUser = (req as any).user;
-    if (adminUser && Number(adminUser.id) === Number(id)) {
+    if (adminUser && (Number(adminUser.id) === Number(sysUser?.id) || Number(adminUser.id) === Number(user?.id))) {
       return res.status(400).json({ message: 'You cannot delete your own active administrator account.' });
     }
 
-    const deletedEmail = sysUser?.email || user?.email || '';
+    const targetEmail = (sysUser?.email || user?.email || '').trim().toLowerCase();
     const deletedName = sysUser?.name || user?.name || 'User';
     const sbUuid = sysUser?.supabase_user_id || user?.supabase_user_id;
 
-    if (sysUser) try { await sysUser.destroy(); } catch (e) {}
-    if (user) try { await user.destroy(); } catch (e) {}
+    // Hard delete permanently from both system_users and users tables by ID and email
+    if (targetEmail) {
+      try { await SystemUser.destroy({ where: { email: targetEmail }, force: true }); } catch (e) {}
+      try { await User.destroy({ where: { email: targetEmail }, force: true }); } catch (e) {}
+      try { await Doctor.destroy({ where: { userId: [user?.id, sysUser?.id, id].filter(Boolean) } }); } catch (e) {}
+      try { await Nurse.destroy({ where: { userId: [user?.id, sysUser?.id, id].filter(Boolean) } }); } catch (e) {}
+    } else {
+      if (sysUser) try { await sysUser.destroy({ force: true }); } catch (e) {}
+      if (user) try { await user.destroy({ force: true }); } catch (e) {}
+    }
 
-    // Also delete from Supabase public.system_users table
+    // Also delete from Supabase public.system_users table if exists
     try {
       await supabaseAdmin.from('system_users').delete().eq('id', id);
+      if (targetEmail) {
+        await supabaseAdmin.from('system_users').delete().eq('email', targetEmail);
+      }
     } catch (sErr) {}
 
     if (sbUuid) {
@@ -613,14 +624,15 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({
-      message: `System user account '${deletedName}' (${deletedEmail}) deleted successfully.`,
+      message: `System user account '${deletedName}' (${targetEmail || id}) deleted successfully.`,
     });
   } catch (error: any) {
-    return res.status(200).json({
-      message: `System user account deleted successfully.`,
+    return res.status(500).json({
+      message: `Error deleting system user account: ${error.message}`,
     });
   }
 };
+
 
 export const createSystemUserAdmin = async (req: Request, res: Response) => {
   const { name, email, password, role, status, phone } = req.body;

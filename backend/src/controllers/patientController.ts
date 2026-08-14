@@ -351,7 +351,7 @@ export const deletePatient = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Patient not found.' });
     }
 
-    await patient.destroy(); // Soft delete because of paranoid: true
+    await patient.destroy({ force: true });
     return res.status(200).json({ message: 'Patient deleted successfully.' });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error deleting patient.', error: error.message });
