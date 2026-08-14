@@ -189,6 +189,18 @@ export const PatientRegistration: React.FC = () => {
       const savedPatient = response.patient || response;
       setRegisteredPatient(savedPatient);
 
+      const assignedDoc = doctors.find(d => String(d.id) === String(selectedDoctorId));
+      const doctorDisplayName = assignedDoc 
+        ? (assignedDoc.staffMember?.name || assignedDoc.name || assignedDoc.user?.name || `Dr. ${assignedDoc.name}`)
+        : 'General OPD';
+      const doctorSpec = assignedDoc?.specialization || assignedDoc?.department?.name || '';
+      const doctorRoom = assignedDoc?.roomNumber || '';
+
+      savedPatient.doctorId = selectedDoctorId;
+      savedPatient.doctorName = doctorDisplayName;
+      savedPatient.doctorSpecialization = doctorSpec;
+      savedPatient.doctorRoom = doctorRoom;
+
       let tokenInfoStr = `MRN: ${savedPatient.mrNumber}`;
 
       if (selectedDoctorId) {
@@ -250,6 +262,14 @@ export const PatientRegistration: React.FC = () => {
     const target = patientObj || registeredPatient;
     if (!target) return;
 
+    // Resolve assigned Doctor Name
+    const assignedDoc = doctors.find(d => String(d.id) === String(target.doctorId || selectedDoctorId));
+    const doctorName = target.doctorName || (assignedDoc 
+      ? (assignedDoc.staffMember?.name || assignedDoc.name || assignedDoc.user?.name || `Dr. ${assignedDoc.name}`)
+      : 'General OPD');
+    const doctorSpecialization = target.doctorSpecialization || assignedDoc?.specialization || assignedDoc?.department?.name || '';
+    const roomNumber = target.doctorRoom || (assignedDoc?.roomNumber ? `Room: ${assignedDoc.roomNumber}` : '');
+
     const printWindow = window.open('', '_blank', 'width=380,height=600');
     if (!printWindow) {
       alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print receipts automatically.');
@@ -284,13 +304,19 @@ export const PatientRegistration: React.FC = () => {
 
           <div class="token-box">
             <div class="token-label">TODAY'S DAILY TOKEN</div>
-            <div class="token-number">TOKEN # ${target.tokenNumber || 1}</div>
-            <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
+            <div class="token-number">TOKEN # ${target.tokenNumber || 'T-01'}</div>
+            <div style="font-size: 11px; margin-top: 5px; font-weight: 900; color: #000; letter-spacing: 0.3px;">
+              👨‍⚕️ ${doctorName}
+            </div>
+            ${doctorSpecialization ? `<div style="font-size: 9px; color: #444; font-weight: bold;">(${doctorSpecialization})</div>` : ''}
+            <div style="font-size: 10px; margin-top: 4px; font-weight: bold; color: #333;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
           </div>
 
           <div class="divider"></div>
 
           <div class="info-row"><span class="info-label">Patient Name:</span> <span>${target.name}</span></div>
+          <div class="info-row"><span class="info-label">Doctor Assigned:</span> <span class="bold">${doctorName}${doctorSpecialization ? ` (${doctorSpecialization})` : ''}</span></div>
+          ${roomNumber ? `<div class="info-row"><span class="info-label">Doctor Room:</span> <span>${roomNumber}</span></div>` : ''}
           <div class="info-row"><span class="info-label">Age / Gender:</span> <span>${target.age || 'N/A'} Yrs / ${(target.gender || 'male').toUpperCase()}</span></div>
           <div class="info-row"><span class="info-label">Phone:</span> <span>${target.phone}</span></div>
           <div class="info-row"><span class="info-label">Area / Colony:</span> <span>${target.area || 'N/A'}</span></div>

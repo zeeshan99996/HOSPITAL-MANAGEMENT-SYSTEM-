@@ -104,13 +104,17 @@ export const TokenQueue: React.FC = () => {
           <div class="token-box">
             <div class="token-label">OPD CONSULTATION TOKEN</div>
             <div class="token-number">${tokenObj.tokenNumber}</div>
-            <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${patObj?.mrNumber || 'MR-N/A'}</div>
+            <div style="font-size: 11px; margin-top: 5px; font-weight: 900; color: #000; letter-spacing: 0.3px;">
+              👨‍⚕️ ${docObj?.name || docObj?.staffMember?.name || docObj?.user?.name || 'General OPD'}
+            </div>
+            ${docObj?.specialization || docObj?.department?.name ? `<div style="font-size: 9px; color: #444; font-weight: bold;">(${docObj?.specialization || docObj?.department?.name})</div>` : ''}
+            <div style="font-size: 10px; margin-top: 4px; font-weight: bold; color: #333;">MRN: ${patObj?.mrNumber || 'MR-N/A'}</div>
           </div>
 
           <div class="divider"></div>
 
           <div class="info-row"><span class="info-label">Patient Name:</span> <span>${patObj?.name || 'Patient'}</span></div>
-          <div class="info-row"><span class="info-label">Doctor Name:</span> <span>${docObj?.name || docObj?.staffMember?.name || docObj?.user?.name || 'General OPD'}</span></div>
+          <div class="info-row"><span class="info-label">Doctor Assigned:</span> <span class="bold">${docObj?.name || docObj?.staffMember?.name || docObj?.user?.name || 'General OPD'}</span></div>
           <div class="info-row"><span class="info-label">Room / Ward:</span> <span>${docObj?.roomNumber || 'Room 101'}</span></div>
           <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date(tokenObj.createdAt || Date.now()).toLocaleString()}</span></div>
 
