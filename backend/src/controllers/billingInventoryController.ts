@@ -9,6 +9,7 @@ import {
   DailyExpense,
   StaffPayroll,
   User,
+  StaffMember,
   Notification,
   Payment,
   InsuranceClaim
@@ -560,51 +561,48 @@ export const getStaffPayroll = async (req: Request, res: Response) => {
   try {
     const payroll = await StaffPayroll.findAll({
       where: whereClause,
-      include: [{ model: User, attributes: ['id', 'name', 'role', 'email'] }],
+      include: [
+        { model: User, attributes: ['id', 'name', 'role', 'email', 'phone'] },
+        { model: StaffMember, as: 'staffMember', attributes: ['id', 'name', 'phone', 'designation', 'salary', 'status'] }
+      ],
       order: [['month', 'DESC'], ['id', 'ASC']],
     });
-    return res.status(200).json(payroll);
+
+    const staffMembers = await StaffMember.findAll({
+      where: { status: 'active' },
+      attributes: ['id', 'name', 'phone', 'designation', 'salary', 'status']
+    });
+
+    return res.status(200).json({ payroll, staffMembers });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error fetching payroll logs.', error: error.message });
   }
 };
 
 export const generatePayrollForecast = async (req: Request, res: Response) => {
-  const { month } = req.body; // e.g. "2026-07"
+  const { month } = req.body; // e.g. "2026-08"
   if (!month) return res.status(400).json({ message: 'Month parameter is required (format YYYY-MM).' });
 
   try {
-    // Get all clinical & administrative staff (exclude patients)
-    const staffUsers = await User.findAll({
-      where: {
-        role: { [Op.in]: ['admin', 'doctor', 'nurse', 'receptionist', 'lab_technician', 'pharmacist', 'accountant'] },
-        status: 'active'
-      }
+    const staffMembers = await StaffMember.findAll({
+      where: { status: 'active' }
     });
 
     const forecastLogs = [];
-    for (const staff of staffUsers) {
-      // Check if log already exists
-      let payLog = await StaffPayroll.findOne({ where: { userId: staff.id, month } });
+    for (const staff of staffMembers) {
+      let payLog = await StaffPayroll.findOne({ where: { staffId: staff.id, month } });
 
       if (!payLog) {
-        // Assign default salaries based on role
-        let basic = 15000.00;
-        let allowances = 1000.00;
-        let deductions = 300.00;
-
-        if (staff.role === 'doctor') {
-          basic = 60000.00;
-          allowances = 5000.00;
-        } else if (staff.role === 'accountant') {
-          basic = 25000.00;
-          allowances = 2000.00;
-        }
-
+        const basic = Number(staff.salary) || 25000.00;
+        const allowances = 0.00;
+        const deductions = 0.00;
         const net = basic + allowances - deductions;
 
         payLog = await StaffPayroll.create({
-          userId: staff.id,
+          staffId: staff.id,
+          userId: null,
+          staffName: staff.name,
+          designation: staff.designation,
           month,
           basicSalary: basic,
           allowances,
@@ -617,10 +615,12 @@ export const generatePayrollForecast = async (req: Request, res: Response) => {
       forecastLogs.push(payLog);
     }
 
-    // Refresh data to include User models
     const fullyLoaded = await StaffPayroll.findAll({
       where: { month },
-      include: [{ model: User, attributes: ['id', 'name', 'role', 'email'] }]
+      include: [
+        { model: User, attributes: ['id', 'name', 'role', 'email'] },
+        { model: StaffMember, as: 'staffMember', attributes: ['id', 'name', 'phone', 'designation', 'salary'] }
+      ]
     });
 
     const totalProjectedExpense = fullyLoaded.reduce((acc, log) => acc + Number(log.netSalary), 0);
@@ -629,18 +629,143 @@ export const generatePayrollForecast = async (req: Request, res: Response) => {
       month,
       forecast: fullyLoaded,
       totalProjectedExpense,
+      staffMembers,
     });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error generating salary forecasts.', error: error.message });
   }
 };
 
+export const disburseStaffSalary = async (req: Request, res: Response) => {
+  const {
+    staffId,
+    userId,
+    staffName,
+    designation,
+    month,
+    basicSalary,
+    allowances,
+    deductions,
+    netSalary,
+    paymentDate,
+    paymentMethod = 'cash',
+    notes
+  } = req.body;
+
+  if (!month) {
+    return res.status(400).json({ message: 'Month parameter is required (format YYYY-MM).' });
+  }
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    const cleanBasic = Number(basicSalary) || 0;
+    const cleanAllow = Number(allowances) || 0;
+    const cleanDeduct = Number(deductions) || 0;
+    const cleanNet = netSalary !== undefined ? Number(netSalary) : (cleanBasic + cleanAllow - cleanDeduct);
+
+    let cleanStaffName = staffName;
+    let cleanDesignation = designation;
+
+    if (staffId && !cleanStaffName) {
+      const s = await StaffMember.findByPk(staffId, { transaction });
+      if (s) {
+        cleanStaffName = s.name;
+        cleanDesignation = s.designation;
+      }
+    } else if (userId && !cleanStaffName) {
+      const u = await User.findByPk(userId, { transaction });
+      if (u) {
+        cleanStaffName = u.name;
+        cleanDesignation = u.role;
+      }
+    }
+
+    cleanStaffName = cleanStaffName || 'Staff Member';
+    cleanDesignation = cleanDesignation || 'Staff';
+
+    const payDate = paymentDate ? new Date(paymentDate) : new Date();
+    const dateOnlyStr = paymentDate || payDate.toISOString().split('T')[0];
+
+    const whereSearch: any = { month };
+    if (staffId) whereSearch.staffId = staffId;
+    else if (userId) whereSearch.userId = userId;
+    else whereSearch.staffName = cleanStaffName;
+
+    let payroll = await StaffPayroll.findOne({ where: whereSearch, transaction });
+
+    if (payroll) {
+      await payroll.update({
+        staffId: staffId || payroll.staffId,
+        userId: userId || payroll.userId,
+        staffName: cleanStaffName,
+        designation: cleanDesignation,
+        basicSalary: cleanBasic,
+        allowances: cleanAllow,
+        deductions: cleanDeduct,
+        netSalary: cleanNet,
+        status: 'paid',
+        paymentDate: payDate,
+        paymentMethod,
+        notes: notes || payroll.notes
+      }, { transaction });
+    } else {
+      payroll = await StaffPayroll.create({
+        staffId: staffId || null,
+        userId: userId || null,
+        staffName: cleanStaffName,
+        designation: cleanDesignation,
+        month,
+        basicSalary: cleanBasic,
+        allowances: cleanAllow,
+        deductions: cleanDeduct,
+        netSalary: cleanNet,
+        status: 'paid',
+        paymentDate: payDate,
+        paymentMethod,
+        notes: notes || null
+      }, { transaction });
+    }
+
+    // Automatically post to DailyExpense as 'Staff Salary & Payroll'
+    const expense = await DailyExpense.create({
+      description: `Staff Salary: ${cleanStaffName} (${cleanDesignation}) - Month: ${month}`,
+      category: 'Staff Salary & Payroll',
+      amount: cleanNet,
+      spentBy: (req as any).user?.name || 'Administrator',
+      expenseDate: dateOnlyStr,
+    }, { transaction });
+
+    await ActivityLog.create({
+      userId: (req as any).user?.id || null,
+      action: 'Salary Disbursed',
+      details: `Paid salary of Rs. ${cleanNet} to ${cleanStaffName} for ${month} via ${paymentMethod.toUpperCase()}`,
+      ipAddress: req.ip
+    }, { transaction });
+
+    await transaction.commit();
+
+    return res.status(201).json({
+      message: `Staff salary for ${cleanStaffName} successfully paid and recorded in Clinic Expenses.`,
+      payroll,
+      expense
+    });
+  } catch (error: any) {
+    await transaction.rollback();
+    return res.status(500).json({ message: 'Error disbursing staff salary.', error: error.message });
+  }
+};
+
 export const payStaffPayroll = async (req: Request, res: Response) => {
   const { id } = req.params;
+  const { paymentMethod = 'cash', notes } = req.body;
 
   try {
     const payroll = await StaffPayroll.findByPk(id, {
-      include: [{ model: User, attributes: ['name'] }]
+      include: [
+        { model: User, attributes: ['name'] },
+        { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+      ]
     });
     if (!payroll) {
       return res.status(404).json({ message: 'Payroll entry not found.' });
@@ -654,14 +779,17 @@ export const payStaffPayroll = async (req: Request, res: Response) => {
     await payroll.update({
       status: 'paid',
       paymentDate: payDate,
+      paymentMethod,
+      notes: notes || payroll.notes
     });
 
-    const staffName = (payroll as any).user?.name || `Staff #${payroll.userId}`;
+    const staffName = (payroll as any).staffMember?.name || (payroll as any).user?.name || payroll.staffName || `Staff #${payroll.staffId || payroll.userId}`;
+    const designation = (payroll as any).staffMember?.designation || payroll.designation || 'Staff';
     const todayStr = `${payDate.getFullYear()}-${String(payDate.getMonth() + 1).padStart(2, '0')}-${String(payDate.getDate()).padStart(2, '0')}`;
 
     // Automatically post salary clearance as an Office / Clinic Expense entry
-    await DailyExpense.create({
-      description: `Staff Salary Disbursed: ${staffName} (${payroll.month})`,
+    const expense = await DailyExpense.create({
+      description: `Staff Salary: ${staffName} (${designation}) - Month: ${payroll.month}`,
       category: 'Staff Salary & Payroll',
       amount: Number(payroll.netSalary) || 0,
       spentBy: (req as any).user?.name || 'Administrator',
@@ -675,7 +803,7 @@ export const payStaffPayroll = async (req: Request, res: Response) => {
       ipAddress: req.ip
     });
 
-    return res.status(200).json({ message: 'Salary marked as paid and posted to Office Expenses.', payroll });
+    return res.status(200).json({ message: 'Salary marked as paid and posted to Clinic Expenses.', payroll, expense });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error processing payroll clearance.', error: error.message });
   }

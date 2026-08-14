@@ -71,7 +71,8 @@ import {
   deleteDailyExpense,
   getStaffPayroll,
   generatePayrollForecast,
-  payStaffPayroll
+  payStaffPayroll,
+  disburseStaffSalary
 } from '../controllers/billingInventoryController';
 import {
   getDashboardStats,
@@ -384,6 +385,7 @@ router.delete('/expenses/:id', authenticateToken, requireRoles(['admin', 'accoun
 // MONTHLY PAYROLL SYSTEM & forecasts
 router.get('/payroll', authenticateToken, requireRoles(['admin', 'accountant']), getStaffPayroll);
 router.post('/payroll/forecast', authenticateToken, requireRoles(['admin', 'accountant']), generatePayrollForecast);
+router.post('/payroll/disburse', authenticateToken, requireRoles(['admin', 'accountant']), disburseStaffSalary);
 router.put('/payroll/:id/pay', authenticateToken, requireRoles(['admin', 'accountant']), payStaffPayroll);
 
 // ==========================================

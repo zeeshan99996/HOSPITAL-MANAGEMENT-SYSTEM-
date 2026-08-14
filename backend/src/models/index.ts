@@ -712,7 +712,10 @@ DailyExpense.init(
 // ==========================================
 export class StaffPayroll extends Model {
   declare id: number;
-  declare userId: number;
+  declare userId: number | null;
+  declare staffId: number | null;
+  declare staffName: string | null;
+  declare designation: string | null;
   declare month: string;
   declare basicSalary: number;
   declare allowances: number;
@@ -720,11 +723,18 @@ export class StaffPayroll extends Model {
   declare netSalary: number;
   declare status: 'pending' | 'paid';
   declare paymentDate: Date | null;
+  declare paymentMethod: string;
+  declare notes: string | null;
+  declare user?: User;
+  declare staffMember?: StaffMember;
 }
 StaffPayroll.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    userId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
+    userId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
+    staffId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'staff', key: 'id' } },
+    staffName: { type: DataTypes.STRING, allowNull: true },
+    designation: { type: DataTypes.STRING, allowNull: true },
     month: { type: DataTypes.STRING, allowNull: false },
     basicSalary: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     allowances: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
@@ -732,6 +742,8 @@ StaffPayroll.init(
     netSalary: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
     status: { type: DataTypes.ENUM('pending', 'paid'), defaultValue: 'pending' },
     paymentDate: { type: DataTypes.DATE, allowNull: true },
+    paymentMethod: { type: DataTypes.STRING, defaultValue: 'cash' },
+    notes: { type: DataTypes.TEXT, allowNull: true },
   },
   { sequelize, modelName: 'staff_payroll' }
 );
@@ -864,6 +876,9 @@ Notification.belongsTo(User, { foreignKey: 'userId' });
 
 User.hasMany(StaffPayroll, { foreignKey: 'userId', onDelete: 'CASCADE' });
 StaffPayroll.belongsTo(User, { foreignKey: 'userId' });
+
+StaffMember.hasMany(StaffPayroll, { foreignKey: 'staffId', onDelete: 'CASCADE' });
+StaffPayroll.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember' });
 
 // Department Associations
 Department.hasMany(Doctor, { foreignKey: 'departmentId', onDelete: 'RESTRICT' });
