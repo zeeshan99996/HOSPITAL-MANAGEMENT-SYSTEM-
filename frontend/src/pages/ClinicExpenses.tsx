@@ -446,31 +446,52 @@ export const ClinicExpenses: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-            <Wallet className="h-6 w-6 text-amber-500" /> Clinic Expenses & Staff Payroll Hub
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Separate ledgers for daily clinic petty cash (Tea, Refreshments, Maintenance) and monthly staff salary disbursements.
-          </p>
-        </div>
+      {/* PROFESSIONAL EXECUTIVE HEADER BANNER */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 sm:p-7 shadow-2xl text-white">
+        {/* Subtle Ambient Background Glows */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
-          <Button
-            onClick={() => handleOpenSalaryModal()}
-            className="flex items-center gap-1.5 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-          >
-            <Briefcase className="h-4 w-4" /> + Pay Staff Salary
-          </Button>
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          {/* Left Column: Title & Subtitle */}
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-semibold tracking-wide">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Financial Outflow, Petty Cash & Monthly Payroll Suite</span>
+            </div>
 
-          <Button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 shadow-md bg-amber-600 hover:bg-amber-700 text-white font-bold"
-          >
-            <Plus className="h-4 w-4" /> + Record Daily Expense
-          </Button>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+                <Wallet className="h-6 w-6" />
+              </div>
+              <span>Clinic Expenses & Staff Payroll Hub</span>
+            </h1>
+
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Segregated ledgers for daily clinic petty cash (Tea, Refreshments, Maintenance) and monthly staff salary disbursements.
+            </p>
+          </div>
+
+          {/* Right Column: Action Buttons */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleOpenSalaryModal()}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20"
+            >
+              <Briefcase className="h-4 w-4" />
+              <span>Pay Staff Salary</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap bg-amber-600 hover:bg-amber-500 text-white border-amber-500 shadow-amber-900/20"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Record Daily Expense</span>
+            </button>
+          </div>
         </div>
       </div>
 
