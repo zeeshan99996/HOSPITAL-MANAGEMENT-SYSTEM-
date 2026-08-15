@@ -31,7 +31,8 @@ import {
   updatePatient,
   deletePatient,
   getPatientVitals,
-  logPatientVitals
+  logPatientVitals,
+  recordDoctorConsultation
 } from '../controllers/patientController';
 import {
   createAppointment,
@@ -201,6 +202,7 @@ router.post('/appointments', authenticateToken, requireRoles(['admin', 'receptio
 router.get('/appointments', authenticateToken, getAppointments);
 router.put('/appointments/:id/status', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor']), updateAppointmentStatus);
 router.post('/appointments/prescription', authenticateToken, requireRoles(['admin', 'doctor']), createPrescription);
+router.post('/doctor/consultation', authenticateToken, requireRoles(['admin', 'doctor']), recordDoctorConsultation);
 
 // THERMAL PRINTER & QUEUE TOKEN GENERATION (DOCTOR-SPECIFIC DAILY SEQUENCE)
 router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']), validateTokenQueue, async (req, res) => {

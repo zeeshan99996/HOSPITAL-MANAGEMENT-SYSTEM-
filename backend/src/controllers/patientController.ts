@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Patient, Appointment, Prescription, PrescriptionItem, LabRequest, Admission, Bed, Doctor, User, PatientVital, TokenQueue } from '../models';
+import { Patient, Appointment, Prescription, PrescriptionItem, LabRequest, Admission, Bed, Doctor, User, PatientVital, TokenQueue, ActivityLog } from '../models';
 import { Op } from 'sequelize';
 import sequelize from '../config/db';
 import { getPktDayBounds } from '../utils/timezone';
@@ -435,3 +435,158 @@ export const logPatientVitals = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error logging vitals.', error: error.message });
   }
 };
+
+export const recordDoctorConsultation = async (req: Request, res: Response) => {
+  const {
+    patientId,
+    tokenId,
+    symptoms,
+    symptomTags,
+    medicalHistory,
+    allergies,
+    vitals,
+    physicalExam,
+    diagnosis,
+    clinicalNotes,
+    dietAdvice,
+    followUpDays,
+    medicines,
+    advisedLabTests
+  } = req.body;
+
+  try {
+    const patient = await Patient.findByPk(patientId);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    const userId = (req as any).user?.id;
+    let doctor = await Doctor.findOne({ where: { userId } });
+    if (!doctor) {
+      doctor = await Doctor.findOne();
+    }
+    const doctorId = doctor ? doctor.id : 1;
+
+    // 1. Log Vitals if provided
+    let loggedVital: any = null;
+    if (vitals && (vitals.bp || vitals.temperature || vitals.pulse || vitals.spo2 || vitals.weight)) {
+      try {
+        loggedVital = await PatientVital.create({
+          patientId: Number(patientId),
+          bp: vitals.bp || null,
+          temperature: vitals.temperature ? Number(vitals.temperature) : null,
+          pulse: vitals.pulse ? Number(vitals.pulse) : null,
+          spo2: vitals.spo2 ? Number(vitals.spo2) : null,
+          weight: vitals.weight ? Number(vitals.weight) : null,
+          notes: vitals.notes || null,
+          loggedBy: userId || null
+        });
+      } catch (vitErr) {
+        console.warn('[recordDoctorConsultation] Error saving vitals:', vitErr);
+      }
+    }
+
+    // 2. Format clinical summary notes
+    const clinicalSummaryParts: string[] = [];
+    if (symptoms) clinicalSummaryParts.push(`Alamaat / Symptoms: ${symptoms}`);
+    if (symptomTags && symptomTags.length > 0) clinicalSummaryParts.push(`Tags: ${symptomTags.join(', ')}`);
+    if (medicalHistory) clinicalSummaryParts.push(`Medical History: ${medicalHistory}`);
+    if (allergies) clinicalSummaryParts.push(`Allergies: ${allergies}`);
+    if (physicalExam) clinicalSummaryParts.push(`Physical Exam: ${physicalExam}`);
+    if (clinicalNotes) clinicalSummaryParts.push(`Doctor Notes: ${clinicalNotes}`);
+    if (dietAdvice) clinicalSummaryParts.push(`Diet & Precautions: ${dietAdvice}`);
+    if (followUpDays) clinicalSummaryParts.push(`Follow-up: Within ${followUpDays} day(s)`);
+
+    const fullClinicalNotes = clinicalSummaryParts.join('\n');
+
+    // 3. Create Appointment record
+    const appointment = await Appointment.create({
+      patientId: Number(patientId),
+      doctorId: doctorId,
+      appointmentDate: new Date(),
+      status: 'completed',
+      type: 'consultation',
+      notes: fullClinicalNotes
+    });
+
+    // 4. Create Prescription Record
+    const prescription = await Prescription.create({
+      appointmentId: appointment.id,
+      diagnosis: diagnosis || 'Clinical Consultation Completed',
+      notes: fullClinicalNotes,
+      prescriptionDate: new Date()
+    });
+
+    // 5. Create Prescription Line Items
+    if (medicines && Array.isArray(medicines) && medicines.length > 0) {
+      const itemsToCreate = medicines
+        .filter((m: any) => m && (m.name || m.medicineName))
+        .map((m: any) => ({
+          prescriptionId: prescription.id,
+          medicineName: (m.name || m.medicineName || '').trim(),
+          dosage: m.dosage || '1 Tab',
+          frequency: m.frequency || '1-0-1',
+          duration: m.duration || '5 Days'
+        }));
+
+      if (itemsToCreate.length > 0) {
+        await PrescriptionItem.bulkCreate(itemsToCreate);
+      }
+    }
+
+    // 6. Create Lab Requests if lab tests advised
+    let createdLabRequests = 0;
+    if (advisedLabTests && Array.isArray(advisedLabTests) && advisedLabTests.length > 0) {
+      for (const t of advisedLabTests) {
+        const testTitle = typeof t === 'string' ? t : (t.testName || t.name || 'Lab Investigation');
+        try {
+          await LabRequest.create({
+            patientId: Number(patientId),
+            doctorId: doctorId,
+            testType: testTitle,
+            status: 'pending',
+            requestDate: new Date(),
+            clinicalIndication: diagnosis || 'Doctor Consultation'
+          } as any);
+          createdLabRequests++;
+        } catch (labErr) {
+          console.warn('[recordDoctorConsultation] Error creating lab request:', labErr);
+        }
+      }
+    }
+
+    // 7. Update Token Queue status to completed if tokenId provided
+    if (tokenId) {
+      try {
+        await TokenQueue.update(
+          { status: 'completed' },
+          { where: { id: Number(tokenId) } }
+        );
+      } catch (tokErr) {
+        console.warn('[recordDoctorConsultation] Error updating token queue:', tokErr);
+      }
+    }
+
+    // 8. Log activity
+    try {
+      await ActivityLog.create({
+        userId: userId || null,
+        action: 'DOCTOR_CONSULTATION',
+        details: `Doctor completed consultation & prescription for patient ${patient.name} (MRN: ${patient.mrNumber}). Diagnosis: ${diagnosis || 'General'}`
+      });
+    } catch (actErr) {}
+
+    return res.status(201).json({
+      message: 'Clinical consultation and prescription recorded successfully!',
+      prescriptionId: prescription.id,
+      appointmentId: appointment.id,
+      patientId: patient.id,
+      vitalId: loggedVital?.id || null,
+      labRequestsCount: createdLabRequests
+    });
+  } catch (error: any) {
+    console.error('[recordDoctorConsultation] Error:', error);
+    return res.status(500).json({ message: 'Error saving doctor consultation.', error: error.message });
+  }
+};
+

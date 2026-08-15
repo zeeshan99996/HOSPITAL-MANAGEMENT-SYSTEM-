@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
 import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw, BedDouble, Scissors, Stethoscope, Clock, Pill } from 'lucide-react';
 import { ThermalPrinter } from '../components/ThermalPrinter';
+import { DoctorEMRModal } from '../components/DoctorEMRModal';
 
 export const Patients: React.FC = () => {
   const { user } = useAuth();
@@ -24,6 +25,9 @@ export const Patients: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  
+  // Doctor EMR Suite Modal
+  const [isDoctorEMROpen, setIsDoctorEMROpen] = useState(false);
   
   // Vitals form modal control
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
@@ -610,6 +614,16 @@ export const Patients: React.FC = () => {
             {/* Doctor Clinical Quick Action Toolbar */}
             <div className="bg-slate-100/60 dark:bg-dark-950/60 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-850 space-y-2">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">Doctor Clinical Actions</span>
+              
+              {(user?.role === 'doctor' || user?.role === 'admin') && (
+                <button
+                  onClick={() => setIsDoctorEMROpen(true)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-brand-500/25 mb-1"
+                >
+                  <Stethoscope className="h-4 w-4" /> Start / Write Doctor EMR & Rx Prescription
+                </button>
+              )}
+
               <div className="flex flex-wrap gap-2">
                 {user?.role !== 'accountant' && (
                   <button
@@ -802,6 +816,17 @@ export const Patients: React.FC = () => {
           onClose={() => setIsPrintOpen(false)}
         />
       )}
+
+      {/* Doctor EMR Consultation Suite Modal */}
+      <DoctorEMRModal
+        isOpen={isDoctorEMROpen}
+        onClose={() => setIsDoctorEMROpen(false)}
+        patientId={selectedPatientId}
+        onConsultationSaved={() => {
+          if (selectedPatientId) fetchPatientDetails(selectedPatientId);
+          fetchPatients();
+        }}
+      />
     </div>
   );
 };

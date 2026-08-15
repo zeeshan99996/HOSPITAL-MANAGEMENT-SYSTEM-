@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
 import { Card, Button, Badge, Drawer } from '../components/UI';
+import { DoctorEMRModal } from '../components/DoctorEMRModal';
 import {
   Users,
   Calendar,
@@ -22,7 +23,9 @@ import {
   Pill,
   Stethoscope,
   Thermometer,
-  MapPin
+  MapPin,
+  Search,
+  Plus
 } from 'lucide-react';
 import {
   AreaChart,
@@ -42,10 +45,52 @@ export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
-  // EMR Drawer State
+  // EMR Drawer & Modal State
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerLoading, setDrawerLoading] = useState(false);
+
+  // Doctor Interactive EMR Modal State
+  const [isDoctorEMROpen, setIsDoctorEMROpen] = useState(false);
+  const [emrPatientId, setEmrPatientId] = useState<number | null>(null);
+  const [emrTokenId, setEmrTokenId] = useState<number | null>(null);
+  const [emrTokenNumber, setEmrTokenNumber] = useState<string | null>(null);
+
+  // Doctor Patient Quick Search
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleOpenDoctorEMR = (pId: number, tId?: number, tNum?: string) => {
+    setEmrPatientId(pId);
+    setEmrTokenId(tId || null);
+    setEmrTokenNumber(tNum || null);
+    setIsDoctorEMROpen(true);
+  };
+
+  const handleDoctorSearch = async (q: string) => {
+    setDoctorSearchQuery(q);
+    if (!q || q.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await apiClient.get('/patients');
+      const all: any[] = Array.isArray(res) ? res : (res?.patients || []);
+      const lower = q.toLowerCase();
+      const matched = all.filter((p: any) =>
+        (p.name && p.name.toLowerCase().includes(lower)) ||
+        (p.mrNumber && p.mrNumber.toLowerCase().includes(lower)) ||
+        (p.phone && p.phone.includes(q))
+      ).slice(0, 6);
+      setSearchResults(matched);
+    } catch (e) {
+      console.warn('Doctor search error', e);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleOpenEMR = async (patientId: number) => {
     if (!patientId) return;
@@ -137,7 +182,62 @@ export const Dashboard: React.FC = () => {
               </p>
             </div>
           </div>
-          <Badge type="success">Active Doctor OPD Duty</Badge>
+          <div className="flex items-center gap-2.5">
+            <Badge type="success">Active Doctor OPD Duty</Badge>
+          </div>
+        </div>
+
+        {/* QUICK SEARCH ANY PATIENT TO OPEN EMR DIRECTLY */}
+        <div className="relative">
+          <div className="flex items-center gap-3 bg-white dark:bg-dark-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <Search className="h-4.5 w-4.5 text-brand-500 ml-1.5 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search any hospital patient by Name, MR Number, or Phone to write/view EMR consultation..."
+              value={doctorSearchQuery}
+              onChange={e => handleDoctorSearch(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-bold"
+            />
+            {isSearching && <span className="text-[10px] text-slate-400 animate-pulse">Searching...</span>}
+            {doctorSearchQuery && (
+              <button
+                onClick={() => { setDoctorSearchQuery(''); setSearchResults([]); }}
+                className="text-slate-400 hover:text-slate-600 text-xs px-2 font-bold"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Search Dropdown Results */}
+          {searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-40 overflow-hidden divide-y divide-slate-100 dark:divide-slate-850">
+              {searchResults.map(p => (
+                <div
+                  key={p.id}
+                  onClick={() => {
+                    handleOpenDoctorEMR(p.id);
+                    setDoctorSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  className="p-3.5 hover:bg-brand-50/50 dark:hover:bg-brand-950/30 cursor-pointer flex justify-between items-center transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-brand-500/10 text-brand-500 font-bold flex items-center justify-center text-xs">
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <strong className="text-slate-900 dark:text-white text-xs block">{p.name}</strong>
+                      <span className="text-[10px] text-slate-500 font-mono">MRN: {p.mrNumber} • Phone: {p.phone || 'N/A'} • {p.age ? `${p.age} Yrs` : ''} ({p.gender})</span>
+                    </div>
+                  </div>
+                  <Button size="sm" className="text-[11px] font-bold py-1 px-3 bg-brand-500 text-white rounded-lg shadow-sm">
+                    Open EMR ➔
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Doctor-Specific KPI Cards */}
@@ -206,7 +306,7 @@ export const Dashboard: React.FC = () => {
                   <th className="px-5 py-3.5">Age / Gender</th>
                   <th className="px-5 py-3.5">Contact Phone</th>
                   <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Doctor Actions</th>
+                  <th className="px-5 py-3.5 text-right">Clinical EMR Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -255,28 +355,33 @@ export const Dashboard: React.FC = () => {
                           <div className="flex justify-end gap-1.5">
                             {!isCompleted && !isProcessing && (
                               <button
-                                onClick={() => handleDoctorTokenStatus(t.id, 'processing')}
-                                className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1 shadow-sm"
+                                onClick={() => {
+                                  handleDoctorTokenStatus(t.id, 'processing');
+                                  handleOpenDoctorEMR(pat.id || t.patientId, t.id, t.tokenNumber);
+                                }}
+                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1.5 shadow-sm"
                               >
-                                <Play className="h-3.5 w-3.5" /> Call Next
+                                <Play className="h-3.5 w-3.5" /> Call & Consult
                               </button>
                             )}
 
                             {isProcessing && (
                               <button
-                                onClick={() => handleDoctorTokenStatus(t.id, 'completed')}
-                                className="px-2.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1 shadow-sm"
+                                onClick={() => handleOpenDoctorEMR(pat.id || t.patientId, t.id, t.tokenNumber)}
+                                className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-all text-xs font-black flex items-center gap-1.5 shadow-md shadow-brand-500/25 animate-pulse"
                               >
-                                <CheckCircle className="h-3.5 w-3.5" /> Complete Checkup
+                                <Stethoscope className="h-3.5 w-3.5" /> Write EMR & Rx
                               </button>
                             )}
 
-                            <button
-                              onClick={() => handleOpenEMR(pat.id || t.patientId)}
-                              className="px-2 py-1.5 bg-slate-100 dark:bg-dark-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg transition-all text-xs font-bold flex items-center gap-1 border border-slate-200 dark:border-slate-800"
-                            >
-                              <Eye className="h-3.5 w-3.5" /> EMR Record
-                            </button>
+                            {isCompleted && (
+                              <button
+                                onClick={() => handleOpenDoctorEMR(pat.id || t.patientId, t.id, t.tokenNumber)}
+                                className="px-2.5 py-1.5 bg-slate-100 dark:bg-dark-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg transition-all text-xs font-bold flex items-center gap-1 border border-slate-200 dark:border-slate-800"
+                              >
+                                <Eye className="h-3.5 w-3.5" /> View EMR File
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -287,6 +392,17 @@ export const Dashboard: React.FC = () => {
             </table>
           </div>
         </Card>
+
+        {/* INTERACTIVE DOCTOR EMR CLINICAL CONSULTATION SUITE */}
+        <DoctorEMRModal
+          isOpen={isDoctorEMROpen}
+          onClose={() => setIsDoctorEMROpen(false)}
+          patientId={emrPatientId}
+          tokenId={emrTokenId}
+          tokenNumber={emrTokenNumber}
+          doctorInfo={docInfo}
+          onConsultationSaved={fetchStats}
+        />
 
         {/* Doctor Patient EMR Record Drawer */}
         <Drawer
