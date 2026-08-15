@@ -223,7 +223,7 @@ export const OldPatient: React.FC = () => {
         <div class="info-row"><span class="info-label">Patient Name:</span> <span>${escapeHtml(selectedPatient?.name || 'Patient')}</span></div>
         <div class="info-row"><span class="info-label">Assigned Doctor:</span> <span>${escapeHtml(docTitle)}</span></div>
         <div class="info-row"><span class="info-label">Phone:</span> <span>${escapeHtml(selectedPatient?.phone || 'N/A')}</span></div>
-        <div class="info-row"><span class="info-label">Visit Type:</span> <span>${isWithin5Days ? '5-Day Free Re-visit' : 'Regular OPD Visit'}</span></div>
+        <div class="info-row"><span class="info-label">Visit Type:</span> <span>${escapeHtml(isWithin5Days ? `Followup within ${daysDifference <= 1 ? '1 day' : `${daysDifference} days`}` : 'Regular OPD Visit')}</span></div>
         <div class="info-row"><span class="info-label">Fee Charged:</span> <span>Rs. ${escapeHtml(chargedFee)}</span></div>
         <div class="info-row"><span class="info-label">Date & Time:</span> <span>${escapeHtml(new Date().toLocaleString())}</span></div>
 
@@ -259,7 +259,7 @@ export const OldPatient: React.FC = () => {
         patientId: selectedPatient.id,
         doctorId: Number(selectedDoctorId),
         fee: chargedFee,
-        detail: isWithin5Days ? '5-Day Free Follow-Up Visit' : 'Regular OPD Visit'
+        detail: isWithin5Days ? `Followup within ${daysDifference <= 1 ? '1 day' : `${daysDifference} days`}` : 'Regular OPD Visit'
       });
 
       setGeneratedToken(tokenRes);
@@ -440,7 +440,7 @@ export const OldPatient: React.FC = () => {
               </p>
             </div>
             <Badge type={isWithin5Days ? 'success' : 'info'}>
-              {isWithin5Days ? `5-Day Free Follow-Up (${daysDifference} days ago)` : `Regular Visit (${daysDifference === 999 ? 'First' : `${daysDifference} days ago`})`}
+              {isWithin5Days ? `Followup within ${daysDifference <= 1 ? '1 day' : `${daysDifference} days`} (Free Re-visit)` : `Regular Visit (${daysDifference === 999 ? 'First' : `${daysDifference} days ago`})`}
             </Badge>
           </div>
 
@@ -476,7 +476,7 @@ export const OldPatient: React.FC = () => {
                 </div>
                 {isWithin5Days ? (
                   <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" /> Fee Exempted: Patient visited within 5 days.
+                    <CheckCircle className="h-3 w-3" /> Fee Exempted: Followup within {daysDifference <= 1 ? '1 day' : `${daysDifference} days`}.
                   </p>
                 ) : (
                   <p className="text-[10px] text-slate-450 font-semibold mt-1">
