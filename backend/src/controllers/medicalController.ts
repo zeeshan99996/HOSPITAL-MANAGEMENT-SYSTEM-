@@ -72,6 +72,43 @@ export const deleteBed = async (req: Request, res: Response) => {
   }
 };
 
+export const updateBed = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { bedNumber, wardName, type, status } = req.body;
+
+    const bed = await Bed.findByPk(id);
+    if (!bed) {
+      return res.status(404).json({ message: 'Bed not found.' });
+    }
+
+    if (bedNumber && bedNumber.trim() !== bed.bedNumber) {
+      const existing = await Bed.findOne({ where: { bedNumber: bedNumber.trim() } });
+      if (existing && existing.id !== bed.id) {
+        return res.status(400).json({ message: `Another bed already has the number "${bedNumber.trim()}".` });
+      }
+      bed.bedNumber = bedNumber.trim();
+    }
+
+    if (wardName) bed.wardName = wardName.trim();
+    if (type) bed.type = type;
+    if (status) {
+      if (bed.status === 'occupied' && status !== 'occupied') {
+        const activeAdm = await Admission.findOne({ where: { bedId: bed.id, status: 'admitted' } });
+        if (activeAdm) {
+          return res.status(400).json({ message: 'Cannot change status of an occupied bed while a patient is actively admitted.' });
+        }
+      }
+      bed.status = status;
+    }
+
+    await bed.save();
+    return res.status(200).json({ message: 'Hospital bed updated successfully.', bed });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error updating bed.', error: error.message });
+  }
+};
+
 // ==========================================
 // ADMISSIONS (IPD)
 // ==========================================

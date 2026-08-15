@@ -42,6 +42,7 @@ import {
 import {
   getBeds,
   createBed,
+  updateBed,
   deleteBed,
   admitPatient,
   getAdmissions,
@@ -354,6 +355,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 // ==========================================
 router.get('/beds', authenticateToken, getBeds);
 router.post('/beds', authenticateToken, requireRoles(['admin']), createBed);
+router.put('/beds/:id', authenticateToken, requireRoles(['admin']), updateBed);
 router.delete('/beds/:id', authenticateToken, requireRoles(['admin']), deleteBed);
 router.post('/admissions', authenticateToken, requireRoles(['admin', 'receptionist']), validateAdmission, admitPatient);
 router.get('/admissions', authenticateToken, getAdmissions);

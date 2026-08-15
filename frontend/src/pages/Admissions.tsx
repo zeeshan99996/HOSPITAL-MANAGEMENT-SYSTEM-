@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText, CheckCircle2, ArrowRight, Trash2 } from 'lucide-react';
+import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText, CheckCircle2, ArrowRight, Trash2, Edit2 } from 'lucide-react';
 
 export const Admissions: React.FC = () => {
   const { user } = useAuth();
@@ -26,6 +26,16 @@ export const Admissions: React.FC = () => {
   const [customWard, setCustomWard] = useState('');
   const [newBedType, setNewBedType] = useState<'general' | 'icu' | 'semi-private' | 'private'>('general');
   const [addingBed, setAddingBed] = useState(false);
+
+  // Edit Bed Modal State (Admin only)
+  const [isEditBedOpen, setIsEditBedOpen] = useState(false);
+  const [editingBed, setEditingBed] = useState<any>(null);
+  const [editBedNumber, setEditBedNumber] = useState('');
+  const [editBedWard, setEditBedWard] = useState('General Male Ward');
+  const [editCustomWard, setEditCustomWard] = useState('');
+  const [editBedType, setEditBedType] = useState<'general' | 'icu' | 'semi-private' | 'private'>('general');
+  const [editBedStatus, setEditBedStatus] = useState<'available' | 'occupied' | 'maintenance'>('available');
+  const [updatingBed, setUpdatingBed] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isAdministerOpen, setIsAdministerOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
@@ -282,6 +292,57 @@ export const Admissions: React.FC = () => {
       fetchData();
     } catch (err: any) {
       alert(err.message || 'Failed to delete bed.');
+    }
+  };
+
+  const handleOpenEditBed = (bed: any) => {
+    setEditingBed(bed);
+    setEditBedNumber(bed.bedNumber);
+    const standardWards = [
+      'General Male Ward',
+      'General Female Ward',
+      'Surgical ICU Ward',
+      'Private VIP Suite',
+      'Emergency Recovery Ward',
+      'Post-Op Recovery Ward',
+      'Pediatric Ward'
+    ];
+    if (standardWards.includes(bed.wardName)) {
+      setEditBedWard(bed.wardName);
+      setEditCustomWard('');
+    } else {
+      setEditBedWard('custom');
+      setEditCustomWard(bed.wardName);
+    }
+    setEditBedType(bed.type || 'general');
+    setEditBedStatus(bed.status || 'available');
+    setIsEditBedOpen(true);
+  };
+
+  const handleUpdateBed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBed) return;
+    const finalWard = editBedWard === 'custom' ? editCustomWard.trim() : editBedWard.trim();
+    if (!editBedNumber.trim() || !finalWard) {
+      alert('Please fill in both Bed Number and Ward Name.');
+      return;
+    }
+    setUpdatingBed(true);
+    try {
+      await apiClient.put(`/beds/${editingBed.id}`, {
+        bedNumber: editBedNumber.trim(),
+        wardName: finalWard,
+        type: editBedType,
+        status: editBedStatus
+      });
+      alert('Hospital Bed updated successfully!');
+      setIsEditBedOpen(false);
+      setEditingBed(null);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update hospital bed.');
+    } finally {
+      setUpdatingBed(false);
     }
   };
 
@@ -642,14 +703,25 @@ export const Admissions: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {beds.map(bed => (
                 <Card key={bed.id} className="p-4 flex flex-col justify-between items-center text-center gap-2 border border-slate-200/60 dark:border-slate-850 relative group transition-all">
-                  {user?.role === 'admin' && bed.status === 'available' && (
-                    <button
-                      onClick={() => handleDeleteBed(bed)}
-                      className="absolute top-2 right-2 p-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                      title="Delete this bed"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                  {user?.role === 'admin' && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleOpenEditBed(bed)}
+                        className="p-1 text-slate-400 hover:text-indigo-600 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                        title="Edit bed details"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      {bed.status === 'available' && (
+                        <button
+                          onClick={() => handleDeleteBed(bed)}
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                          title="Delete this bed"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   )}
                   <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-dark-950 flex items-center justify-center text-slate-500">
                     <BedDouble className="h-5 w-5" />
@@ -1397,6 +1469,92 @@ export const Admissions: React.FC = () => {
             </Button>
             <Button type="submit" disabled={addingBed} className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
               <Plus className="h-4 w-4" /> {addingBed ? 'Adding Bed...' : 'Save Hospital Bed'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* EDIT HOSPITAL BED MODAL (Admin Only) */}
+      <Modal isOpen={isEditBedOpen} onClose={() => setIsEditBedOpen(false)} title={`Edit Bed: ${editingBed?.bedNumber || ''}`}>
+        <form onSubmit={handleUpdateBed} className="space-y-4">
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Bed Number / Code *
+            </label>
+            <Input
+              required
+              placeholder="e.g. Bed-101, Bed-103..."
+              value={editBedNumber}
+              onChange={e => setEditBedNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Ward / Room Section *
+            </label>
+            <select
+              value={editBedWard}
+              onChange={e => setEditBedWard(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
+            >
+              <option value="General Male Ward">General Male Ward</option>
+              <option value="General Female Ward">General Female Ward</option>
+              <option value="Surgical ICU Ward">Surgical ICU Ward</option>
+              <option value="Private VIP Suite">Private VIP Suite</option>
+              <option value="Emergency Recovery Ward">Emergency Recovery Ward</option>
+              <option value="Post-Op Recovery Ward">Post-Op Recovery Ward</option>
+              <option value="Pediatric Ward">Pediatric Ward</option>
+              <option value="custom">+ Enter Custom Ward Name</option>
+            </select>
+            {editBedWard === 'custom' && (
+              <Input
+                required
+                placeholder="Enter custom ward or room name..."
+                value={editCustomWard}
+                onChange={e => setEditCustomWard(e.target.value)}
+                className="mt-2"
+              />
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Bed Category / Type *
+            </label>
+            <select
+              value={editBedType}
+              onChange={e => setEditBedType(e.target.value as any)}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
+            >
+              <option value="general">General Bed</option>
+              <option value="semi-private">Semi-Private Room</option>
+              <option value="private">Private VIP Room</option>
+              <option value="icu">ICU / CCU / HDU</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Bed Status *
+            </label>
+            <select
+              value={editBedStatus}
+              onChange={e => setEditBedStatus(e.target.value as any)}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
+            >
+              <option value="available">Available (Vacant)</option>
+              <option value="occupied">Occupied (Patient Admitted)</option>
+              <option value="maintenance">Maintenance / Cleaning</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setIsEditBedOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updatingBed} className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white font-bold">
+              <Edit2 className="h-4 w-4" /> {updatingBed ? 'Saving...' : 'Update Bed Details'}
             </Button>
           </div>
         </form>
