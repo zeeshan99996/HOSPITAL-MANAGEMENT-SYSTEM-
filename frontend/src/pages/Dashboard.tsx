@@ -16,8 +16,8 @@ import {
   UserPlus,
   UserCheck,
   Ticket,
-  Receipt,
   CheckCircle,
+  CheckCircle2,
   Play,
   Eye,
   Pill,
@@ -25,7 +25,9 @@ import {
   Thermometer,
   MapPin,
   Search,
-  Plus
+  Plus,
+  RefreshCw,
+  ArrowRight
 } from 'lucide-react';
 import {
   AreaChart,
@@ -60,6 +62,8 @@ export const Dashboard: React.FC = () => {
   const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [doctorQueueFilter, setDoctorQueueFilter] = useState<'all' | 'in_room' | 'waiting' | 'completed'>('all');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const handleOpenDoctorEMR = (pId: number, tId?: number, tNum?: string) => {
     setEmrPatientId(pId);
@@ -165,40 +169,102 @@ export const Dashboard: React.FC = () => {
     const docInfo = stats?.doctorInfo || {};
     const queueList: any[] = stats?.doctorQueueList || [];
 
+    const inRoomList = queueList.filter((t: any) => t.status === 'processing');
+    const waitingList = queueList.filter((t: any) => t.status === 'waiting' || !t.status);
+    const completedList = queueList.filter((t: any) => t.status === 'completed');
+
+    const filteredQueue = queueList.filter((t: any) => {
+      if (doctorQueueFilter === 'in_room') return t.status === 'processing';
+      if (doctorQueueFilter === 'waiting') return t.status === 'waiting' || !t.status;
+      if (doctorQueueFilter === 'completed') return t.status === 'completed';
+      return true;
+    });
+
+    const completionRate = (safeStats.todayPatients && safeStats.todayPatients > 0)
+      ? Math.round(((safeStats.completedPatients || 0) / safeStats.todayPatients) * 100)
+      : 0;
+
     return (
-      <div className="space-y-6">
-        {/* Doctor Header Banner */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-brand-950 text-white shadow-xl border border-slate-800">
-          <div className="flex items-center gap-3.5">
-            <div className="h-12 w-12 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-400/30 flex items-center justify-center font-black text-xl">
-              <Stethoscope className="h-6 w-6 text-brand-400" />
+      <div className="space-y-6 max-w-7xl mx-auto">
+        
+        {/* EXECUTIVE DOCTOR HERO BANNER */}
+        <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 text-white shadow-2xl border border-slate-800/80">
+          <div className="absolute -right-10 -bottom-10 w-72 h-72 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute left-1/3 -top-10 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            
+            {/* Doctor Identity Block */}
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-brand-500/30 ring-4 ring-white/10 shrink-0">
+                <Stethoscope className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                    Welcome, {docInfo.name || user?.name || 'Dr. Talha'}
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> On OPD Duty
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 font-medium flex items-center gap-2 flex-wrap">
+                  <span>{docInfo.specialization || 'OPD Consultant Physician'}</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="px-2 py-0.5 rounded-md bg-slate-800/80 text-brand-400 font-bold border border-slate-700/60 flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Location: {docInfo.roomNumber || 'Room 101'}
+                  </span>
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
-                Welcome, {docInfo.name || 'Doctor Portal'}
-              </h2>
-              <p className="text-xs text-slate-300 mt-0.5 font-medium">
-                {docInfo.specialization || 'OPD Consultant Physician'} • Location: <span className="text-brand-400 font-bold">{docInfo.roomNumber || 'Room 101'}</span>
-              </p>
+
+            {/* Quick Action Hub */}
+            <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+              <button
+                onClick={() => {
+                  fetchStats();
+                  setIsSyncing(true);
+                  setTimeout(() => setIsSyncing(false), 600);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 hover:shadow-lg"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin text-brand-400' : ''}`} />
+                <span>Sync Queue</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (queueList.length > 0) {
+                    const firstWaiting = queueList.find(t => t.status !== 'completed');
+                    if (firstWaiting) {
+                      handleOpenDoctorEMR(firstWaiting.patient?.id || firstWaiting.patientId, firstWaiting.id, firstWaiting.tokenNumber);
+                    }
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-600 hover:to-indigo-700 text-white text-xs font-black transition-all flex items-center gap-2 shadow-lg shadow-brand-500/25"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Direct EMR Consult</span>
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <Badge type="success">Active Doctor OPD Duty</Badge>
+
           </div>
         </div>
 
-        {/* QUICK SEARCH ANY PATIENT TO OPEN EMR DIRECTLY */}
+        {/* SPOTLIGHT COMMAND SEARCH BAR */}
         <div className="relative">
-          <div className="flex items-center gap-3 bg-white dark:bg-dark-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <Search className="h-4.5 w-4.5 text-brand-500 ml-1.5 shrink-0" />
+          <div className="flex items-center gap-3 bg-white dark:bg-dark-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm transition-all focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500">
+            <div className="p-2 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-500 shrink-0">
+              <Search className="h-4 w-4" />
+            </div>
             <input
               type="text"
-              placeholder="Search any hospital patient by Name, MR Number, or Phone to write/view EMR consultation..."
+              placeholder="Search any hospital patient by Name, MR Number, or Phone to launch EMR consultation..."
               value={doctorSearchQuery}
               onChange={e => handleDoctorSearch(e.target.value)}
-              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-bold"
+              className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-semibold"
             />
-            {isSearching && <span className="text-[10px] text-slate-400 animate-pulse">Searching...</span>}
+            {isSearching && <span className="text-[10px] text-slate-400 animate-pulse font-medium">Searching Patient Records...</span>}
             {doctorSearchQuery && (
               <button
                 onClick={() => { setDoctorSearchQuery(''); setSearchResults([]); }}
@@ -207,11 +273,14 @@ export const Dashboard: React.FC = () => {
                 Clear
               </button>
             )}
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-slate-100 dark:bg-dark-950 text-slate-400 text-[10px] font-mono border border-slate-200 dark:border-slate-800">
+              Instant Search
+            </span>
           </div>
 
           {/* Search Dropdown Results */}
           {searchResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-40 overflow-hidden divide-y divide-slate-100 dark:divide-slate-850">
+            <div className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-40 overflow-hidden divide-y divide-slate-100 dark:divide-slate-850 animate-in fade-in zoom-in-95 duration-150">
               {searchResults.map(p => (
                 <div
                   key={p.id}
@@ -223,16 +292,19 @@ export const Dashboard: React.FC = () => {
                   className="p-3.5 hover:bg-brand-50/50 dark:hover:bg-brand-950/30 cursor-pointer flex justify-between items-center transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-brand-500/10 text-brand-500 font-bold flex items-center justify-center text-xs">
+                    <div className="h-9 w-9 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 font-black flex items-center justify-center text-xs border border-brand-500/20">
                       {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <strong className="text-slate-900 dark:text-white text-xs block">{p.name}</strong>
-                      <span className="text-[10px] text-slate-500 font-mono">MRN: {p.mrNumber} • Phone: {p.phone || 'N/A'} • {p.age ? `${p.age} Yrs` : ''} ({p.gender})</span>
+                      <strong className="text-slate-900 dark:text-white text-xs block font-bold">{p.name}</strong>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        MRN: <strong className="text-brand-600">{p.mrNumber}</strong> • Phone: {p.phone || 'N/A'} • {p.age ? `${p.age} Yrs` : ''} ({p.gender || 'N/A'})
+                      </span>
                     </div>
                   </div>
-                  <Button size="sm" className="text-[11px] font-bold py-1 px-3 bg-brand-500 text-white rounded-lg shadow-sm">
-                    Open EMR ➔
+                  <Button size="sm" className="text-[11px] font-black py-1.5 px-3.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm flex items-center gap-1">
+                    <span>Open EMR</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -240,69 +312,149 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Doctor-Specific KPI Cards */}
+        {/* 4 EXECUTIVE KPI CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <Card className="flex items-center gap-4 border border-brand-500/20">
-            <div className="p-3 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl">
-              <Calendar className="h-6 w-6" />
+          
+          {/* Total Patients */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Today's Assigned Patients</p>
+                <h3 className="text-2xl font-black mt-1 text-slate-900 dark:text-white">{safeStats.todayPatients || 0}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                <Calendar className="h-5 w-5" />
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">My Total Patients Today</p>
-              <h3 className="text-xl font-bold mt-0.5 text-slate-900 dark:text-white">{safeStats.todayPatients || 0}</h3>
-            </div>
-          </Card>
-
-          <Card className="flex items-center gap-4 border border-emerald-500/20">
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
-              <CheckCircle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Checkup Completed</p>
-              <h3 className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">{safeStats.completedPatients || 0}</h3>
-            </div>
-          </Card>
-
-          <Card className="flex items-center gap-4 border border-amber-500/20">
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl">
-              <Clock className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Remaining / Waiting</p>
-              <h3 className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">{safeStats.remainingPatients || 0}</h3>
-            </div>
-          </Card>
-
-          <Card className="flex items-center gap-4 border border-indigo-500/20">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl">
-              <Bed className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">My Admitted Patients</p>
-              <h3 className="text-xl font-bold mt-0.5 text-indigo-600 dark:text-indigo-400">{safeStats.activeAdmissions || 0}</h3>
-            </div>
-          </Card>
-        </div>
-
-        {/* Doctor's Today Patient OPD Queue Table */}
-        <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-            <div>
-              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Ticket className="h-4.5 w-4.5 text-brand-500" /> My OPD Consultation Queue Today ({queueList.length} Patients)
-              </h3>
-              <p className="text-[11px] text-slate-500">Live patient sequence assigned specifically to your consultation room.</p>
-            </div>
-            <Button onClick={fetchStats} variant="secondary" className="flex items-center gap-1.5 text-xs">
-              <Clock className="h-3.5 w-3.5" /> Sync Queue
-            </Button>
+            <p className="text-[11px] text-slate-500 mt-3 font-medium">Total OPD tokens allocated today</p>
           </div>
 
-          <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+          {/* Checkup Completed */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-emerald-500/20 dark:border-emerald-900/30 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Checkups Completed</p>
+                <h3 className="text-2xl font-black mt-1 text-emerald-600 dark:text-emerald-400">{safeStats.completedPatients || 0}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+              <span>{completionRate}% Completed</span>
+              <div className="w-20 bg-slate-100 dark:bg-dark-950 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${completionRate}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Remaining / Waiting */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-amber-500/20 dark:border-amber-900/30 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Awaiting In Queue</p>
+                <h3 className="text-2xl font-black mt-1 text-amber-600 dark:text-amber-400">{safeStats.remainingPatients || 0}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                <Clock className="h-5 w-5" />
+              </div>
+            </div>
+            <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-3 font-semibold flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" /> Patients waiting in lobby
+            </p>
+          </div>
+
+          {/* Admitted Inpatients */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-indigo-500/20 dark:border-indigo-900/30 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Admitted Inpatients</p>
+                <h3 className="text-2xl font-black mt-1 text-indigo-600 dark:text-indigo-400">{safeStats.activeAdmissions || 0}</h3>
+              </div>
+              <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+                <Bed className="h-5 w-5" />
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-3 font-medium">Under active hospital ward care</p>
+          </div>
+
+        </div>
+
+        {/* DOCTOR LIVE CONSULTATION QUEUE WORKSPACE */}
+        <div className="p-6 bg-white dark:bg-dark-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+          
+          {/* Table Header & Filter Tabs */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-brand-500" />
+                <span>Live OPD Consultation Queue Today</span>
+                <span className="px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400 text-[10px] font-black border border-brand-500/20">
+                  {queueList.length} Patients
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Live queue of patients assigned specifically to your consultation room.</p>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setDoctorQueueFilter('all')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  doctorQueueFilter === 'all'
+                    ? 'bg-white dark:bg-dark-900 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                All ({queueList.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoctorQueueFilter('in_room')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  doctorQueueFilter === 'in_room'
+                    ? 'bg-white dark:bg-dark-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                In Room ({inRoomList.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoctorQueueFilter('waiting')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  doctorQueueFilter === 'waiting'
+                    ? 'bg-white dark:bg-dark-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Waiting ({waitingList.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoctorQueueFilter('completed')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  doctorQueueFilter === 'completed'
+                    ? 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                Completed ({completedList.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Queue Data Table */}
+          <div className="overflow-x-auto border border-slate-200/80 dark:border-slate-800 rounded-2xl">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-dark-950/60 text-slate-450 uppercase text-[10px] tracking-wider font-semibold">
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-dark-950 text-slate-450 uppercase text-[10px] tracking-wider font-bold">
                   <th className="px-5 py-3.5">Token #</th>
-                  <th className="px-5 py-3.5">Patient Name & MR#</th>
+                  <th className="px-5 py-3.5">Patient Details</th>
                   <th className="px-5 py-3.5">Age / Gender</th>
                   <th className="px-5 py-3.5">Contact Phone</th>
                   <th className="px-5 py-3.5">Status</th>
@@ -310,56 +462,86 @@ export const Dashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
-                {queueList.length === 0 ? (
+                {filteredQueue.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-450 text-xs">
-                      No patients in your consultation queue today yet.
+                    <td colSpan={6} className="p-10 text-center text-slate-400 text-xs">
+                      <div className="flex flex-col items-center gap-2 max-w-sm mx-auto">
+                        <div className="p-3 rounded-full bg-slate-100 dark:bg-dark-950 text-slate-400">
+                          <Ticket className="h-6 w-6" />
+                        </div>
+                        <p className="font-bold text-slate-700 dark:text-slate-300">No patients match this filter</p>
+                        <p className="text-[11px] text-slate-400">Patients will appear here automatically when reception issues OPD tokens for your room.</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  queueList.map((t: any) => {
+                  filteredQueue.map((t: any) => {
                     const pat = t.patient || {};
                     const isProcessing = t.status === 'processing';
                     const isCompleted = t.status === 'completed';
 
                     return (
-                      <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/40 text-slate-700 dark:text-slate-350">
+                      <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-950/40 text-slate-700 dark:text-slate-300 transition-colors">
+                        
+                        {/* Token Number */}
                         <td className="px-5 py-4 font-mono">
-                          <span className="px-2.5 py-1 rounded-md font-black text-xs bg-slate-100 dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-slate-200 dark:border-slate-800">
+                          <span className="px-3 py-1.5 rounded-xl font-black text-xs bg-slate-900 text-cyan-400 border border-cyan-500/30 shadow-sm shadow-cyan-500/10">
                             {t.tokenNumber}
                           </span>
                         </td>
 
+                        {/* Patient Name & MRN */}
                         <td className="px-5 py-4">
-                          <span className="font-extrabold text-slate-900 dark:text-white block text-xs">{pat.name || 'Patient'}</span>
-                          <span className="text-[10px] font-mono text-slate-450 block mt-0.5">MRN: {pat.mrNumber || 'N/A'}</span>
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-brand-500/10 to-indigo-500/10 text-brand-600 dark:text-brand-400 font-black flex items-center justify-center text-xs border border-brand-500/20 shrink-0">
+                              {(pat.name || 'P').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <span className="font-black text-slate-900 dark:text-white block text-xs">{pat.name || 'Patient'}</span>
+                              <span className="text-[10px] font-mono text-slate-400 block">MRN: {pat.mrNumber || 'N/A'}</span>
+                            </div>
+                          </div>
                         </td>
 
+                        {/* Age & Gender */}
                         <td className="px-5 py-4">
-                          <span className="text-slate-800 dark:text-slate-200 capitalize text-xs">
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-dark-950 text-slate-700 dark:text-slate-300 text-xs font-semibold capitalize border border-slate-200/50 dark:border-slate-800">
                             {pat.age ? `${pat.age} Yrs` : 'N/A'} • {pat.gender || 'male'}
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 font-mono text-xs">
+                        {/* Phone */}
+                        <td className="px-5 py-4 font-mono text-xs text-slate-600 dark:text-slate-400">
                           {pat.phone || 'N/A'}
                         </td>
 
+                        {/* Status Pill */}
                         <td className="px-5 py-4">
-                          <Badge type={isCompleted ? 'success' : isProcessing ? 'info' : 'warning'}>
-                            {isCompleted ? 'COMPLETED' : isProcessing ? 'IN ROOM' : 'WAITING'}
-                          </Badge>
+                          {isCompleted ? (
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-dark-950 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider border border-slate-200 dark:border-slate-800">
+                              ✓ Completed
+                            </span>
+                          ) : isProcessing ? (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30 flex items-center gap-1.5 w-fit">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" /> In Room (Active)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider border border-amber-500/30">
+                              ⏳ Waiting
+                            </span>
+                          )}
                         </td>
 
+                        {/* Clinical Actions */}
                         <td className="px-5 py-4 text-right">
-                          <div className="flex justify-end gap-1.5">
+                          <div className="flex justify-end gap-2">
                             {!isCompleted && !isProcessing && (
                               <button
                                 onClick={() => {
                                   handleDoctorTokenStatus(t.id, 'processing');
                                   handleOpenDoctorEMR(pat.id || t.patientId, t.id, t.tokenNumber);
                                 }}
-                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                                className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl transition-all text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
                               >
                                 <Play className="h-3.5 w-3.5" /> Call & Consult
                               </button>
@@ -368,7 +550,7 @@ export const Dashboard: React.FC = () => {
                             {isProcessing && (
                               <button
                                 onClick={() => handleOpenDoctorEMR(pat.id || t.patientId, t.id, t.tokenNumber)}
-                                className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-all text-xs font-black flex items-center gap-1.5 shadow-md shadow-brand-500/25 animate-pulse"
+                                className="px-3.5 py-2 bg-gradient-to-r from-brand-500 to-indigo-600 hover:from-brand-600 hover:to-indigo-700 text-white rounded-xl transition-all text-xs font-black flex items-center gap-1.5 shadow-lg shadow-brand-500/30 animate-pulse"
                               >
                                 <Stethoscope className="h-3.5 w-3.5" /> Write EMR & Rx
                               </button>
@@ -377,13 +559,14 @@ export const Dashboard: React.FC = () => {
                             {isCompleted && (
                               <button
                                 onClick={() => handleOpenDoctorEMR(pat.id || t.patientId, t.id, t.tokenNumber)}
-                                className="px-2.5 py-1.5 bg-slate-100 dark:bg-dark-900 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-lg transition-all text-xs font-bold flex items-center gap-1 border border-slate-200 dark:border-slate-800"
+                                className="px-3 py-1.5 bg-slate-100 dark:bg-dark-950 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl transition-all text-xs font-bold flex items-center gap-1.5 border border-slate-200 dark:border-slate-800"
                               >
                                 <Eye className="h-3.5 w-3.5" /> View EMR File
                               </button>
                             )}
                           </div>
                         </td>
+
                       </tr>
                     );
                   })
@@ -391,7 +574,8 @@ export const Dashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </Card>
+
+        </div>
 
         {/* INTERACTIVE DOCTOR EMR CLINICAL CONSULTATION SUITE */}
         <DoctorEMRModal
@@ -404,153 +588,6 @@ export const Dashboard: React.FC = () => {
           onConsultationSaved={fetchStats}
         />
 
-        {/* Doctor Patient EMR Record Drawer */}
-        <Drawer
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
-          title={selectedPatient ? `Patient EMR File: ${selectedPatient.name}` : 'Loading EMR File...'}
-        >
-          {drawerLoading ? (
-            <div className="space-y-4 animate-pulse">
-              <div className="h-28 bg-slate-200 dark:bg-dark-950 rounded-xl" />
-              <div className="h-40 bg-slate-200 dark:bg-dark-950 rounded-xl" />
-            </div>
-          ) : selectedPatient ? (
-            <div className="space-y-6 text-slate-700 dark:text-slate-350 max-h-[85vh] overflow-y-auto pr-1">
-              {/* Profile Card */}
-              <div className="flex items-center gap-4 bg-slate-150/40 dark:bg-dark-950/40 p-4 border border-slate-200/40 dark:border-slate-850 rounded-xl">
-                <div className="h-12 w-12 rounded-full bg-brand-500 text-white flex items-center justify-center font-bold text-lg select-none shadow-sm shadow-brand-500/25">
-                  {selectedPatient.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <span className="font-mono text-[9px] font-bold bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-400 px-2 py-0.5 rounded border border-brand-200/30">
-                    {selectedPatient.mrNumber}
-                  </span>
-                  <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 mt-1">{selectedPatient.name}</h4>
-                  <p className="text-[10px] text-slate-500 font-medium">{selectedPatient.phone} • Blood Type {selectedPatient.bloodGroup}</p>
-                </div>
-              </div>
-
-              {/* Current Vitals Snapshot Banner */}
-              {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block border-b border-slate-200/50 dark:border-slate-800 pb-1">
-                    Current Vital Signs Snapshot
-                  </span>
-                  {(() => {
-                    const latest = selectedPatient.patient_vitals[0];
-                    return (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div className="p-2.5 bg-brand-500/10 border border-brand-500/20 rounded-xl text-center">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">BP</span>
-                          <span className="text-sm font-black text-brand-600 dark:text-brand-400 font-mono">{latest.bp || '120/80'}</span>
-                        </div>
-                        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Temp</span>
-                          <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono">{latest.temperature || 98.6} °F</span>
-                        </div>
-                        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">Pulse</span>
-                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">{latest.pulse || 72} bpm</span>
-                        </div>
-                        <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-center">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase block">SpO2</span>
-                          <span className="text-sm font-black text-purple-600 dark:text-purple-400 font-mono">{latest.spo2 || 98}%</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* Demographics Block */}
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Demographics</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
-                  <div>
-                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Date of Birth</span>
-                    <span className="font-semibold text-slate-850 dark:text-slate-200">{selectedPatient.dob}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Biological Gender</span>
-                    <span className="font-semibold text-slate-850 dark:text-slate-200 capitalize">{selectedPatient.gender}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block"><MapPin className="inline h-3 w-3 mr-0.5" /> Address</span>
-                    <span className="font-semibold text-slate-850 dark:text-slate-200 leading-relaxed">{selectedPatient.address}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Registered Date & Time</span>
-                    <span className="font-semibold text-slate-850 dark:text-slate-200 font-mono text-[11px]">
-                      {selectedPatient.createdAt ? new Date(selectedPatient.createdAt).toLocaleString() : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vitals History Tracking */}
-              <div>
-                <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555">Vitals History Tracker</span>
-                </div>
-                
-                {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedPatient.patient_vitals.map((v: any) => (
-                      <div key={v.id} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1.5">
-                        <div className="flex justify-between items-center text-[10px] text-slate-450 border-b border-slate-200/40 dark:border-slate-850 pb-1">
-                          <span>{new Date(v.createdAt).toLocaleString()}</span>
-                          <span>Logged by: {v.logger?.name || 'Staff Nurse'}</span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-2xs font-semibold pt-0.5">
-                          <div>BP: <strong className="text-slate-900 dark:text-slate-100">{v.bp}</strong></div>
-                          <div>Temp: <strong className="text-slate-900 dark:text-slate-100">{v.temperature} °F</strong></div>
-                          <div>Pulse: <strong className="text-slate-900 dark:text-slate-100">{v.pulse} bpm</strong></div>
-                          <div>SpO2: <strong className="text-slate-900 dark:text-slate-100">{v.spo2}%</strong></div>
-                        </div>
-                        {v.notes && <p className="text-[10px] text-slate-500 italic">Notes: {v.notes}</p>}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
-                    No vital signs logged for this patient yet.
-                  </div>
-                )}
-              </div>
-
-              {/* Prescriptions & Dosage History */}
-              <div>
-                <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555 flex items-center gap-1.5">
-                    <Pill className="h-3.5 w-3.5 text-brand-500" /> Medicine Prescriptions & Dosage History
-                  </span>
-                </div>
-                
-                {selectedPatient.invoices && selectedPatient.invoices.some((inv: any) => inv.items && inv.items.length > 0) ? (
-                  <div className="space-y-2">
-                    {selectedPatient.invoices.flatMap((inv: any) => inv.items || []).map((item: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1 flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">{item.itemName}</span>
-                          <span className="text-[10px] text-slate-500">Category: {item.itemCategory || 'Pharmacy'} • Qty: {item.quantity || 1}</span>
-                        </div>
-                        <div className="text-right font-mono">
-                          <span className="font-bold text-brand-600 dark:text-brand-400 block text-xs">Rs. {Number(item.totalPrice || item.unitPrice || 0).toLocaleString()}</span>
-                          <span className="text-[9px] text-slate-450">Item Total</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
-                    No medicine prescriptions logged for this patient yet.
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </Drawer>
       </div>
     );
   }
