@@ -401,7 +401,7 @@ router.get('/medicines', authenticateToken, getMedicines);
 router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), validateMedicine, addMedicine);
 router.put('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), updateMedicineStock);
 router.delete('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist']), deleteMedicine);
-router.post('/medicines/sale', authenticateToken, requireRoles(['admin', 'pharmacist', 'receptionist', 'accountant']), recordMedicineSale);
+router.post('/medicines/sale', authenticateToken, requireRoles(['admin', 'pharmacist', 'receptionist', 'accountant', 'nurse']), recordMedicineSale);
 
 // DIRECT MEDICINE/INJECTION CLINICAL ADMINISTRATION
 router.post('/medicines/administer', authenticateToken, requireRoles(['admin', 'nurse', 'doctor', 'pharmacist']), administerMedicine);

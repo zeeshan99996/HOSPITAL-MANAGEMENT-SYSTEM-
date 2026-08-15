@@ -112,6 +112,15 @@ export const Pharmacy: React.FC = () => {
     fetchPharmacyData();
   }, []);
 
+  useEffect(() => {
+    if (user?.role === 'nurse') {
+      setPatientSubTab('admit');
+      setMainTab('patient');
+    } else if (user?.role === 'pharmacist') {
+      setPatientSubTab('today');
+    }
+  }, [user?.role]);
+
   // Handle Dispense Medicine Row Change
   const handleItemChange = (index: number, field: string, val: any) => {
     const updated = [...dispenseItems];
@@ -333,37 +342,39 @@ export const Pharmacy: React.FC = () => {
               </div>
             </div>
 
-            {/* Dedicated Action Buttons */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap ${
-                  mainTab === 'store'
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20'
-                    : 'bg-brand-600 hover:bg-brand-500 text-white border-brand-500 shadow-brand-900/20'
-                }`}
-              >
-                {mainTab === 'patient' ? (
-                  <>
-                    <Package className="h-4 w-4" />
-                    <span>Store Inventory ({medicines.length})</span>
-                  </>
-                ) : (
-                  <>
-                    <UserCheck className="h-4 w-4" />
-                    <span>← Dispensing Console</span>
-                  </>
-                )}
-              </button>
+            {/* Dedicated Action Buttons (Hidden for Nurse to maintain pure focus on Admitted Patient care) */}
+            {user?.role !== 'nurse' && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap ${
+                    mainTab === 'store'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20'
+                      : 'bg-brand-600 hover:bg-brand-500 text-white border-brand-500 shadow-brand-900/20'
+                  }`}
+                >
+                  {mainTab === 'patient' ? (
+                    <>
+                      <Package className="h-4 w-4" />
+                      <span>Store Inventory ({medicines.length})</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="h-4 w-4" />
+                      <span>← Dispensing Console</span>
+                    </>
+                  )}
+                </button>
 
-              {isSysAdmin && mainTab === 'store' && (
-                <Button onClick={() => setIsAddMedOpen(true)} className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-xs border border-brand-500">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Stock</span>
-                </Button>
-              )}
-            </div>
+                {isSysAdmin && mainTab === 'store' && (
+                  <Button onClick={() => setIsAddMedOpen(true)} className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-xs border border-brand-500">
+                    <Plus className="h-4 w-4" />
+                    <span>Add Stock</span>
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -373,7 +384,9 @@ export const Pharmacy: React.FC = () => {
         <div className="flex items-center gap-2 px-3">
           <UserCheck className="h-4 w-4 text-brand-500" />
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
-            {mainTab === 'patient' ? 'Patient Medication Dispensing Console' : 'Store Inventory & Stock Register'}
+            {mainTab === 'patient'
+              ? (user?.role === 'nurse' ? 'Nurse Admitted Inpatient Medication Console' : user?.role === 'pharmacist' ? 'Pharmacist OPD Prescription Dispensing Console' : 'Patient Medication Dispensing Console')
+              : 'Store Inventory & Stock Register'}
           </h2>
         </div>
 
@@ -382,33 +395,54 @@ export const Pharmacy: React.FC = () => {
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Patient Category:</span>
             
-            <button
-              onClick={() => {
-                setPatientSubTab('today');
-                setSelectedPatientId('');
-              }}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                patientSubTab === 'today'
-                  ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-brand-200/50 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <UserCheck className="h-3.5 w-3.5" /> Today OPD Patients ({todayPatients.length})
-            </button>
+            {/* 1. NURSE ROLE: STRICTLY SHOW ADMITTED INPATIENTS */}
+            {user?.role === 'nurse' && (
+              <div className="px-4 py-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-extrabold text-xs flex items-center gap-2 border border-purple-200/60 shadow-sm">
+                <BedDouble className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <span>Admitted IPD Inpatients ({admitPatients.length})</span>
+              </div>
+            )}
 
-            <button
-              onClick={() => {
-                setPatientSubTab('admit');
-                setSelectedPatientId('');
-              }}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                patientSubTab === 'admit'
-                  ? 'bg-white dark:bg-dark-900 text-purple-600 dark:text-purple-400 border border-purple-200/50 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              <BedDouble className="h-3.5 w-3.5" /> Admitted IPD Patients ({admitPatients.length})
-            </button>
+            {/* 2. PHARMACIST ROLE: STRICTLY SHOW TODAY OPD PATIENTS */}
+            {user?.role === 'pharmacist' && (
+              <div className="px-4 py-2 rounded-lg bg-brand-50 dark:bg-brand-950/50 text-brand-700 dark:text-brand-300 font-extrabold text-xs flex items-center gap-2 border border-brand-200/60 shadow-sm">
+                <UserCheck className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                <span>Today OPD Patients ({todayPatients.length})</span>
+              </div>
+            )}
+
+            {/* 3. ADMIN / OTHER ROLES: SHOW BOTH SWITCHER BUTTONS */}
+            {user?.role !== 'nurse' && user?.role !== 'pharmacist' && (
+              <>
+                <button
+                  onClick={() => {
+                    setPatientSubTab('today');
+                    setSelectedPatientId('');
+                  }}
+                  className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    patientSubTab === 'today'
+                      ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-brand-200/50 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <UserCheck className="h-3.5 w-3.5" /> Today OPD Patients ({todayPatients.length})
+                </button>
+
+                <button
+                  onClick={() => {
+                    setPatientSubTab('admit');
+                    setSelectedPatientId('');
+                  }}
+                  className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    patientSubTab === 'admit'
+                      ? 'bg-white dark:bg-dark-900 text-purple-600 dark:text-purple-400 border border-purple-200/50 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <BedDouble className="h-3.5 w-3.5" /> Admitted IPD Patients ({admitPatients.length})
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

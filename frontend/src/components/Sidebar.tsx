@@ -83,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Pharmacy Dispensary',
       path: '/pharmacy',
       icon: Pill,
-      roles: ['admin', 'pharmacist', 'doctor', 'accountant'],
+      roles: ['admin', 'pharmacist', 'nurse'],
     },
     {
       name: 'Billing & Invoices',
