@@ -542,11 +542,12 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
         try {
           await LabRequest.create({
             patientId: Number(patientId),
-            doctorId: doctorId,
-            testType: testTitle,
+            doctorId: doctorId || null,
+            testName: testTitle,
+            category: 'Pathology',
             status: 'pending',
-            requestDate: new Date(),
-            clinicalIndication: diagnosis || 'Doctor Consultation'
+            sampleStatus: 'collected',
+            specimenCollected: false
           } as any);
           createdLabRequests++;
         } catch (labErr) {

@@ -15,7 +15,10 @@ import {
   CheckCircle2,
   Sparkles,
   Layers,
-  BookOpen
+  BookOpen,
+  Beaker,
+  CircleDollarSign,
+  Link2
 } from 'lucide-react';
 
 interface TemplateItem {
@@ -24,6 +27,8 @@ interface TemplateItem {
   category: 'symptom' | 'diagnosis' | 'lab_test' | 'advice';
   title: string;
   details?: string | null;
+  rate?: number;
+  labCategory?: string;
   displayOrder?: number;
 }
 
@@ -53,6 +58,8 @@ export const ClinicalTemplates: React.FC = () => {
   const [formCategory, setFormCategory] = useState<'symptom' | 'diagnosis' | 'lab_test' | 'advice'>('symptom');
   const [formTitle, setFormTitle] = useState('');
   const [formDetails, setFormDetails] = useState('');
+  const [formRate, setFormRate] = useState('');
+  const [formLabCategory, setFormLabCategory] = useState('Pathology');
   const [saving, setSaving] = useState(false);
 
   const fetchTemplates = async () => {
@@ -82,6 +89,8 @@ export const ClinicalTemplates: React.FC = () => {
     setFormCategory(activeTab);
     setFormTitle('');
     setFormDetails('');
+    setFormRate(activeTab === 'lab_test' ? '500' : '');
+    setFormLabCategory('Pathology');
     setIsModalOpen(true);
   };
 
@@ -90,11 +99,13 @@ export const ClinicalTemplates: React.FC = () => {
     setFormCategory(item.category);
     setFormTitle(item.title);
     setFormDetails(item.details || '');
+    setFormRate(item.rate !== undefined ? String(item.rate) : (item.details || ''));
+    setFormLabCategory(item.labCategory || 'Pathology');
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to remove this quick tag from your list?')) return;
+    if (!window.confirm('Are you sure you want to remove this quick tag?')) return;
     try {
       await apiClient.delete(`/clinical-templates/${id}`);
       fetchTemplates();
@@ -104,10 +115,10 @@ export const ClinicalTemplates: React.FC = () => {
   };
 
   const handleResetDefaults = async () => {
-    if (!window.confirm('Reset all quick tags to standard medical English defaults? Custom additions will be refreshed.')) return;
+    if (!window.confirm('Reset all quick tags and lab catalog to standard medical defaults? Custom additions will be refreshed.')) return;
     try {
       await apiClient.post('/clinical-templates/reset-defaults', {});
-      alert('✅ Clinical templates successfully restored to standard medical defaults.');
+      alert('✅ Clinical templates & Laboratory test catalog successfully restored to standard medical defaults.');
       fetchTemplates();
     } catch (err: any) {
       alert(`Reset failed: ${err.message}`);
@@ -127,13 +138,17 @@ export const ClinicalTemplates: React.FC = () => {
         await apiClient.put(`/clinical-templates/${editingItem.id}`, {
           category: formCategory,
           title: formTitle.trim(),
-          details: formDetails.trim() || null
+          details: formCategory === 'lab_test' ? formRate : (formDetails.trim() || null),
+          rate: formCategory === 'lab_test' && formRate ? Number(formRate) : undefined,
+          labCategory: formCategory === 'lab_test' ? formLabCategory : undefined
         });
       } else {
         await apiClient.post('/clinical-templates', {
           category: formCategory,
           title: formTitle.trim(),
-          details: formDetails.trim() || null
+          details: formCategory === 'lab_test' ? formRate : (formDetails.trim() || null),
+          rate: formCategory === 'lab_test' && formRate ? Number(formRate) : undefined,
+          labCategory: formCategory === 'lab_test' ? formLabCategory : undefined
         });
       }
       setIsModalOpen(false);
@@ -159,7 +174,8 @@ export const ClinicalTemplates: React.FC = () => {
     return items.filter(
       item =>
         item.title.toLowerCase().includes(lower) ||
-        (item.details && item.details.toLowerCase().includes(lower))
+        (item.details && item.details.toLowerCase().includes(lower)) ||
+        (item.labCategory && item.labCategory.toLowerCase().includes(lower))
     );
   };
 
@@ -183,7 +199,7 @@ export const ClinicalTemplates: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-1 font-medium max-w-2xl leading-relaxed">
-              Personalize your quick-access tags for Chief Complaints, Diagnoses, Lab Investigations, and Dietary Advice. All changes sync directly to your EMR consultation workspace.
+              Personalize your quick-access tags for Chief Complaints, Diagnoses, Lab Investigations, and Dietary Advice. All lab tests sync directly with the Receptionist Laboratory Desk & Invoicing.
             </p>
           </div>
         </div>
@@ -284,13 +300,23 @@ export const ClinicalTemplates: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* LAB INTEGRATION BADGE NOTICE */}
+        {activeTab === 'lab_test' && (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent border border-blue-500/20 text-xs text-blue-700 dark:text-blue-300">
+            <Link2 className="h-4 w-4 text-blue-500 shrink-0" />
+            <span className="font-semibold">
+              <strong>Receptionist Lab Integration Active:</strong> Tests and rates configured here are directly linked with the Receptionist Laboratory Desk (/laboratory) and patient diagnostic billing.
+            </span>
+          </div>
+        )}
       </Card>
 
       {/* TEMPLATE ITEMS GRID */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-24 bg-slate-200 dark:bg-dark-900 rounded-xl animate-pulse" />
+            <div key={i} className="h-28 bg-slate-200 dark:bg-dark-900 rounded-xl animate-pulse" />
           ))}
         </div>
       ) : currentItems.length === 0 ? (
@@ -325,10 +351,20 @@ export const ClinicalTemplates: React.FC = () => {
                     item.category === 'diagnosis' ? 'error' :
                     item.category === 'lab_test' ? 'warning' : 'success'
                   }>
-                    {item.category.toUpperCase()}
+                    {item.category === 'lab_test' ? (item.labCategory || 'LAB TEST') : item.category.toUpperCase()}
                   </Badge>
                 </div>
-                {item.details && (
+
+                {/* Lab Test Rate Pill */}
+                {item.category === 'lab_test' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-mono">
+                      <CircleDollarSign className="h-3 w-3" /> Rate: Rs. {Number(item.rate || item.details || 0).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
+                {item.details && item.category !== 'lab_test' && (
                   <p className="text-[11px] text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
                     {item.details}
                   </p>
@@ -384,14 +420,14 @@ export const ClinicalTemplates: React.FC = () => {
             >
               <option value="symptom">Chief Complaints & Symptoms</option>
               <option value="diagnosis">Clinical Diagnosis & Assessment</option>
-              <option value="lab_test">Advised Lab Investigation</option>
+              <option value="lab_test">Advised Lab Investigation (Receptionist Lab Synced)</option>
               <option value="advice">Dietary Advice & Clinical Precaution</option>
             </select>
           </div>
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-              Tag Title / Name *
+              {formCategory === 'lab_test' ? 'Lab Test Name *' : 'Tag Title / Name *'}
             </label>
             <input
               type="text"
@@ -408,18 +444,64 @@ export const ClinicalTemplates: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-              Optional Notes / Clinical Description
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Provide any additional clinical guidance, dosage notes, or details (optional)..."
-              value={formDetails}
-              onChange={e => setFormDetails(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-            />
-          </div>
+          {/* Special fields for Lab Investigation */}
+          {formCategory === 'lab_test' ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                    Standard Test Fee / Rate (PKR)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 600"
+                    value={formRate}
+                    onChange={e => setFormRate(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-xs font-bold font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                    Department / Category
+                  </label>
+                  <select
+                    value={formLabCategory}
+                    onChange={e => setFormLabCategory(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-xs font-bold text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="Hematology">Hematology</option>
+                    <option value="Biochemistry">Biochemistry</option>
+                    <option value="Clinical Pathology">Clinical Pathology</option>
+                    <option value="Serology">Serology</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Radiology">Radiology</option>
+                    <option value="Ultrasound">Ultrasound</option>
+                    <option value="Endocrinology">Endocrinology</option>
+                    <option value="General">General Pathology</option>
+                  </select>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 bg-slate-50 dark:bg-dark-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-850 leading-relaxed">
+                ℹ️ <strong>Auto-Sync:</strong> Adding or modifying this test will instantly update the Receptionist Laboratory Desk checklist and patient diagnostic billing.
+              </p>
+            </>
+          ) : (
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                Optional Notes / Clinical Description
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Provide any additional clinical guidance, dosage notes, or details (optional)..."
+                value={formDetails}
+                onChange={e => setFormDetails(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              />
+            </div>
+          )}
 
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
             <Button

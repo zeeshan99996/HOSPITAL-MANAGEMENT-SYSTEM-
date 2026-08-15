@@ -438,7 +438,35 @@ export const dischargePatient = async (req: Request, res: Response) => {
 // ==========================================
 export const getLaboratoryTests = async (req: Request, res: Response) => {
   try {
-    const tests = await LaboratoryTest.findAll({ order: [['name', 'ASC']] });
+    let tests = await LaboratoryTest.findAll({ order: [['name', 'ASC']] });
+    if (tests.length === 0) {
+      const defaultCatalog = [
+        { name: 'Complete Blood Count (CBC)', category: 'Hematology', rate: 600 },
+        { name: 'ESR (Erythrocyte Sedimentation Rate)', category: 'Hematology', rate: 300 },
+        { name: 'Blood Sugar Fasting (BSF)', category: 'Biochemistry', rate: 250 },
+        { name: 'Blood Sugar Random (BSR)', category: 'Biochemistry', rate: 250 },
+        { name: 'HbA1c (Glycated Hemoglobin)', category: 'Biochemistry', rate: 1200 },
+        { name: 'Liver Function Tests (LFT)', category: 'Biochemistry', rate: 1200 },
+        { name: 'Renal Function Tests / Creatinine (RFT)', category: 'Biochemistry', rate: 1000 },
+        { name: 'Lipid Profile', category: 'Biochemistry', rate: 1400 },
+        { name: 'Urine Complete Examination (R/E)', category: 'Clinical Pathology', rate: 400 },
+        { name: 'Typhidot / Widal Test', category: 'Serology', rate: 700 },
+        { name: 'Dengue NS1 Antigen', category: 'Serology', rate: 1200 },
+        { name: 'Serum Electrolytes (Na, K, Cl)', category: 'Biochemistry', rate: 900 },
+        { name: 'H. Pylori Antigen / Antibody', category: 'Serology', rate: 800 },
+        { name: 'Serum Uric Acid', category: 'Biochemistry', rate: 450 },
+        { name: 'ECG (12-Lead)', category: 'Cardiology', rate: 600 },
+        { name: 'Chest X-Ray (PA View)', category: 'Radiology', rate: 800 },
+        { name: 'Ultrasound Abdomen & Pelvis', category: 'Ultrasound', rate: 1500 },
+        { name: 'Thyroid Profile (TSH, FT3, FT4)', category: 'Endocrinology', rate: 1800 }
+      ];
+      for (const t of defaultCatalog) {
+        try {
+          await LaboratoryTest.create(t as any);
+        } catch (e) {}
+      }
+      tests = await LaboratoryTest.findAll({ order: [['name', 'ASC']] });
+    }
     return res.status(200).json(tests);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving tests catalog.', error: error.message });
@@ -447,7 +475,27 @@ export const getLaboratoryTests = async (req: Request, res: Response) => {
 
 export const createLaboratoryTest = async (req: Request, res: Response) => {
   try {
-    const test = await LaboratoryTest.create(req.body);
+    const { name, category, rate, isOutsourced } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Test name is required.' });
+    }
+    const cleanName = name.trim();
+    let test = await LaboratoryTest.findOne({ where: { name: cleanName } });
+    if (test) {
+      await test.update({
+        category: category || test.category || 'Pathology',
+        rate: rate !== undefined ? Number(rate) : test.rate
+      });
+      return res.status(200).json({ message: 'Lab test updated in catalog.', test });
+    }
+
+    test = await LaboratoryTest.create({
+      name: cleanName,
+      category: category || 'Pathology',
+      rate: rate !== undefined ? Number(rate) : 0,
+      isOutsourced: !!isOutsourced
+    });
+
     return res.status(201).json({ message: 'Lab test created successfully.', test });
   } catch (error: any) {
     return res.status(500).json({ message: 'Error creating lab test entry.', error: error.message });

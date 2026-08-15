@@ -5,11 +5,24 @@ import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import { Beaker, Check, Plus, Printer, FileText, Search, Activity, Calendar, ShieldCheck, CheckSquare, Square, ChevronDown, Trash2, Settings } from 'lucide-react';
 
 const DEFAULT_LAB_TESTS = [
-  { id: 1, name: 'LFT', rate: 1200 },
-  { id: 2, name: 'RFT', rate: 1000 },
-  { id: 3, name: 'CBC', rate: 600 },
-  { id: 4, name: 'Blood Sugar', rate: 300 },
-  { id: 5, name: 'Uric Acid', rate: 500 },
+  { id: 1, name: 'Complete Blood Count (CBC)', category: 'Hematology', rate: 600 },
+  { id: 2, name: 'ESR (Erythrocyte Sedimentation Rate)', category: 'Hematology', rate: 300 },
+  { id: 3, name: 'Blood Sugar Fasting (BSF)', category: 'Biochemistry', rate: 250 },
+  { id: 4, name: 'Blood Sugar Random (BSR)', category: 'Biochemistry', rate: 250 },
+  { id: 5, name: 'HbA1c (Glycated Hemoglobin)', category: 'Biochemistry', rate: 1200 },
+  { id: 6, name: 'Liver Function Tests (LFT)', category: 'Biochemistry', rate: 1200 },
+  { id: 7, name: 'Renal Function Tests / Creatinine (RFT)', category: 'Biochemistry', rate: 1000 },
+  { id: 8, name: 'Lipid Profile', category: 'Biochemistry', rate: 1400 },
+  { id: 9, name: 'Urine Complete Examination (R/E)', category: 'Clinical Pathology', rate: 400 },
+  { id: 10, name: 'Typhidot / Widal Test', category: 'Serology', rate: 700 },
+  { id: 11, name: 'Dengue NS1 Antigen', category: 'Serology', rate: 1200 },
+  { id: 12, name: 'Serum Electrolytes (Na, K, Cl)', category: 'Biochemistry', rate: 900 },
+  { id: 13, name: 'H. Pylori Antigen / Antibody', category: 'Serology', rate: 800 },
+  { id: 14, name: 'Serum Uric Acid', category: 'Biochemistry', rate: 450 },
+  { id: 15, name: 'ECG (12-Lead)', category: 'Cardiology', rate: 600 },
+  { id: 16, name: 'Chest X-Ray (PA View)', category: 'Radiology', rate: 800 },
+  { id: 17, name: 'Ultrasound Abdomen & Pelvis', category: 'Ultrasound', rate: 1500 },
+  { id: 18, name: 'Thyroid Profile (TSH, FT3, FT4)', category: 'Endocrinology', rate: 1800 }
 ];
 
 export const Laboratory: React.FC = () => {
