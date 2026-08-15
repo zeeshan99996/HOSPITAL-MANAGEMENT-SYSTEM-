@@ -37,13 +37,13 @@ export const authenticateToken = async (
     const userEmail = decoded.email ? String(decoded.email).trim().toLowerCase() : null;
 
     let user: any = null;
-    if (userIdNum) {
-      user = await SystemUser.findByPk(userIdNum);
-      if (!user) user = await User.findByPk(userIdNum);
-    }
-    if (!user && userEmail) {
+    if (userEmail) {
       user = await SystemUser.findOne({ where: { email: userEmail } });
       if (!user) user = await User.findOne({ where: { email: userEmail } });
+    }
+    if (!user && userIdNum) {
+      user = await SystemUser.findByPk(userIdNum);
+      if (!user) user = await User.findByPk(userIdNum);
     }
 
     if (!user || user.status === 'inactive') {

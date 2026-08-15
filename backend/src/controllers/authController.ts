@@ -127,9 +127,16 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
   }
 
   try {
-    const user = await User.findByPk(req.user.id, {
+    let user: any = await SystemUser.findOne({
+      where: { email: req.user.email },
       attributes: { exclude: ['password'] }
     });
+    if (!user) {
+      user = await User.findOne({
+        where: { email: req.user.email },
+        attributes: { exclude: ['password'] }
+      });
+    }
 
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
