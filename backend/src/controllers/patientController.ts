@@ -92,54 +92,78 @@ export const getAllPatients = async (req: Request, res: Response) => {
   const isPostgres = process.env.DB_DIALECT === 'postgres' || !!process.env.DATABASE_URL;
   const likeOp = isPostgres ? Op.iLike : Op.like;
 
-  const andConditions: any[] = [];
+  const searchOrConditions: any[] = [];
 
-  // Legacy search param (searches across multiple fields)
+  // Legacy or single-box search param
   if (search && typeof search === 'string' && search.trim() !== '') {
     const s = search.trim();
-    andConditions.push({
-      [Op.or]: [
-        { name: { [likeOp]: `%${s}%` } },
-        { phone: { [likeOp]: `%${s}%` } },
-        { email: { [likeOp]: `%${s}%` } },
-        { mrNumber: { [likeOp]: `%${s}%` } },
-        { area: { [likeOp]: `%${s}%` } },
-        { address: { [likeOp]: `%${s}%` } },
-      ]
-    });
+    const digitsOnly = s.replace(/\D/g, '');
+    const coreDigits = digitsOnly.replace(/^(0|92|\+92)/, '');
+
+    searchOrConditions.push(
+      { name: { [likeOp]: `%${s}%` } },
+      { phone: { [likeOp]: `%${s}%` } },
+      { email: { [likeOp]: `%${s}%` } },
+      { mrNumber: { [likeOp]: `%${s}%` } },
+      { area: { [likeOp]: `%${s}%` } },
+      { address: { [likeOp]: `%${s}%` } },
+      { emergencyContactPhone: { [likeOp]: `%${s}%` } }
+    );
+
+    if (coreDigits && coreDigits.length >= 4) {
+      searchOrConditions.push(
+        { phone: { [likeOp]: `%${coreDigits}%` } },
+        { emergencyContactPhone: { [likeOp]: `%${coreDigits}%` } }
+      );
+    }
   }
 
   // 1. Name / MR Number search filter
   if (name && typeof name === 'string' && name.trim() !== '') {
     const n = name.trim();
-    andConditions.push({
-      [Op.or]: [
-        { name: { [likeOp]: `%${n}%` } },
-        { mrNumber: { [likeOp]: `%${n}%` } }
-      ]
-    });
+    searchOrConditions.push(
+      { name: { [likeOp]: `%${n}%` } },
+      { mrNumber: { [likeOp]: `%${n}%` } }
+    );
   }
 
-  // 2. Phone Number search filter
+  // 2. Phone Number search filter (Multi-variant matching: raw, digits-only, core without 0/92)
   if (phone && typeof phone === 'string' && phone.trim() !== '') {
     const p = phone.trim();
-    andConditions.push({
-      phone: { [likeOp]: `%${p}%` }
-    });
+    const digitsOnly = p.replace(/\D/g, '');
+    const coreDigits = digitsOnly.replace(/^(0|92|\+92)/, '');
+
+    searchOrConditions.push(
+      { phone: { [likeOp]: `%${p}%` } },
+      { emergencyContactPhone: { [likeOp]: `%${p}%` } }
+    );
+
+    if (digitsOnly && digitsOnly !== p) {
+      searchOrConditions.push(
+        { phone: { [likeOp]: `%${digitsOnly}%` } },
+        { emergencyContactPhone: { [likeOp]: `%${digitsOnly}%` } }
+      );
+    }
+
+    if (coreDigits && coreDigits.length >= 4) {
+      searchOrConditions.push(
+        { phone: { [likeOp]: `%${coreDigits}%` } },
+        { emergencyContactPhone: { [likeOp]: `%${coreDigits}%` } }
+      );
+    }
   }
 
   // 3. Area / Colony search filter
   if (area && typeof area === 'string' && area.trim() !== '') {
     const a = area.trim();
-    andConditions.push({
-      [Op.or]: [
-        { area: { [likeOp]: `%${a}%` } },
-        { address: { [likeOp]: `%${a}%` } }
-      ]
-    });
+    searchOrConditions.push(
+      { area: { [likeOp]: `%${a}%` } },
+      { address: { [likeOp]: `%${a}%` } }
+    );
   }
 
   // 4. Date search filter (matches DOB or Registration createdAt date)
+  let dateCondition: any = null;
   if (date && typeof date === 'string' && date.trim() !== '') {
     const d = date.trim();
     const parsedDate = new Date(d);
@@ -152,23 +176,26 @@ export const getAllPatients = async (req: Request, res: Response) => {
       const endDate = new Date(parsedDate);
       endDate.setHours(23, 59, 59, 999);
 
-      andConditions.push({
+      dateCondition = {
         [Op.or]: [
           safeDobCondition,
           { createdAt: { [Op.gte]: startDate, [Op.lte]: endDate } }
         ]
-      });
+      };
     } else {
-      andConditions.push({
-        [Op.or]: [
-          safeDobCondition
-        ]
-      });
+      dateCondition = safeDobCondition;
     }
   }
 
-  if (andConditions.length > 0) {
-    whereClause[Op.and] = andConditions;
+  if (searchOrConditions.length > 0 && dateCondition) {
+    whereClause[Op.and] = [
+      { [Op.or]: searchOrConditions },
+      dateCondition
+    ];
+  } else if (searchOrConditions.length > 0) {
+    whereClause[Op.or] = searchOrConditions;
+  } else if (dateCondition) {
+    whereClause[Op.and] = [dateCondition];
   }
 
   try {
