@@ -91,31 +91,78 @@ export const getAllPatients = async (req: Request, res: Response) => {
 
   const isPostgres = process.env.DB_DIALECT === 'postgres' || !!process.env.DATABASE_URL;
   const likeOp = isPostgres ? Op.iLike : Op.like;
+  const sequelizeDb = (require('../config/db')).default;
 
   const searchOrConditions: any[] = [];
+
+  // Helper to generate all common Pakistan & international phone variations
+  const getPhoneSearchConditions = (inputStr: string) => {
+    const raw = inputStr.trim();
+    const digits = raw.replace(/\D/g, '');
+    const variants = new Set<string>();
+    if (raw) variants.add(raw);
+    if (digits) variants.add(digits);
+
+    // 11-digit mobile starting with 0 (e.g. 03067721033)
+    if (digits.length === 11 && digits.startsWith('0')) {
+      variants.add(`${digits.slice(0, 4)}-${digits.slice(4)}`); // 0306-7721033
+      variants.add(`${digits.slice(0, 4)} ${digits.slice(4)}`); // 0306 7721033
+      variants.add(`${digits.slice(0, 4)}.${digits.slice(4)}`); // 0306.7721033
+      const core = digits.slice(1); // 3067721033
+      variants.add(core);
+      variants.add(`${core.slice(0, 3)}-${core.slice(3)}`); // 306-7721033
+      variants.add(`${core.slice(0, 3)} ${core.slice(3)}`); // 306 7721033
+      variants.add(`+92${core}`); // +923067721033
+      variants.add(`92${core}`); // 923067721033
+      variants.add(digits.slice(-7)); // 7721033
+    } else if (digits.length === 10) { // e.g. 3067721033
+      const with0 = `0${digits}`; // 03067721033
+      variants.add(with0);
+      variants.add(`${with0.slice(0, 4)}-${with0.slice(4)}`); // 0306-7721033
+      variants.add(`${with0.slice(0, 4)} ${with0.slice(4)}`); // 0306 7721033
+      variants.add(`${digits.slice(0, 3)}-${digits.slice(3)}`); // 306-7721033
+      variants.add(`+92${digits}`);
+      variants.add(`92${digits}`);
+      variants.add(digits.slice(-7));
+    } else if (digits.length >= 7) {
+      variants.add(digits.slice(-7));
+    }
+
+    const conditions: any[] = [];
+    variants.forEach(v => {
+      if (v) {
+        conditions.push({ phone: { [likeOp]: `%${v}%` } });
+        conditions.push({ emergencyContactPhone: { [likeOp]: `%${v}%` } });
+      }
+    });
+
+    if (digits) {
+      try {
+        conditions.push(
+          sequelizeDb.where(sequelizeDb.fn('REPLACE', sequelizeDb.fn('REPLACE', sequelizeDb.col('phone'), '-', ''), ' ', ''), { [likeOp]: `%${digits}%` })
+        );
+        if (digits.length >= 7) {
+          conditions.push(
+            sequelizeDb.where(sequelizeDb.fn('REPLACE', sequelizeDb.fn('REPLACE', sequelizeDb.col('phone'), '-', ''), ' ', ''), { [likeOp]: `%${digits.slice(-7)}%` })
+          );
+        }
+      } catch (e) {}
+    }
+
+    return conditions;
+  };
 
   // Legacy or single-box search param
   if (search && typeof search === 'string' && search.trim() !== '') {
     const s = search.trim();
-    const digitsOnly = s.replace(/\D/g, '');
-    const coreDigits = digitsOnly.replace(/^(0|92|\+92)/, '');
-
     searchOrConditions.push(
       { name: { [likeOp]: `%${s}%` } },
-      { phone: { [likeOp]: `%${s}%` } },
       { email: { [likeOp]: `%${s}%` } },
       { mrNumber: { [likeOp]: `%${s}%` } },
       { area: { [likeOp]: `%${s}%` } },
-      { address: { [likeOp]: `%${s}%` } },
-      { emergencyContactPhone: { [likeOp]: `%${s}%` } }
+      { address: { [likeOp]: `%${s}%` } }
     );
-
-    if (coreDigits && coreDigits.length >= 4) {
-      searchOrConditions.push(
-        { phone: { [likeOp]: `%${coreDigits}%` } },
-        { emergencyContactPhone: { [likeOp]: `%${coreDigits}%` } }
-      );
-    }
+    searchOrConditions.push(...getPhoneSearchConditions(s));
   }
 
   // 1. Name / MR Number search filter
@@ -127,30 +174,9 @@ export const getAllPatients = async (req: Request, res: Response) => {
     );
   }
 
-  // 2. Phone Number search filter (Multi-variant matching: raw, digits-only, core without 0/92)
+  // 2. Phone Number search filter (Multi-variant matching: raw, dashed, spaced, digits-only, core)
   if (phone && typeof phone === 'string' && phone.trim() !== '') {
-    const p = phone.trim();
-    const digitsOnly = p.replace(/\D/g, '');
-    const coreDigits = digitsOnly.replace(/^(0|92|\+92)/, '');
-
-    searchOrConditions.push(
-      { phone: { [likeOp]: `%${p}%` } },
-      { emergencyContactPhone: { [likeOp]: `%${p}%` } }
-    );
-
-    if (digitsOnly && digitsOnly !== p) {
-      searchOrConditions.push(
-        { phone: { [likeOp]: `%${digitsOnly}%` } },
-        { emergencyContactPhone: { [likeOp]: `%${digitsOnly}%` } }
-      );
-    }
-
-    if (coreDigits && coreDigits.length >= 4) {
-      searchOrConditions.push(
-        { phone: { [likeOp]: `%${coreDigits}%` } },
-        { emergencyContactPhone: { [likeOp]: `%${coreDigits}%` } }
-      );
-    }
+    searchOrConditions.push(...getPhoneSearchConditions(phone));
   }
 
   // 3. Area / Colony search filter
