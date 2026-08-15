@@ -155,23 +155,39 @@ export const Patients: React.FC = () => {
   const hasActiveFilters = searchName || searchPhone || searchArea || searchDate;
 
   // Filter Today's Patients vs Admitted Patients vs All
-  const todayStr = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
 
   const todayPatients = patients.filter(p => {
-    const createdDate = new Date(p.createdAt).toISOString().split('T')[0];
-    const hasTodayToken = p.token_queues && p.token_queues.some((t: any) => new Date(t.createdAt).toISOString().split('T')[0] === todayStr);
-    const hasTodayAppt = p.appointments && p.appointments.some((a: any) => new Date(a.appointmentDate).toISOString().split('T')[0] === todayStr);
+    const createdDate = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-CA') : '';
+    const hasTodayToken = p.token_queues && p.token_queues.some((t: any) => t.createdAt && new Date(t.createdAt).toLocaleDateString('en-CA') === todayStr);
+    const hasTodayAppt = p.appointments && p.appointments.some((a: any) => a.appointmentDate && new Date(a.appointmentDate).toLocaleDateString('en-CA') === todayStr);
     return createdDate === todayStr || hasTodayToken || hasTodayAppt;
   });
 
   const admittedPatients = patients.filter(p => {
-    return p.admissions && p.admissions.some((a: any) => a.status === 'admitted');
+    const hasAdmit = p.admissions && p.admissions.some((a: any) => a.status === 'admitted');
+    if (!hasAdmit) return false;
+    if (isNurse && searchName.trim()) {
+      const q = searchName.toLowerCase();
+      const activeAdmission = p.admissions.find((a: any) => a.status === 'admitted');
+      const bedStr = activeAdmission?.bed?.bedNumber || '';
+      const wardStr = activeAdmission?.bed?.wardName || '';
+      return p.name.toLowerCase().includes(q) || 
+             p.mrNumber.toLowerCase().includes(q) || 
+             bedStr.toLowerCase().includes(q) || 
+             wardStr.toLowerCase().includes(q);
+    }
+    return true;
   });
 
-  const displayedPatients = activeTab === 'today'
-    ? (todayPatients.length > 0 ? todayPatients : patients)
-    : activeTab === 'admitted'
-      ? admittedPatients
+  const displayedPatients = isNurse || activeTab === 'admitted'
+    ? admittedPatients
+    : activeTab === 'today'
+      ? todayPatients
       : patients;
 
   return (
@@ -332,11 +348,6 @@ export const Patients: React.FC = () => {
       )}
 
       {/* Patients Data Table */}
-      {activeTab === 'today' && todayPatients.length === 0 && !loading && (
-        <div className="p-3.5 bg-brand-500/10 border border-brand-500/25 rounded-xl text-xs text-brand-700 dark:text-brand-300 font-semibold flex items-center justify-between">
-          <span>💡 <strong>Notice:</strong> No new OPD intake tokens recorded for today yet. Showing all registered master patient records below.</span>
-        </div>
-      )}
 
       {loading ? (
         <div className="space-y-3">

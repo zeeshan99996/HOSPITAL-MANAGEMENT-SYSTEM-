@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User, SystemUser, StaffMember, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog, TokenQueue } from '../models';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
+import { getPktDayBounds } from '../utils/timezone';
 
 // ==========================================
 // DASHBOARD ANALYTICS WIDGETS
@@ -9,28 +10,19 @@ import bcrypt from 'bcryptjs';
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
     const userRole = (req as any).user?.role;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const { startOfDay, endOfDay } = getPktDayBounds();
 
     const totalPatients = await Patient.count();
     
     const todayAppointments = await Appointment.count({
       where: {
         appointmentDate: {
-          [Op.between]: [today, tomorrow],
+          [Op.between]: [startOfDay, endOfDay],
         },
       },
     });
 
     const activeAdmissions = await Admission.count({ where: { status: 'admitted' } });
-    
-    // Live Doctor Token Queue Monitor (Strict 12:00 AM Midnight Reset)
-    const now = new Date();
-    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const startOfDay = new Date(`${localDateStr}T00:00:00.000`);
-    const endOfDay = new Date(`${localDateStr}T23:59:59.999`);
 
     const doctorsList = await Doctor.findAll({
       include: [
