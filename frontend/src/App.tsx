@@ -63,6 +63,7 @@ const App: React.FC = () => {
   const isDoctor = user.role === 'doctor';
   const isPharmacist = user.role === 'pharmacist';
   const isAccountant = user.role === 'accountant';
+  const isNurse = user.role === 'nurse';
   const hideSidebar = isDoctor || isPharmacist;
 
   return (
@@ -79,25 +80,25 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
-              <Route path="/dashboard" element={isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Dashboard />} />
-              <Route path="/patient-registration" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <PatientRegistration />} />
-              <Route path="/old-patient" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <OldPatient />} />
+              <Route path="/dashboard" element={isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Dashboard />} />
+              <Route path="/patient-registration" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <PatientRegistration />} />
+              <Route path="/old-patient" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <OldPatient />} />
               <Route path="/patients" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Patients />} />
               <Route path="/appointments" element={<Navigate to="/token-queue" replace />} />
-              <Route path="/token-queue" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <TokenQueue />} />
-              <Route path="/doctors-schedule" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <DoctorsSchedule />} />
+              <Route path="/token-queue" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <TokenQueue />} />
+              <Route path="/doctors-schedule" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <DoctorsSchedule />} />
               <Route path="/admissions" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Admissions />} />
-              <Route path="/laboratory" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Laboratory />} />
-              <Route path="/pharmacy" element={isDoctor ? <Navigate to="/dashboard" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Pharmacy />} />
-              <Route path="/billing" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : <Billing />} />
-              <Route path="/expenses" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : <ClinicExpenses />} />
-              <Route path="/reports" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Reports />} />
-              <Route path="/profile" element={isDoctor || user.role === 'receptionist' || isPharmacist || isAccountant ? <Navigate to="/dashboard" replace /> : <Profile />} />
-              <Route path="/security" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <SecurityManagement />} />
-              <Route path="/staff" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Staff />} />
-              <Route path="/logs" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Logs />} />
-              <Route path="/settings" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Settings />} />
-              <Route path="*" element={<Navigate to={isPharmacist ? "/pharmacy" : isAccountant ? "/billing" : "/dashboard"} replace />} />
+              <Route path="/laboratory" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Laboratory />} />
+              <Route path="/pharmacy" element={isDoctor ? <Navigate to="/dashboard" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Pharmacy />} />
+              <Route path="/billing" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Billing />} />
+              <Route path="/expenses" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isNurse ? <Navigate to="/patients" replace /> : <ClinicExpenses />} />
+              <Route path="/reports" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Reports />} />
+              <Route path="/profile" element={isDoctor || user.role === 'receptionist' || isPharmacist || isAccountant || isNurse ? <Navigate to="/patients" replace /> : <Profile />} />
+              <Route path="/security" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <SecurityManagement />} />
+              <Route path="/staff" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Staff />} />
+              <Route path="/logs" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Logs />} />
+              <Route path="/settings" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Settings />} />
+              <Route path="*" element={<Navigate to={isPharmacist ? "/pharmacy" : isAccountant ? "/billing" : isNurse ? "/patients" : "/dashboard"} replace />} />
             </Routes>
           </Suspense>
         </main>

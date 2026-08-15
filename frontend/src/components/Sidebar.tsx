@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Dashboard',
       path: '/dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'doctor', 'receptionist', 'accountant', 'nurse'],
+      roles: ['admin', 'doctor', 'receptionist', 'accountant'],
     },
     {
       name: 'Patient Registration',
