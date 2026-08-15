@@ -41,6 +41,8 @@ import {
 } from '../controllers/appointmentController';
 import {
   getBeds,
+  createBed,
+  deleteBed,
   admitPatient,
   getAdmissions,
   updateAdmissionNotes,
@@ -351,6 +353,8 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 // BED & ADMISSION MANAGEMENT (IPD & SURGERY)
 // ==========================================
 router.get('/beds', authenticateToken, getBeds);
+router.post('/beds', authenticateToken, requireRoles(['admin']), createBed);
+router.delete('/beds/:id', authenticateToken, requireRoles(['admin']), deleteBed);
 router.post('/admissions', authenticateToken, requireRoles(['admin', 'receptionist']), validateAdmission, admitPatient);
 router.get('/admissions', authenticateToken, getAdmissions);
 router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse']), updateAdmissionNotes);

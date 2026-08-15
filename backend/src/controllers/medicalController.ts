@@ -7,7 +7,7 @@ import sequelize from '../config/db';
 // ==========================================
 export const getBeds = async (req: Request, res: Response) => {
   try {
-    let beds = await Bed.findAll();
+    let beds = await Bed.findAll({ order: [['id', 'ASC']] });
     if (beds.length === 0) {
       const defaultBeds = [
         { bedNumber: 'Bed-101', wardName: 'General Male Ward', type: 'general', status: 'available' },
@@ -21,11 +21,54 @@ export const getBeds = async (req: Request, res: Response) => {
           await Bed.create(b as any);
         } catch (e) {}
       }
-      beds = await Bed.findAll();
+      beds = await Bed.findAll({ order: [['id', 'ASC']] });
     }
     return res.status(200).json(beds);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving beds.', error: error.message });
+  }
+};
+
+export const createBed = async (req: Request, res: Response) => {
+  try {
+    const { bedNumber, wardName, type, status } = req.body;
+    if (!bedNumber || !wardName) {
+      return res.status(400).json({ message: 'Bed number and ward name are required.' });
+    }
+
+    const trimmedBedNum = bedNumber.trim();
+    const existing = await Bed.findOne({ where: { bedNumber: trimmedBedNum } });
+    if (existing) {
+      return res.status(400).json({ message: `A bed with number "${trimmedBedNum}" already exists.` });
+    }
+
+    const newBed = await Bed.create({
+      bedNumber: trimmedBedNum,
+      wardName: wardName.trim(),
+      type: type || 'general',
+      status: status || 'available',
+    } as any);
+
+    return res.status(201).json({ message: 'Hospital bed added successfully.', bed: newBed });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error adding bed.', error: error.message });
+  }
+};
+
+export const deleteBed = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const bed = await Bed.findByPk(id);
+    if (!bed) {
+      return res.status(404).json({ message: 'Bed not found.' });
+    }
+    if (bed.status === 'occupied') {
+      return res.status(400).json({ message: 'Cannot delete an occupied bed. Please discharge or transfer the admitted patient first.' });
+    }
+    await bed.destroy();
+    return res.status(200).json({ message: 'Bed deleted successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error deleting bed.', error: error.message });
   }
 };
 

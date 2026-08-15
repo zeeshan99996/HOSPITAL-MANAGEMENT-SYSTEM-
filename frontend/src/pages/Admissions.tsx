@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText, CheckCircle2, ArrowRight } from 'lucide-react';
+import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText, CheckCircle2, ArrowRight, Trash2 } from 'lucide-react';
 
 export const Admissions: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +20,12 @@ export const Admissions: React.FC = () => {
 
   // Modal controls
   const [isAdmitOpen, setIsAdmitOpen] = useState(false);
+  const [isAddBedOpen, setIsAddBedOpen] = useState(false);
+  const [newBedNumber, setNewBedNumber] = useState('');
+  const [newBedWard, setNewBedWard] = useState('General Male Ward');
+  const [customWard, setCustomWard] = useState('');
+  const [newBedType, setNewBedType] = useState<'general' | 'icu' | 'semi-private' | 'private'>('general');
+  const [addingBed, setAddingBed] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isAdministerOpen, setIsAdministerOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
@@ -237,6 +243,45 @@ export const Admissions: React.FC = () => {
       alert(alertMsg);
     } catch (err: any) {
       alert(err.message || 'Failed to administer medication.');
+    }
+  };
+
+  const handleCreateBed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalWard = newBedWard === 'custom' ? customWard.trim() : newBedWard.trim();
+    if (!newBedNumber.trim() || !finalWard) {
+      alert('Please fill in both Bed Number and Ward Name.');
+      return;
+    }
+    setAddingBed(true);
+    try {
+      await apiClient.post('/beds', {
+        bedNumber: newBedNumber.trim(),
+        wardName: finalWard,
+        type: newBedType,
+        status: 'available'
+      });
+      alert('Hospital Bed added successfully!');
+      setIsAddBedOpen(false);
+      setNewBedNumber('');
+      setCustomWard('');
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to add hospital bed.');
+    } finally {
+      setAddingBed(false);
+    }
+  };
+
+  const handleDeleteBed = async (bed: any) => {
+    if (!window.confirm(`Are you sure you want to delete ${bed.bedNumber} (${bed.wardName})?`)) {
+      return;
+    }
+    try {
+      await apiClient.delete(`/beds/${bed.id}`);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete bed.');
     }
   };
 
@@ -475,6 +520,14 @@ export const Admissions: React.FC = () => {
         </div>
         {user?.role !== 'patient' && (
           <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+            {user?.role === 'admin' && (
+              <Button
+                onClick={() => setIsAddBedOpen(true)}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-sm"
+              >
+                <BedDouble className="h-4 w-4" /> + Add Hospital Bed
+              </Button>
+            )}
             <Button
               type="button"
               variant="secondary"
@@ -573,10 +626,31 @@ export const Admissions: React.FC = () => {
         <>
           {/* Bed Allocation Visual Grid */}
           <div className="space-y-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-500 block">Bed Layout Grid & Status</span>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-500 block">
+                Bed Layout Grid & Status ({beds.length} Total Beds)
+              </span>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => setIsAddBedOpen(true)}
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Bed
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {beds.map(bed => (
-                <Card key={bed.id} className="p-4 flex flex-col justify-between items-center text-center gap-2 border border-slate-200/60 dark:border-slate-850">
+                <Card key={bed.id} className="p-4 flex flex-col justify-between items-center text-center gap-2 border border-slate-200/60 dark:border-slate-850 relative group transition-all">
+                  {user?.role === 'admin' && bed.status === 'available' && (
+                    <button
+                      onClick={() => handleDeleteBed(bed)}
+                      className="absolute top-2 right-2 p-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                      title="Delete this bed"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-dark-950 flex items-center justify-center text-slate-500">
                     <BedDouble className="h-5 w-5" />
                   </div>
@@ -1255,6 +1329,77 @@ export const Admissions: React.FC = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* ADD NEW HOSPITAL BED MODAL (Admin Only) */}
+      <Modal isOpen={isAddBedOpen} onClose={() => setIsAddBedOpen(false)} title="Add New Hospital Bed">
+        <form onSubmit={handleCreateBed} className="space-y-4">
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Bed Number / Code *
+            </label>
+            <Input
+              required
+              placeholder="e.g. Bed-103, Bed-204, Bed-301..."
+              value={newBedNumber}
+              onChange={e => setNewBedNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Ward / Room Section *
+            </label>
+            <select
+              value={newBedWard}
+              onChange={e => setNewBedWard(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
+            >
+              <option value="General Male Ward">General Male Ward</option>
+              <option value="General Female Ward">General Female Ward</option>
+              <option value="Surgical ICU Ward">Surgical ICU Ward</option>
+              <option value="Private VIP Suite">Private VIP Suite</option>
+              <option value="Emergency Recovery Ward">Emergency Recovery Ward</option>
+              <option value="Post-Op Recovery Ward">Post-Op Recovery Ward</option>
+              <option value="Pediatric Ward">Pediatric Ward</option>
+              <option value="custom">+ Enter Custom Ward Name</option>
+            </select>
+            {newBedWard === 'custom' && (
+              <Input
+                required
+                placeholder="Enter custom ward or room name..."
+                value={customWard}
+                onChange={e => setCustomWard(e.target.value)}
+                className="mt-2"
+              />
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              Bed Category / Type *
+            </label>
+            <select
+              value={newBedType}
+              onChange={e => setNewBedType(e.target.value as any)}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
+            >
+              <option value="general">General Bed</option>
+              <option value="semi-private">Semi-Private Room</option>
+              <option value="private">Private VIP Room</option>
+              <option value="icu">ICU / CCU / HDU</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setIsAddBedOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={addingBed} className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+              <Plus className="h-4 w-4" /> {addingBed ? 'Adding Bed...' : 'Save Hospital Bed'}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
