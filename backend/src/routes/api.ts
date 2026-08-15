@@ -41,6 +41,13 @@ import {
   createPrescription
 } from '../controllers/appointmentController';
 import {
+  getClinicalTemplates,
+  createClinicalTemplate,
+  updateClinicalTemplate,
+  deleteClinicalTemplate,
+  resetClinicalTemplates
+} from '../controllers/clinicalTemplateController';
+import {
   getBeds,
   createBed,
   updateBed,
@@ -203,6 +210,13 @@ router.get('/appointments', authenticateToken, getAppointments);
 router.put('/appointments/:id/status', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor']), updateAppointmentStatus);
 router.post('/appointments/prescription', authenticateToken, requireRoles(['admin', 'doctor']), createPrescription);
 router.post('/doctor/consultation', authenticateToken, requireRoles(['admin', 'doctor']), recordDoctorConsultation);
+
+// DOCTOR CLINICAL EMR TEMPLATES & CUSTOM QUICK TAGS
+router.get('/clinical-templates', authenticateToken, requireRoles(['admin', 'doctor']), getClinicalTemplates);
+router.post('/clinical-templates', authenticateToken, requireRoles(['admin', 'doctor']), createClinicalTemplate);
+router.put('/clinical-templates/:id', authenticateToken, requireRoles(['admin', 'doctor']), updateClinicalTemplate);
+router.delete('/clinical-templates/:id', authenticateToken, requireRoles(['admin', 'doctor']), deleteClinicalTemplate);
+router.post('/clinical-templates/reset-defaults', authenticateToken, requireRoles(['admin', 'doctor']), resetClinicalTemplates);
 
 // THERMAL PRINTER & QUEUE TOKEN GENERATION (DOCTOR-SPECIFIC DAILY SEQUENCE)
 router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']), validateTokenQueue, async (req, res) => {

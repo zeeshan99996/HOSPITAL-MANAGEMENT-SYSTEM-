@@ -488,8 +488,8 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
 
     // 2. Format clinical summary notes
     const clinicalSummaryParts: string[] = [];
-    if (symptoms) clinicalSummaryParts.push(`Alamaat / Symptoms: ${symptoms}`);
-    if (symptomTags && symptomTags.length > 0) clinicalSummaryParts.push(`Tags: ${symptomTags.join(', ')}`);
+    if (symptoms) clinicalSummaryParts.push(`Chief Complaints & Symptoms: ${symptoms}`);
+    if (symptomTags && symptomTags.length > 0) clinicalSummaryParts.push(`Symptoms / Tags: ${symptomTags.join(', ')}`);
     if (medicalHistory) clinicalSummaryParts.push(`Medical History: ${medicalHistory}`);
     if (allergies) clinicalSummaryParts.push(`Allergies: ${allergies}`);
     if (physicalExam) clinicalSummaryParts.push(`Physical Exam: ${physicalExam}`);

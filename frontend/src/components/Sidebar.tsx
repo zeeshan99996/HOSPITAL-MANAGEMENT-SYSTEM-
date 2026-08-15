@@ -21,7 +21,8 @@ import {
   User,
   ShieldCheck,
   Pill,
-  Coffee
+  Coffee,
+  ClipboardList
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
   const [showConfirmLogout, setShowConfirmLogout] = useState(false);
 
-  if (!user || user.role === 'doctor') return null;
+  if (!user) return null;
 
   // Define sidebar navigation items and their role access list
   const menuItems = [
@@ -42,6 +43,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       path: '/dashboard',
       icon: LayoutDashboard,
       roles: ['admin', 'doctor', 'receptionist', 'accountant'],
+    },
+    {
+      name: 'Clinical Templates',
+      path: '/clinical-templates',
+      icon: ClipboardList,
+      roles: ['admin', 'doctor'],
     },
     {
       name: 'Patient Registration',
@@ -142,7 +149,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const isAccountant = user.role === 'accountant';
   const filteredItems = menuItems.filter(item => {
     if (isDoctor) {
-      return item.path === '/dashboard';
+      const allowedPaths = [
+        '/dashboard',
+        '/clinical-templates',
+        '/patients',
+        '/admissions'
+      ];
+      return allowedPaths.includes(item.path);
     }
     if (isPharmacist) {
       return item.path === '/pharmacy';
@@ -172,10 +185,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     receptionist: 'Reception Staff',
     pharmacist: 'Pharmacist',
     accountant: 'Accountant',
+    nurse: 'Staff Nurse'
   };
 
-  // Hide left sidebar completely for Doctor and Pharmacist roles
-  if (user?.role === 'doctor' || user?.role === 'pharmacist') {
+  // Hide left sidebar completely for Pharmacist role (dispensary terminal mode)
+  if (user?.role === 'pharmacist') {
     return null;
   }
 

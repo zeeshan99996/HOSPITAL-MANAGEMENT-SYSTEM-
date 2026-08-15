@@ -882,3 +882,33 @@ BackupLog.init(
   },
   { sequelize, modelName: 'backup_log', tableName: 'backup_logs' }
 );
+
+// ==========================================
+// CLINICAL TEMPLATES FOR DOCTOR CONSULTATIONS
+// ==========================================
+export class ClinicalTemplate extends Model {
+  declare id: number;
+  declare doctorId: number | null;
+  declare category: 'symptom' | 'diagnosis' | 'lab_test' | 'advice';
+  declare title: string;
+  declare details: string | null;
+  declare displayOrder: number;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+}
+
+ClinicalTemplate.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    doctorId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'doctors', key: 'id' } },
+    category: { type: DataTypes.STRING, allowNull: false },
+    title: { type: DataTypes.STRING, allowNull: false },
+    details: { type: DataTypes.TEXT, allowNull: true },
+    displayOrder: { type: DataTypes.INTEGER, defaultValue: 0 },
+  },
+  { sequelize, modelName: 'clinical_template', tableName: 'clinical_templates' }
+);
+
+Doctor.hasMany(ClinicalTemplate, { foreignKey: 'doctorId', onDelete: 'CASCADE' });
+ClinicalTemplate.belongsTo(Doctor, { foreignKey: 'doctorId' });
+

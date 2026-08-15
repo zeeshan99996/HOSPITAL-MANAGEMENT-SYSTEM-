@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
-import { Modal, Button, Badge, Card } from './UI';
+import { Modal, Button, Badge } from './UI';
 import {
   Stethoscope,
   Pill,
@@ -10,18 +10,13 @@ import {
   Save,
   Plus,
   Trash2,
-  AlertCircle,
-  CheckCircle2,
-  FileText,
   Activity,
-  Heart,
-  Thermometer,
-  Calendar,
   User,
   Phone,
+  ClipboardList,
   Sparkles,
-  ChevronRight,
-  ClipboardList
+  Salad,
+  X
 } from 'lucide-react';
 
 interface MedicineRow {
@@ -42,15 +37,16 @@ interface DoctorEMRModalProps {
   onConsultationSaved?: () => void;
 }
 
-const COMMON_SYMPTOMS = [
+// Standard English Medical Fallbacks
+const DEFAULT_SYMPTOMS = [
   'Fever', 'Dry Cough', 'Productive Cough', 'Chest Pain', 'Shortness of Breath',
-  'Headache', 'Abdominal Pain', 'Nausea / Vomiting', 'Diarrhea', 'Throat Pain',
+  'Headache', 'Abdominal Pain', 'Nausea / Vomiting', 'Diarrhea', 'Throat Pain / Sore Throat',
   'Body Aches', 'Generalized Weakness', 'Dizziness', 'Back Pain', 'Joint Pain',
-  'Burning Micturition (UTI)', 'Skin Rash / Itching'
+  'Burning Micturition (UTI)', 'Skin Rash / Itching', 'Loss of Appetite', 'Weight Loss', 'Palpitations'
 ];
 
-const COMMON_DIAGNOSES = [
-  'Acute Viral Upper Respiratory Infection (URI)',
+const DEFAULT_DIAGNOSES = [
+  'Acute Upper Respiratory Infection (URI)',
   'Acute Bronchitis',
   'Enteric Fever / Typhoid',
   'Acute Gastroenteritis',
@@ -61,13 +57,17 @@ const COMMON_DIAGNOSES = [
   'Urinary Tract Infection (UTI)',
   'Migraine / Tension Headache',
   'Musculoskeletal Pain / Spondylosis',
-  'Allergic Dermatitis'
+  'Allergic Dermatitis / Eczema',
+  'Bronchial Asthma',
+  'Ischemic Heart Disease (IHD)',
+  'Iron Deficiency Anemia'
 ];
 
-const COMMON_LAB_TESTS = [
+const DEFAULT_LAB_TESTS = [
   'Complete Blood Count (CBC)',
   'ESR',
-  'Blood Sugar Fasting / Random (BSF/BSR)',
+  'Blood Sugar Fasting (BSF)',
+  'Blood Sugar Random (BSR)',
   'HbA1c (Glycated Hemoglobin)',
   'Liver Function Tests (LFT)',
   'Renal Function Tests / Creatinine (RFT)',
@@ -79,15 +79,18 @@ const COMMON_LAB_TESTS = [
   'H. Pylori Antigen',
   'ECG (12-Lead)',
   'Chest X-Ray (PA View)',
-  'Ultrasound Abdomen & Pelvis'
+  'Ultrasound Abdomen & Pelvis',
+  'Thyroid Profile (TSH, FT3, FT4)',
+  'Serum Uric Acid'
 ];
 
-const COMMON_ALLERGIES = [
+const DEFAULT_ALLERGIES = [
   'No Known Drug Allergies (NKDA)',
   'Penicillin Allergy',
   'Sulfa Drugs Allergy',
   'NSAIDs / Aspirin Allergy',
-  'Ciprofloxacin Allergy'
+  'Ciprofloxacin Allergy',
+  'Cephalosporin Allergy'
 ];
 
 export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
@@ -105,12 +108,25 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [stockMedicines, setStockMedicines] = useState<any[]>([]);
 
+  // Dynamic Clinical Templates for current doctor
+  const [symptomsList, setSymptomsList] = useState<string[]>(DEFAULT_SYMPTOMS);
+  const [diagnosesList, setDiagnosesList] = useState<string[]>(DEFAULT_DIAGNOSES);
+  const [labTestsList, setLabTestsList] = useState<string[]>(DEFAULT_LAB_TESTS);
+
+  // Quick In-Place Add Tag Inputs
+  const [newSymptomTag, setNewSymptomTag] = useState('');
+  const [showAddSymptom, setShowAddSymptom] = useState(false);
+  const [newDiagnosisTag, setNewDiagnosisTag] = useState('');
+  const [showAddDiagnosis, setShowAddDiagnosis] = useState(false);
+  const [newLabTag, setNewLabTag] = useState('');
+  const [showAddLab, setShowAddLab] = useState(false);
+
   // --- EMR Clinical State ---
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [customSymptoms, setCustomSymptoms] = useState('');
   const [medicalHistory, setMedicalHistory] = useState('');
   const [allergies, setAllergies] = useState('No Known Drug Allergies (NKDA)');
-  
+
   // Vitals
   const [bp, setBp] = useState('');
   const [temperature, setTemperature] = useState('');
@@ -126,29 +142,47 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
   // Prescription Rx Medicines
   const [medicines, setMedicines] = useState<MedicineRow[]>([
-    { name: '', dosage: '1 Tablet', frequency: '1-0-1 (Morning & Night)', duration: '5 Days', instructions: 'After food (Khaney ke baad)' }
+    { name: '', dosage: '1 Tablet', frequency: '1-0-1 (Morning & Night)', duration: '5 Days', instructions: 'After Meals' }
   ]);
 
   // Advised Labs & Advice
   const [advisedLabs, setAdvisedLabs] = useState<string[]>([]);
   const [customLab, setCustomLab] = useState('');
-  const [dietAdvice, setDietAdvice] = useState('Avoid cold/spicy food. Drink plenty of warm water. Complete bed rest.');
+  const [dietAdvice, setDietAdvice] = useState('Drink plenty of warm water. Avoid cold and oily foods. Complete bed rest.');
   const [followUpDays, setFollowUpDays] = useState('3');
 
-  // Load Patient EMR Data
+  // Load Patient EMR Data and Doctor Clinical Templates
   useEffect(() => {
     if (isOpen && patientId) {
       fetchPatientEMR(patientId);
       fetchPharmacyStock();
+      fetchDoctorClinicalTemplates();
     }
   }, [isOpen, patientId]);
+
+  const fetchDoctorClinicalTemplates = async () => {
+    try {
+      const res = await apiClient.get('/clinical-templates');
+      if (res.symptoms && res.symptoms.length > 0) {
+        setSymptomsList(res.symptoms.map((s: any) => s.title));
+      }
+      if (res.diagnoses && res.diagnoses.length > 0) {
+        setDiagnosesList(res.diagnoses.map((d: any) => d.title));
+      }
+      if (res.lab_tests && res.lab_tests.length > 0) {
+        setLabTestsList(res.lab_tests.map((l: any) => l.title));
+      }
+    } catch (err) {
+      console.warn('Could not load custom clinical templates, using medical defaults:', err);
+    }
+  };
 
   const fetchPharmacyStock = async () => {
     try {
       const res = await apiClient.get('/medicines');
       setStockMedicines(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.warn('Could not fetch stock medicines', err);
+      console.warn('Could not fetch pharmacy stock:', err);
     }
   };
 
@@ -161,10 +195,10 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
       // Pre-fill latest vitals if available
       if (data?.patient_vitals && data.patient_vitals.length > 0) {
         const latest = data.patient_vitals[0];
-        setBp(latest.bp || '');
-        setTemperature(latest.temperature ? String(latest.temperature) : '');
-        setPulse(latest.pulse ? String(latest.pulse) : '');
-        setSpo2(latest.spo2 ? String(latest.spo2) : '');
+        setBp(latest.bp || '120/80');
+        setTemperature(latest.temperature ? String(latest.temperature) : '98.6');
+        setPulse(latest.pulse ? String(latest.pulse) : '72');
+        setSpo2(latest.spo2 ? String(latest.spo2) : '98');
         setWeight(latest.weight ? String(latest.weight) : '');
       } else {
         setBp('120/80');
@@ -174,9 +208,37 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         setWeight('');
       }
     } catch (err) {
-      console.error('Error fetching patient details for EMR', err);
+      console.error('Error fetching patient details for EMR:', err);
     } finally {
       setLoadingPatient(false);
+    }
+  };
+
+  // Quick In-Place Tag Addition Handlers
+  const handleAddQuickTag = async (category: 'symptom' | 'diagnosis' | 'lab_test', title: string) => {
+    if (!title.trim()) return;
+    const trimmed = title.trim();
+
+    try {
+      await apiClient.post('/clinical-templates', { category, title: trimmed });
+      if (category === 'symptom') {
+        setSymptomsList(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+        setSelectedSymptoms(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+        setNewSymptomTag('');
+        setShowAddSymptom(false);
+      } else if (category === 'diagnosis') {
+        setDiagnosesList(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+        setDiagnosis(trimmed);
+        setNewDiagnosisTag('');
+        setShowAddDiagnosis(false);
+      } else if (category === 'lab_test') {
+        setLabTestsList(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+        setAdvisedLabs(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+        setNewLabTag('');
+        setShowAddLab(false);
+      }
+    } catch (err: any) {
+      alert(`Could not save tag: ${err.message}`);
     }
   };
 
@@ -202,13 +264,13 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
   const handleAddMedicineRow = () => {
     setMedicines([
       ...medicines,
-      { name: '', dosage: '1 Tablet', frequency: '1-0-1 (Morning & Night)', duration: '5 Days', instructions: 'After food (Khaney ke baad)' }
+      { name: '', dosage: '1 Tablet', frequency: '1-0-1 (Morning & Night)', duration: '5 Days', instructions: 'After Meals' }
     ]);
   };
 
   const handleRemoveMedicineRow = (index: number) => {
     const updated = medicines.filter((_, i) => i !== index);
-    setMedicines(updated.length > 0 ? updated : [{ name: '', dosage: '1 Tablet', frequency: '1-0-1', duration: '5 Days', instructions: 'After food' }]);
+    setMedicines(updated.length > 0 ? updated : [{ name: '', dosage: '1 Tablet', frequency: '1-0-1', duration: '5 Days', instructions: 'After Meals' }]);
   };
 
   const handleMedicineChange = (index: number, field: keyof MedicineRow, value: string) => {
@@ -220,7 +282,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
   // Submit Consultation
   const handleSaveConsultation = async (shouldPrint = false) => {
     if (!diagnosis.trim()) {
-      alert('Please enter or select a Clinical Diagnosis (Tashkhees) for the patient.');
+      alert('Please enter or select a Clinical Diagnosis for the patient.');
       return;
     }
 
@@ -244,7 +306,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         pulse: pulse || null,
         spo2: spo2 || null,
         weight: weight || null,
-        notes: sugar ? `Blood Sugar / RBS: ${sugar} mg/dL` : null
+        notes: sugar ? `Blood Sugar (RBS): ${sugar} mg/dL` : null
       },
       physicalExam: physicalExam.trim(),
       diagnosis: diagnosis.trim(),
@@ -302,7 +364,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
     const labTestsHtml = (data.advisedLabTests || []).length > 0
       ? `<div style="margin-top: 12px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-          <strong style="color: #4338ca; font-size: 12px; text-transform: uppercase;">Advised Lab Investigations (Test Sifarish):</strong>
+          <strong style="color: #4338ca; font-size: 12px; text-transform: uppercase;">Advised Laboratory Investigations:</strong>
           <div style="margin-top: 4px; font-size: 12px; font-weight: 600; color: #1e293b;">${data.advisedLabTests.join(' • ')}</div>
         </div>`
       : '';
@@ -335,7 +397,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         <div class="header">
           <div>
             <div class="clinic-title">Dr. Talha Clinic & Healthcare Center</div>
-            <div class="clinic-sub">Primary & Specialized Medical Care • EMR Clinical System</div>
+            <div class="clinic-sub">Primary & Specialized Medical Care • Electronic Medical Records</div>
           </div>
           <div class="doc-box">
             <div class="doc-name">${docName}</div>
@@ -347,7 +409,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         <div class="patient-box">
           <div><strong>Patient:</strong> ${patientName}</div>
           <div><strong>MRN:</strong> ${patientMrn}</div>
-          <div><strong>Age/Gender:</strong> ${patientAge} / ${patientGender}</div>
+          <div><strong>Age / Gender:</strong> ${patientAge} / ${patientGender}</div>
           <div><strong>Date:</strong> ${nowStr}</div>
           <div><strong>Phone:</strong> ${patientPhone}</div>
           ${tokenNumber ? `<div><strong>Token:</strong> #${tokenNumber}</div>` : ''}
@@ -364,8 +426,8 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         </div>
 
         <div class="diagnosis-box">
-          <strong>Diagnosis / Assessment:</strong> <span style="color: #9d174d; font-weight: 800;">${data.diagnosis}</span>
-          ${data.symptoms ? `<div style="margin-top: 3px; font-size: 11px; color: #475569;"><strong>Complaints:</strong> ${data.symptoms}</div>` : ''}
+          <strong>Clinical Diagnosis & Assessment:</strong> <span style="color: #9d174d; font-weight: 800;">${data.diagnosis}</span>
+          ${data.symptoms ? `<div style="margin-top: 3px; font-size: 11px; color: #475569;"><strong>Chief Complaints:</strong> ${data.symptoms}</div>` : ''}
         </div>
 
         <div class="rx-symbol">℞</div>
@@ -387,7 +449,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         ${labTestsHtml}
 
         <div class="advice-box">
-          <strong style="color: #065f46; font-size: 11px; text-transform: uppercase;">Dietary Advice & Precautions:</strong>
+          <strong style="color: #065f46; font-size: 11px; text-transform: uppercase;">Dietary Advice & Clinical Precautions:</strong>
           <div style="font-size: 11px; color: #1e293b; margin-top: 2px;">${data.dietAdvice || 'Drink plenty of water and take regular rest.'}</div>
           <div style="font-size: 11px; color: #0284c7; font-weight: 700; margin-top: 4px;">Follow-up: Within ${data.followUpDays || '3'} Days or SOS.</div>
         </div>
@@ -426,7 +488,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-black text-white">
-                  {loadingPatient ? 'Loading Patient File...' : (patientData?.name || 'Patient EMR')}
+                  {loadingPatient ? 'Loading Patient Record...' : (patientData?.name || 'Patient EMR')}
                 </h3>
                 {tokenNumber && (
                   <span className="px-2 py-0.5 rounded bg-brand-500 text-white font-mono text-[10px] font-black">
@@ -458,7 +520,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                 }`}
               >
                 <ClipboardList className="h-3.5 w-3.5" />
-                <span>Consultation & Rx</span>
+                <span>Consultation & Prescription</span>
               </button>
 
               <button
@@ -479,7 +541,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
             >
-              ✕
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -497,14 +559,14 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
               {/* SECTION 1: VITALS CHECK & REAL-TIME ENTRY */}
               <div className="p-4 bg-slate-50 dark:bg-dark-950/60 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5" /> 1. Patient Vital Signs (Alamaat-e-Hayaat)
+                  <Activity className="h-3.5 w-3.5" /> 1. Patient Vital Signs
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">Blood Pressure (BP)</label>
                     <input
                       type="text"
-                      placeholder="e.g. 120/80"
+                      placeholder="120/80"
                       value={bp}
                       onChange={e => setBp(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-dark-900 font-mono font-bold text-xs"
@@ -568,16 +630,52 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                 </div>
               </div>
 
-              {/* SECTION 2: CHIEF COMPLAINTS / SYMPTOMS (ELAMAAT) */}
+              {/* SECTION 2: CHIEF COMPLAINTS / SYMPTOMS */}
               <div className="space-y-2.5">
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                  <span>2. Chief Complaints & Symptoms (Mareez ki Elamaat)</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Click quick tags or type below</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    2. Chief Complaints & Symptoms
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSymptom(!showAddSymptom)}
+                    className="text-[10px] text-brand-600 dark:text-brand-400 hover:underline font-bold flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Custom Symptom Tag
+                  </button>
+                </div>
+
+                {/* Quick Add Symptom Input */}
+                {showAddSymptom && (
+                  <div className="flex items-center gap-2 p-2 bg-brand-50/50 dark:bg-brand-950/20 border border-brand-200 dark:border-brand-900 rounded-xl">
+                    <input
+                      type="text"
+                      placeholder="Enter new symptom tag (e.g. Chest Tightness, Loss of Taste)..."
+                      value={newSymptomTag}
+                      onChange={e => setNewSymptomTag(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-brand-300 dark:border-brand-700 bg-white dark:bg-dark-900 text-xs font-semibold"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddQuickTag('symptom', newSymptomTag)}
+                      className="text-xs font-bold"
+                    >
+                      Save Tag
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSymptom(false)}
+                      className="text-slate-400 hover:text-slate-600 text-xs font-bold px-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 {/* Quick Symptom Chips */}
-                <div className="flex flex-wrap gap-1.5">
-                  {COMMON_SYMPTOMS.map((sym, i) => {
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-slate-50/50 dark:bg-dark-950/40 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                  {symptomsList.map((sym, i) => {
                     const isSelected = selectedSymptoms.includes(sym);
                     return (
                       <button
@@ -587,7 +685,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
                           isSelected
                             ? 'bg-brand-500 text-white shadow-sm'
-                            : 'bg-slate-100 dark:bg-dark-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-200'
+                            : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
                         }`}
                       >
                         {isSelected ? '✓ ' : '+ '}{sym}
@@ -598,22 +696,22 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                 <textarea
                   rows={2}
-                  placeholder="Describe patient's symptoms in detail (e.g. High grade fever x 3 days with chills, dry hacking cough, sore throat)..."
+                  placeholder="Describe complaints with duration (e.g. High grade fever x 3 days with chills, dry cough, severe headache)..."
                   value={customSymptoms}
                   onChange={e => setCustomSymptoms(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-950 text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
-              {/* SECTION 3: MEDICAL HISTORY & ALLERGIES */}
+              {/* SECTION 3: MEDICAL HISTORY & DRUG ALLERGIES */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Past Medical History (Pehle ki Beemariyan)
+                    Past Medical History
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Known Diabetic x 4 yrs, Hypertensive on tab amlodipine"
+                    placeholder="e.g. Known Diabetic x 4 yrs, Hypertensive on Amlodipine"
                     value={medicalHistory}
                     onChange={e => setMedicalHistory(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-950 text-xs"
@@ -622,29 +720,66 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Drug Allergies (Dawaon se allergy)
+                    Drug Allergies
                   </label>
                   <select
                     value={allergies}
                     onChange={e => setAllergies(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-950 text-xs font-semibold"
                   >
-                    {COMMON_ALLERGIES.map((alg, i) => (
+                    {DEFAULT_ALLERGIES.map((alg, i) => (
                       <option key={i} value={alg}>{alg}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* SECTION 4: DIAGNOSIS & ISSUE KIA HAI */}
+              {/* SECTION 4: CLINICAL DIAGNOSIS & ASSESSMENT */}
               <div className="space-y-2.5 p-4 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/40 rounded-xl">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">
-                  3. Clinical Diagnosis / Tashkhees (Issue Kia Hai) *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                    3. Clinical Diagnosis & Assessment *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddDiagnosis(!showAddDiagnosis)}
+                    className="text-[10px] text-rose-600 dark:text-rose-400 hover:underline font-bold flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Custom Diagnosis Tag
+                  </button>
+                </div>
+
+                {/* Quick Add Diagnosis Input */}
+                {showAddDiagnosis && (
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-dark-900 border border-rose-300 dark:border-rose-800 rounded-xl">
+                    <input
+                      type="text"
+                      placeholder="Enter new diagnosis (e.g. Acute Sinusitis, Lumbar Radiculopathy)..."
+                      value={newDiagnosisTag}
+                      onChange={e => setNewDiagnosisTag(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-dark-950 text-xs font-semibold"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddQuickTag('diagnosis', newDiagnosisTag)}
+                      className="text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white"
+                    >
+                      Save Diagnosis
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddDiagnosis(false)}
+                      className="text-slate-400 hover:text-slate-600 text-xs font-bold px-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 {/* Common Diagnosis Chips */}
-                <div className="flex flex-wrap gap-1.5">
-                  {COMMON_DIAGNOSES.map((diag, i) => (
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-white/60 dark:bg-dark-950/40 rounded-xl border border-rose-200/50 dark:border-rose-900/40">
+                  {diagnosesList.map((diag, i) => (
                     <button
                       key={i}
                       type="button"
@@ -662,7 +797,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Primary Diagnosis Title *</label>
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Primary Clinical Diagnosis *</label>
                     <input
                       required
                       type="text"
@@ -686,11 +821,11 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                 </div>
               </div>
 
-              {/* SECTION 5: RX PRESCRIPTION & MEDICINES BUILDER */}
+              {/* SECTION 5: RX PRESCRIPTION & MEDICATIONS BUILDER */}
               <div className="space-y-3 p-4 bg-blue-50/40 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/40 rounded-xl">
                 <div className="flex justify-between items-center">
                   <label className="text-[11px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
-                    <Pill className="h-4 w-4 text-blue-600" /> 4. Prescription & Advised Medicines (Dawaiyaan)
+                    <Pill className="h-4 w-4 text-blue-600" /> 4. Prescription & Advised Medications (Rx)
                   </label>
                   <Button
                     type="button"
@@ -713,7 +848,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                           <input
                             type="text"
                             list={`stock-meds-${idx}`}
-                            placeholder="Type or select medicine..."
+                            placeholder="Type or search medicine..."
                             value={row.name}
                             onChange={e => handleMedicineChange(idx, 'name', e.target.value)}
                             className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-dark-900 text-xs font-bold text-slate-900 dark:text-slate-100"
@@ -739,19 +874,19 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                         {/* Frequency */}
                         <div className="sm:col-span-3">
-                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">Frequency (Auqaat)</label>
+                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">Frequency</label>
                           <select
                             value={row.frequency}
                             onChange={e => handleMedicineChange(idx, 'frequency', e.target.value)}
                             className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-dark-900 text-xs font-bold text-brand-600 dark:text-brand-400"
                           >
-                            <option value="1-0-1 (Morning & Night)">1-0-1 (Subah & Shaam)</option>
-                            <option value="1-1-1 (Thrice a Day)">1-1-1 (Subah, Dopehar, Shaam)</option>
-                            <option value="1-0-0 (Morning / Nahaar Munh)">1-0-0 (Subah Nahaar Munh)</option>
-                            <option value="0-0-1 (Night only)">0-0-1 (Raat ko)</option>
-                            <option value="1x Daily (Rozana 1 bar)">1x Daily (Rozana 1 bar)</option>
-                            <option value="SOS (As needed / Zaroorat par)">SOS (Zaroorat par)</option>
-                            <option value="Every 8 Hours (Q8H)">Every 8 Hours</option>
+                            <option value="1-0-1 (Twice Daily - Morning & Night)">1-0-1 (Twice Daily - Morning & Night)</option>
+                            <option value="1-1-1 (Thrice Daily - Every 8 Hours)">1-1-1 (Thrice Daily - Every 8 Hours)</option>
+                            <option value="1-0-0 (Once Daily - Morning Fasting)">1-0-0 (Once Daily - Morning Fasting)</option>
+                            <option value="0-0-1 (Once Daily - Night Bedtime)">0-0-1 (Once Daily - Night Bedtime)</option>
+                            <option value="1x Daily (Once Every 24 Hours)">1x Daily (Once Every 24 Hours)</option>
+                            <option value="SOS (As Needed / In Emergency)">SOS (As Needed / In Emergency)</option>
+                            <option value="Q6H (Every 6 Hours)">Q6H (Every 6 Hours)</option>
                           </select>
                         </div>
 
@@ -765,9 +900,9 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                           >
                             <option value="3 Days">3 Days</option>
                             <option value="5 Days">5 Days</option>
-                            <option value="7 Days">7 Days</option>
+                            <option value="7 Days (1 Week)">7 Days (1 Week)</option>
                             <option value="10 Days">10 Days</option>
-                            <option value="14 Days">14 Days</option>
+                            <option value="14 Days (2 Weeks)">14 Days (2 Weeks)</option>
                             <option value="1 Month">1 Month</option>
                             <option value="SOS">SOS</option>
                           </select>
@@ -790,7 +925,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                       <div>
                         <input
                           type="text"
-                          placeholder="Instructions (e.g. Khaney ke baad / After meals with water)..."
+                          placeholder="Instructions (e.g. After Meals with plain water)..."
                           value={row.instructions}
                           onChange={e => handleMedicineChange(idx, 'instructions', e.target.value)}
                           className="w-full px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-dark-900 text-[11px] text-slate-600 dark:text-slate-300"
@@ -803,13 +938,49 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
               {/* SECTION 6: ADVISED LAB INVESTIGATIONS */}
               <div className="space-y-2.5">
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><TestTube2 className="h-3.5 w-3.5 text-indigo-500" /> 5. Advised Lab Investigations (Test Sifarish)</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Auto-dispatches to lab queue</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <TestTube2 className="h-3.5 w-3.5 text-indigo-500" /> 5. Advised Laboratory Investigations
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddLab(!showAddLab)}
+                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Custom Lab Test Tag
+                  </button>
+                </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {COMMON_LAB_TESTS.map((test, i) => {
+                {/* Quick Add Lab Test Input */}
+                {showAddLab && (
+                  <div className="flex items-center gap-2 p-2 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900 rounded-xl">
+                    <input
+                      type="text"
+                      placeholder="Enter new lab test (e.g. Serum Ferritin, Vitamin B12, Stool Routine)..."
+                      value={newLabTag}
+                      onChange={e => setNewLabTag(e.target.value)}
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-dark-900 text-xs font-semibold"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleAddQuickTag('lab_test', newLabTag)}
+                      className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      Save Lab Tag
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddLab(false)}
+                      className="text-slate-400 hover:text-slate-600 text-xs font-bold px-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-slate-50/50 dark:bg-dark-950/40 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                  {labTestsList.map((test, i) => {
                     const isSelected = advisedLabs.includes(test);
                     return (
                       <button
@@ -819,7 +990,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                         className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
                           isSelected
                             ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'bg-slate-100 dark:bg-dark-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-200'
+                            : 'bg-white dark:bg-dark-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
                         }`}
                       >
                         {isSelected ? '✓ ' : '+ '}{test}
@@ -830,18 +1001,18 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                 <input
                   type="text"
-                  placeholder="Type any additional custom lab test (e.g. Serum Ferritin, Vitamin D3)..."
+                  placeholder="Type any additional custom laboratory investigations..."
                   value={customLab}
                   onChange={e => setCustomLab(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-dark-950 text-xs"
                 />
               </div>
 
-              {/* SECTION 7: DIET ADVICE & FOLLOW-UP TIMELINE */}
+              {/* SECTION 7: DIET ADVICE & FOLLOW-UP SCHEDULE */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Dietary Advice & Clinical Precautions (Parhez / Hidayat)
+                    Dietary Advice & Clinical Precautions
                   </label>
                   <input
                     type="text"
@@ -853,7 +1024,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Follow-up (Agli Mulaqat)
+                    Follow-up Schedule
                   </label>
                   <select
                     value={followUpDays}
@@ -866,8 +1037,9 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                     <option value="5">Follow-up in 5 Days</option>
                     <option value="7">Follow-up in 7 Days (1 Week)</option>
                     <option value="10">Follow-up in 10 Days</option>
-                    <option value="15">Follow-up in 15 Days</option>
-                    <option value="SOS">SOS (In Emergency)</option>
+                    <option value="14">Follow-up in 14 Days (2 Weeks)</option>
+                    <option value="30">Follow-up in 1 Month</option>
+                    <option value="SOS">SOS (In Emergency / Need)</option>
                   </select>
                 </div>
               </div>
@@ -899,7 +1071,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 p-4 bg-slate-50 dark:bg-dark-950 rounded-xl text-center">No past vitals logged.</p>
+                  <p className="text-xs text-slate-400 p-4 bg-slate-50 dark:bg-dark-950 rounded-xl text-center">No past vitals logged for this patient.</p>
                 )}
               </div>
 
@@ -928,7 +1100,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
 
                         {apt.prescription.prescription_items && (
                           <div className="space-y-1 pt-1">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Prescribed Medicines:</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Prescribed Medications:</span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                               {apt.prescription.prescription_items.map((pi: any) => (
                                 <div key={pi.id} className="px-2.5 py-1.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200 text-xs flex justify-between">
@@ -978,7 +1150,7 @@ export const DoctorEMRModal: React.FC<DoctorEMRModalProps> = ({
         <div className="p-4 bg-slate-100/80 dark:bg-dark-950 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
           <div className="text-[11px] text-slate-500">
             {activeTab === 'consultation'
-              ? 'Saving will complete consultation, log vitals, and queue prescribed medicines & tests.'
+              ? 'Saving will complete consultation, log vitals, and queue prescribed medications & lab tests.'
               : 'Reviewing historical medical records for patient.'}
           </div>
 
