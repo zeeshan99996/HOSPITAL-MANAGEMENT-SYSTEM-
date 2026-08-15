@@ -151,9 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     if (isDoctor) {
       const allowedPaths = [
         '/dashboard',
-        '/clinical-templates',
-        '/patients',
-        '/admissions'
+        '/clinical-templates'
       ];
       return allowedPaths.includes(item.path);
     }
