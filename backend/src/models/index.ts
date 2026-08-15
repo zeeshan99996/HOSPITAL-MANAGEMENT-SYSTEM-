@@ -2,50 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/db';
 
 // ==========================================
-// 1. ROLE & PERMISSION MODELS (Strict RBAC)
-// ==========================================
-export class Role extends Model {
-  declare id: number;
-  declare name: string;
-  declare description: string;
-}
-Role.init(
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    name: { type: DataTypes.STRING, allowNull: false, unique: true },
-    description: { type: DataTypes.TEXT, allowNull: true },
-  },
-  { sequelize, modelName: 'role' }
-);
-
-export class Permission extends Model {
-  declare id: number;
-  declare name: string;
-  declare description: string;
-}
-Permission.init(
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    name: { type: DataTypes.STRING, allowNull: false, unique: true },
-    description: { type: DataTypes.TEXT, allowNull: true },
-  },
-  { sequelize, modelName: 'permission' }
-);
-
-export class RolePermission extends Model {
-  declare roleId: number;
-  declare permissionId: number;
-}
-RolePermission.init(
-  {
-    roleId: { type: DataTypes.INTEGER, primaryKey: true, references: { model: 'roles', key: 'id' } },
-    permissionId: { type: DataTypes.INTEGER, primaryKey: true, references: { model: 'permissions', key: 'id' } },
-  },
-  { sequelize, modelName: 'role_permission', timestamps: false }
-);
-
-// ==========================================
-// 2. USER MODEL
+// 1. USER MODEL (Direct Role RBAC)
 // ==========================================
 export class User extends Model {
   declare id: number;
@@ -125,7 +82,6 @@ export class StaffMember extends Model {
   declare readonly updatedAt: Date;
   declare readonly deletedAt: Date;
   declare doctor?: Doctor;
-  declare nurse?: Nurse;
 }
 StaffMember.init(
   {
@@ -188,30 +144,7 @@ Doctor.init(
 );
 
 // ==========================================
-// 5. NURSE MODEL
-// ==========================================
-export class Nurse extends Model {
-  declare id: number;
-  declare userId: number | null;
-  declare staffId: number | null;
-  declare departmentId: number;
-  declare status: 'active' | 'inactive';
-  declare user?: User;
-  declare staffMember?: StaffMember;
-}
-Nurse.init(
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    userId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
-    staffId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'staff', key: 'id' } },
-    departmentId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'departments', key: 'id' } },
-    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'active' },
-  },
-  { sequelize, modelName: 'nurse' }
-);
-
-// ==========================================
-// 6. PATIENT MODEL
+// 5. PATIENT MODEL
 // ==========================================
 export class Patient extends Model {
   declare id: number;
@@ -327,29 +260,14 @@ PatientVital.init(
 );
 
 // ==========================================
-// 8. WARD & BED MODELS
+// 8. BED MODEL (IPD Beds & Wards)
 // ==========================================
-export class Ward extends Model {
-  declare id: number;
-  declare name: string;
-  declare description: string;
-}
-Ward.init(
-  {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    name: { type: DataTypes.STRING, allowNull: false, unique: true },
-    description: { type: DataTypes.TEXT, allowNull: true },
-  },
-  { sequelize, modelName: 'ward' }
-);
-
 export class Bed extends Model {
   declare id: number;
   declare bedNumber: string;
   declare wardName: string;
   declare type: 'general' | 'icu' | 'semi-private' | 'private';
   declare status: 'available' | 'occupied' | 'maintenance';
-  declare wardId: number | null;
 }
 Bed.init(
   {
@@ -358,7 +276,6 @@ Bed.init(
     wardName: { type: DataTypes.STRING, allowNull: false },
     type: { type: DataTypes.ENUM('general', 'icu', 'semi-private', 'private'), defaultValue: 'general' },
     status: { type: DataTypes.ENUM('available', 'occupied', 'maintenance'), defaultValue: 'available' },
-    wardId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'wards', key: 'id' } },
   },
   { sequelize, modelName: 'bed' }
 );
@@ -843,27 +760,13 @@ TokenQueue.init(
 // RELATIONSHIPS & ASSOCIATIONS
 // ==========================================
 
-// RBAC
-User.belongsTo(Role, { as: 'roleRelation', foreignKey: 'roleId' });
-Role.hasMany(User, { foreignKey: 'roleId' });
-
-Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'roleId' });
-Permission.belongsToMany(Role, { through: RolePermission, foreignKey: 'permissionId' });
-
 // User Profiles
 User.hasOne(Doctor, { foreignKey: 'userId', onDelete: 'SET NULL' });
 Doctor.belongsTo(User, { foreignKey: 'userId', onDelete: 'SET NULL' });
 
-User.hasOne(Nurse, { foreignKey: 'userId', onDelete: 'SET NULL' });
-Nurse.belongsTo(User, { foreignKey: 'userId', onDelete: 'SET NULL' });
-
 // StaffMember Profiles (Separate table)
 StaffMember.hasOne(Doctor, { foreignKey: 'staffId', onDelete: 'SET NULL' });
 Doctor.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember', onDelete: 'SET NULL' });
-
-StaffMember.hasOne(Nurse, { foreignKey: 'staffId', onDelete: 'SET NULL' });
-Nurse.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember', onDelete: 'SET NULL' });
-
 
 User.hasOne(Patient, { foreignKey: 'userId', onDelete: 'SET NULL' });
 Patient.belongsTo(User, { foreignKey: 'userId' });
@@ -883,9 +786,6 @@ StaffPayroll.belongsTo(StaffMember, { foreignKey: 'staffId', as: 'staffMember' }
 // Department Associations
 Department.hasMany(Doctor, { foreignKey: 'departmentId', onDelete: 'RESTRICT' });
 Doctor.belongsTo(Department, { foreignKey: 'departmentId' });
-
-Department.hasMany(Nurse, { foreignKey: 'departmentId', onDelete: 'RESTRICT' });
-Nurse.belongsTo(Department, { foreignKey: 'departmentId' });
 
 // Patient Associations
 Patient.hasMany(Appointment, { foreignKey: 'patientId', onDelete: 'CASCADE' });
@@ -916,10 +816,7 @@ LabRequest.belongsTo(Doctor, { foreignKey: 'doctorId' });
 Doctor.hasMany(Admission, { foreignKey: 'doctorId', onDelete: 'RESTRICT' });
 Admission.belongsTo(Doctor, { foreignKey: 'doctorId' });
 
-// Ward & Bed Associations
-Ward.hasMany(Bed, { foreignKey: 'wardId', onDelete: 'RESTRICT' });
-Bed.belongsTo(Ward, { foreignKey: 'wardId' });
-
+// Bed & Admission Associations
 Bed.hasMany(Admission, { foreignKey: 'bedId', onDelete: 'RESTRICT' });
 Admission.belongsTo(Bed, { foreignKey: 'bedId' });
 

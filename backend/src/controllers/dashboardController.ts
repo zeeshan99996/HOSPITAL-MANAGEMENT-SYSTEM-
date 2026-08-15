@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, SystemUser, StaffMember, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, Nurse, ActivityLog, TokenQueue } from '../models';
+import { User, SystemUser, StaffMember, Patient, Appointment, Admission, Invoice, LabRequest, Medicine, Department, Doctor, ActivityLog, TokenQueue } from '../models';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
 import { getPktDayBounds } from '../utils/timezone';
@@ -287,10 +287,6 @@ export const getStaff = async (req: Request, res: Response) => {
           model: Doctor,
           include: [{ model: Department, attributes: ['name'] }],
         },
-        {
-          model: Nurse,
-          include: [{ model: Department, attributes: ['name'] }],
-        },
       ],
     });
     return res.status(200).json(staff);
@@ -545,7 +541,6 @@ export const deleteUserAdmin = async (req: Request, res: Response) => {
       try { await SystemUser.destroy({ where: { email: targetEmail }, force: true }); } catch (e) {}
       try { await User.destroy({ where: { email: targetEmail }, force: true }); } catch (e) {}
       try { await Doctor.destroy({ where: { userId: [user?.id, sysUser?.id, id].filter(Boolean) } }); } catch (e) {}
-      try { await Nurse.destroy({ where: { userId: [user?.id, sysUser?.id, id].filter(Boolean) } }); } catch (e) {}
     } else {
       if (sysUser) try { await sysUser.destroy({ force: true }); } catch (e) {}
       if (user) try { await user.destroy({ force: true }); } catch (e) {}
