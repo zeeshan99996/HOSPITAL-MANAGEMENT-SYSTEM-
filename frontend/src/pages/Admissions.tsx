@@ -567,50 +567,117 @@ export const Admissions: React.FC = () => {
     return matchesCategory && matchesStay && matchesSearch;
   });
 
+  const availableBeds = beds.filter(b => b.status === 'available');
+  const occupiedBeds = beds.filter(b => b.status === 'occupied');
+  const activeAdmittedPatients = admissions.filter(a => a.status === 'admitted');
+
   return (
-    <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <BedDouble className="h-5 w-5 text-brand-500" /> Patient Admissions & Inpatient Care
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Manage Medical vs. Surgical patients, Short/Long-term stays, and daily BP & vitals monitoring.
-          </p>
-        </div>
-        {user?.role !== 'patient' && (
-          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
-            {user?.role === 'admin' && (
-              <Button
-                onClick={() => setIsAddBedOpen(true)}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-sm"
-              >
-                <BedDouble className="h-4 w-4" /> + Add Hospital Bed
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                const activeAdmissions = admissions.filter(a => a.status === 'admitted');
-                if (activeAdmissions.length === 0) {
-                  alert('There are currently no admitted patients in the inpatient registry.');
-                  return;
-                }
-                handleOpenDischarge(activeAdmissions[0]);
-              }}
-              className="flex items-center gap-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-500 hover:text-white font-bold transition-all shadow-sm"
-            >
-              <UserMinus className="h-4 w-4" /> Discharge Patient
-            </Button>
-            {(user?.role === 'receptionist' || user?.role === 'admin') && (
-              <Button onClick={() => setIsAdmitOpen(true)} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> Admit Patient
-              </Button>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+      {/* PROFESSIONAL EXECUTIVE HEALTHCARE HEADER BANNER */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 sm:p-7 shadow-2xl text-white">
+        {/* Ambient Subtle Glows */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          {/* Left Column: Title & Subtitle */}
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-semibold tracking-wide">
+              <BedDouble className="h-3.5 w-3.5 text-brand-400" />
+              <span>Inpatient Department (IPD) & Ward Care Suite</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 shrink-0">
+                <BedDouble className="h-6 w-6" />
+              </div>
+              <span>Patient Admissions & Bed Management</span>
+            </h1>
+
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Real-time hospital ward occupancy, clinical vitals monitoring, surgical vs medical stays, and automated discharge billing.
+            </p>
+          </div>
+
+          {/* Right Column: Key Metric Indicators & Action Buttons */}
+          <div className="flex flex-col sm:flex-row xl:flex-col items-start sm:items-center xl:items-end gap-4 shrink-0">
+            {/* Live Ward Stat Pills */}
+            <div className="flex items-center gap-2 bg-slate-950/80 p-2 rounded-xl border border-slate-800 backdrop-blur-sm">
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-left min-w-[80px]">
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Total Beds</span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-base font-bold text-white tracking-tight">{beds.length}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">beds</span>
+                </div>
+              </div>
+
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-emerald-500/30 text-left min-w-[80px]">
+                <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider block flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                  Vacant
+                </span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-base font-bold text-emerald-300 tracking-tight">{availableBeds.length}</span>
+                  <span className="text-[10px] text-emerald-400/70 font-normal">ready</span>
+                </div>
+              </div>
+
+              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-amber-500/30 text-left min-w-[80px]">
+                <span className="text-[10px] text-amber-400 font-medium uppercase tracking-wider block flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                  Admitted
+                </span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-base font-bold text-amber-300 tracking-tight">{activeAdmittedPatients.length}</span>
+                  <span className="text-[10px] text-amber-400/70 font-normal">patients</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Unified Professional Action Buttons Bar */}
+            {user?.role !== 'patient' && (
+              <div className="flex flex-wrap items-center gap-2">
+                {user?.role === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddBedOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <BedDouble className="h-4 w-4 text-brand-400" />
+                    <span>+ Add Bed</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activeAdmissions = admissions.filter(a => a.status === 'admitted');
+                    if (activeAdmissions.length === 0) {
+                      alert('There are currently no admitted patients in the inpatient registry.');
+                      return;
+                    }
+                    handleOpenDischarge(activeAdmissions[0]);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <UserMinus className="h-4 w-4 text-rose-400" />
+                  <span>Discharge Patient</span>
+                </button>
+
+                {(user?.role === 'receptionist' || user?.role === 'admin') && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAdmitOpen(true)}
+                    className="px-4 py-2 rounded-xl text-xs font-extrabold bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/25 transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Admit Patient</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Filter Tabs & Search */}
