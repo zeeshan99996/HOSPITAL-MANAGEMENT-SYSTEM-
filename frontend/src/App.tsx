@@ -6,25 +6,46 @@ import { TopNav } from './components/TopNav';
 import { Login } from './pages/Login';
 import { AIChatbotWidget } from './components/AIChatbotWidget';
 
+// Self-healing lazy loader that automatically retries and refreshes when a new deployment invalidates old chunks
+const lazyWithRetry = (componentImport: () => Promise<any>) =>
+  lazy(async () => {
+    const pageHasBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page_has_been_force_refreshed') || 'false'
+    );
+
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page_has_been_force_refreshed', 'false');
+      return component;
+    } catch (error: any) {
+      if (!pageHasBeenForceRefreshed && (error?.message?.includes('dynamically imported module') || error?.message?.includes('Failed to fetch') || error?.message?.includes('Loading chunk'))) {
+        window.sessionStorage.setItem('page_has_been_force_refreshed', 'true');
+        window.location.reload();
+        return new Promise(() => {}); // prevent throwing error before reload
+      }
+      throw error;
+    }
+  });
+
 // Lazy-loaded page components for Code Splitting & Performance Optimization
-const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
-const PatientRegistration = lazy(() => import('./pages/PatientRegistration').then(m => ({ default: m.PatientRegistration })));
-const OldPatient = lazy(() => import('./pages/OldPatient').then(m => ({ default: m.OldPatient })));
-const Patients = lazy(() => import('./pages/Patients').then(m => ({ default: m.Patients })));
-const Appointments = lazy(() => import('./pages/Appointments').then(m => ({ default: m.Appointments })));
-const TokenQueue = lazy(() => import('./pages/TokenQueue').then(m => ({ default: m.TokenQueue })));
-const DoctorsSchedule = lazy(() => import('./pages/DoctorsSchedule').then(m => ({ default: m.DoctorsSchedule })));
-const Admissions = lazy(() => import('./pages/Admissions').then(m => ({ default: m.Admissions })));
-const Laboratory = lazy(() => import('./pages/Laboratory').then(m => ({ default: m.Laboratory })));
-const Pharmacy = lazy(() => import('./pages/Pharmacy').then(m => ({ default: m.Pharmacy })));
-const Billing = lazy(() => import('./pages/Billing').then(m => ({ default: m.Billing })));
-const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
-const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
-const SecurityManagement = lazy(() => import('./pages/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
-const Staff = lazy(() => import('./pages/Staff').then(m => ({ default: m.Staff })));
-const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
-const ClinicExpenses = lazy(() => import('./pages/ClinicExpenses').then(m => ({ default: m.ClinicExpenses })));
-const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const PatientRegistration = lazyWithRetry(() => import('./pages/PatientRegistration').then(m => ({ default: m.PatientRegistration })));
+const OldPatient = lazyWithRetry(() => import('./pages/OldPatient').then(m => ({ default: m.OldPatient })));
+const Patients = lazyWithRetry(() => import('./pages/Patients').then(m => ({ default: m.Patients })));
+const Appointments = lazyWithRetry(() => import('./pages/Appointments').then(m => ({ default: m.Appointments })));
+const TokenQueue = lazyWithRetry(() => import('./pages/TokenQueue').then(m => ({ default: m.TokenQueue })));
+const DoctorsSchedule = lazyWithRetry(() => import('./pages/DoctorsSchedule').then(m => ({ default: m.DoctorsSchedule })));
+const Admissions = lazyWithRetry(() => import('./pages/Admissions').then(m => ({ default: m.Admissions })));
+const Laboratory = lazyWithRetry(() => import('./pages/Laboratory').then(m => ({ default: m.Laboratory })));
+const Pharmacy = lazyWithRetry(() => import('./pages/Pharmacy').then(m => ({ default: m.Pharmacy })));
+const Billing = lazyWithRetry(() => import('./pages/Billing').then(m => ({ default: m.Billing })));
+const Reports = lazyWithRetry(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
+const Profile = lazyWithRetry(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+const SecurityManagement = lazyWithRetry(() => import('./pages/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
+const Staff = lazyWithRetry(() => import('./pages/Staff').then(m => ({ default: m.Staff })));
+const Logs = lazyWithRetry(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
+const ClinicExpenses = lazyWithRetry(() => import('./pages/ClinicExpenses').then(m => ({ default: m.ClinicExpenses })));
+const Settings = lazyWithRetry(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 const LoadingSpinner: React.FC = () => (
   <div className="flex h-full w-full items-center justify-center min-h-[300px]">
