@@ -167,6 +167,24 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         });
       }
 
+      // Auto-provision unique Doctor record if a new doctor account is added
+      if (!docObj) {
+        try {
+          let defaultDept = await Department.findOne();
+          if (!defaultDept) {
+            defaultDept = await Department.create({ name: 'General OPD', description: 'General Outpatient Department' });
+          }
+          docObj = await Doctor.create({
+            userId: loggedInUserId || null,
+            staffId: null,
+            departmentId: defaultDept.id,
+            specialization: 'Consultant Physician',
+            consultationFee: 500.00,
+            status: 'active',
+          });
+        } catch (e) {}
+      }
+
       const targetDocId = docObj ? docObj.id : null;
       const resolvedDocName = docObj?.staffMember?.name || docObj?.user?.name || loggedInName || 'Doctor';
       const cleanDocDisplayName = resolvedDocName.startsWith('Dr') ? resolvedDocName : `Dr. ${resolvedDocName}`;
