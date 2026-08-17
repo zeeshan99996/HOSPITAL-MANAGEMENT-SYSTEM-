@@ -878,35 +878,42 @@ export const Admissions: React.FC = () => {
                             </Badge>
                           </td>
                           <td className="px-6 py-4 text-right space-y-1.5 sm:space-y-0 sm:space-x-1.5 flex flex-col sm:flex-row justify-end items-center">
-                            <button
-                              onClick={() => {
-                                setSelectedAdmission(adm);
-                                setVitalBP('120/80');
-                                setVitalTemp('98.6');
-                                setVitalPulse('72');
-                                setVitalSpo2('98');
-                                setVitalNotes('');
-                                setIsVitalsOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1 p-1 px-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-colors"
-                              title="Log Daily Vitals (BP, Temp, Pulse)"
-                            >
-                              <HeartPulse className="h-3 w-3" /> Daily BP & Vitals
-                            </button>
-                            <button
-                              onClick={() => handleNotesClick(adm)}
-                              className="inline-flex items-center gap-1 p-1 px-2 bg-slate-100 dark:bg-dark-950 text-slate-655 dark:text-slate-400 border border-slate-200 dark:border-slate-850 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition-colors"
-                            >
-                              <ClipboardList className="h-3 w-3" /> Clinical Care Log
-                            </button>
-                            {adm.status === 'admitted' && user?.role !== 'patient' && (
-                              <button
-                                onClick={() => handleAdministerClick(adm)}
-                                className="inline-flex items-center gap-1 p-1 px-2 bg-brand-50 dark:bg-brand-950/20 text-brand-600 border border-brand-200 dark:border-brand-900/50 rounded-lg text-[10px] font-bold hover:bg-brand-100 transition-colors"
-                              >
-                                <Pill className="h-3 w-3" /> Administer Meds
-                              </button>
+                            {/* Clinical Nursing & Doctor Actions (Hidden for Receptionist) */}
+                            {user?.role !== 'receptionist' && user?.role !== 'patient' && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAdmission(adm);
+                                    setVitalBP('120/80');
+                                    setVitalTemp('98.6');
+                                    setVitalPulse('72');
+                                    setVitalSpo2('98');
+                                    setVitalNotes('');
+                                    setIsVitalsOpen(true);
+                                  }}
+                                  className="inline-flex items-center gap-1 p-1 px-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                                  title="Log Daily Vitals (BP, Temp, Pulse)"
+                                >
+                                  <HeartPulse className="h-3 w-3" /> Daily BP & Vitals
+                                </button>
+                                <button
+                                  onClick={() => handleNotesClick(adm)}
+                                  className="inline-flex items-center gap-1 p-1 px-2 bg-slate-100 dark:bg-dark-950 text-slate-655 dark:text-slate-400 border border-slate-200 dark:border-slate-850 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition-colors"
+                                >
+                                  <ClipboardList className="h-3 w-3" /> Clinical Care Log
+                                </button>
+                                {adm.status === 'admitted' && (
+                                  <button
+                                    onClick={() => handleAdministerClick(adm)}
+                                    className="inline-flex items-center gap-1 p-1 px-2 bg-brand-50 dark:bg-brand-950/20 text-brand-600 border border-brand-200 dark:border-brand-900/50 rounded-lg text-[10px] font-bold hover:bg-brand-100 transition-colors"
+                                  >
+                                    <Pill className="h-3 w-3" /> Administer Meds
+                                  </button>
+                                )}
+                              </>
                             )}
+
+                            {/* Inpatient Discharge & Final Bill (For Admin, Doctor, Receptionist) */}
                             {adm.status === 'admitted' && user?.role !== 'nurse' && user?.role !== 'patient' && (
                               <button
                                 onClick={() => handleOpenDischarge(adm)}
