@@ -100,7 +100,10 @@ import {
   deleteUserAdmin,
   createSystemUserAdmin,
   getBackupLogsHandler,
-  triggerBackupHandler
+  triggerBackupHandler,
+  getGoogleDriveStatusHandler,
+  triggerStrategyHandler,
+  cronBackupHandler
 } from '../controllers/dashboardController';
 
 const router = Router();
@@ -444,7 +447,11 @@ router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
 router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivityLogs);
 router.get('/admin/backups', authenticateToken, requireRoles(['admin']), getBackupLogsHandler);
+router.get('/admin/backups/gdrive-status', authenticateToken, requireRoles(['admin']), getGoogleDriveStatusHandler);
 router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), rateLimiter(30, 60000), triggerBackupHandler);
+router.post('/admin/backups/evaluate-strategy', authenticateToken, requireRoles(['admin']), triggerStrategyHandler);
+router.get('/cron/backup', cronBackupHandler);
+router.post('/cron/backup', cronBackupHandler);
 
 // ==========================================
 // RECEPTIONIST PORTAL ENDPOINTS

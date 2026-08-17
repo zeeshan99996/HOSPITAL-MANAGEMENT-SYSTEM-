@@ -637,6 +637,16 @@ export const getBackupLogsHandler = async (req: Request, res: Response) => {
   }
 };
 
+export const getGoogleDriveStatusHandler = async (req: Request, res: Response) => {
+  try {
+    const { googleDriveService } = await import('../services/googleDriveService');
+    const status = googleDriveService.getStatus();
+    return res.status(200).json(status);
+  } catch (error: any) {
+    return res.status(200).json({ isConfigured: false, message: error.message });
+  }
+};
+
 export const triggerBackupHandler = async (req: Request, res: Response) => {
   const { type = 'manual' } = req.body;
   try {
@@ -650,6 +660,35 @@ export const triggerBackupHandler = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Database backup operation failed.', error: error.message });
   }
 };
+
+export const triggerStrategyHandler = async (req: Request, res: Response) => {
+  try {
+    const { backupScheduler } = await import('../services/backupScheduler');
+    const result = await backupScheduler.evaluateAndRunStrategy();
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Strategy evaluation error.', error: error.message });
+  }
+};
+
+export const cronBackupHandler = async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET || 'drtalha_hms_cron_secret';
+  
+  // Allow if valid CRON_SECRET or query param
+  if (authHeader !== `Bearer ${cronSecret}` && req.query.secret !== cronSecret) {
+    return res.status(401).json({ message: 'Unauthorized cron trigger token.' });
+  }
+
+  try {
+    const { backupScheduler } = await import('../services/backupScheduler');
+    const result = await backupScheduler.evaluateAndRunStrategy();
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Cron execution failed.', error: error.message });
+  }
+};
+
 
 
 

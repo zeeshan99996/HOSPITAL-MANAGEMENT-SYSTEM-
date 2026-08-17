@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { BackupLog } from '../models';
 import sequelize from '../config/db';
+import { googleDriveService } from './googleDriveService';
 
 dotenv.config();
 
@@ -13,26 +14,6 @@ export interface BackupOptions {
   type: 'daily' | 'weekly' | 'monthly' | 'manual';
   customFilename?: string;
   offsiteUpload?: boolean;
-}
-
-export interface OffsiteStorageAdapter {
-  name: string;
-  uploadFile(filePath: string, filename: string): Promise<string>;
-}
-
-// Pluggable Off-Site Storage Adapter
-class DefaultOffsiteAdapter implements OffsiteStorageAdapter {
-  name = process.env.OFFSITE_STORAGE_TYPE || 'local_storage';
-
-  async uploadFile(_filePath: string, filename: string): Promise<string> {
-    const provider = process.env.OFFSITE_STORAGE_TYPE || 'none';
-    if (provider === 'none' || !process.env.OFFSITE_STORAGE_ENABLED) {
-      return 'local_only';
-    }
-
-    console.log(`[Offsite Backup Adapter] Uploading ${filename} to ${provider}...`);
-    return `offsite://${provider}/${filename}`;
-  }
 }
 
 export class BackupService {
@@ -52,7 +33,6 @@ export class BackupService {
         fs.mkdirSync(this.backupDir, { recursive: true });
       }
     } catch (e) {
-      // Fallback to os.tmpdir directly
       this.backupDir = os.tmpdir();
     }
   }
@@ -81,9 +61,9 @@ export class BackupService {
     return new Promise((resolve, reject) => {
       const hash = crypto.createHash('sha256');
       const stream = fs.createReadStream(filePath);
-      stream.on('data', data => hash.update(data));
+      stream.on('data', (data) => hash.update(data));
       stream.on('end', () => resolve(hash.digest('hex')));
-      stream.on('error', err => reject(err));
+      stream.on('error', (err) => reject(err));
     });
   }
 
@@ -110,7 +90,7 @@ export class BackupService {
       // 1. Fetch Create Table SQL
       try {
         const [createResult]: any = await sequelize.query(`SHOW CREATE TABLE \`${tableName}\`;`);
-        const createTableSql = createResult[0]['Create Table'] || createResult[0]['Create View'];
+        const createTableSql = createResult[0]?.['Create Table'] || createResult[0]?.['Create View'];
         if (createTableSql) {
           sql += `-- --------------------------------------------------------\n`;
           sql += `-- Table structure for table \`${tableName}\`\n`;
@@ -124,14 +104,14 @@ export class BackupService {
         if (Array.isArray(rows) && rows.length > 0) {
           sql += `-- Dumping data for table \`${tableName}\` (${rows.length} rows)\n`;
           const columns = Object.keys(rows[0]);
-          const colList = columns.map(c => `\`${c}\``).join(', ');
+          const colList = columns.map((c) => `\`${c}\``).join(', ');
 
           // Chunk inserts to prevent oversized statements
           const chunkSize = 50;
           for (let i = 0; i < rows.length; i += chunkSize) {
             const chunk = rows.slice(i, i + chunkSize);
             const valueRows = chunk.map((row: any) => {
-              const vals = columns.map(col => {
+              const vals = columns.map((col) => {
                 const val = row[col];
                 if (val === null || val === undefined) return 'NULL';
                 if (typeof val === 'number') return String(val);
@@ -163,7 +143,8 @@ export class BackupService {
   }
 
   /**
-   * Executes a full non-destructive backup of the database and compresses it into .sql.gz.
+   * Executes a full non-destructive backup of the database, compresses into .sql.gz,
+   * and directly syncs to Google Drive if configured.
    */
   public async createBackup(options: BackupOptions): Promise<{
     success: boolean;
@@ -171,6 +152,8 @@ export class BackupService {
     filePath: string;
     fileSize: number;
     checksum: string | null;
+    storageLocation: string;
+    gdriveSynced: boolean;
     message: string;
   }> {
     const startedAt = new Date();
@@ -184,7 +167,7 @@ export class BackupService {
         backupType: options.type,
         filename,
         fileSize: 0,
-        storageLocation: 'local',
+        storageLocation: 'Local Disk',
         startedAt,
         status: 'IN_PROGRESS',
       });
@@ -214,13 +197,24 @@ export class BackupService {
       const checksum = await this.calculateChecksum(filePath);
       const completedAt = new Date();
 
-      // 5. Handle Off-Site Upload (Pluggable Adapter)
-      let storageLocation = 'local';
+      // 5. Upload directly to Google Drive (Off-Site Cloud Sync)
+      let storageLocation = 'Local Disk Archive';
+      let gdriveSynced = false;
+
       try {
-        const adapter = new DefaultOffsiteAdapter();
-        storageLocation = await adapter.uploadFile(filePath, filename);
-      } catch (offsiteErr) {
-        console.warn('[Offsite Upload Warning]:', offsiteErr);
+        const gdriveStatus = googleDriveService.getStatus();
+        if (gdriveStatus.isConfigured) {
+          console.log(`[Google Drive] Syncing ${filename} to Google Drive cloud folder...`);
+          const gdriveResult = await googleDriveService.uploadBackupFile(filePath, filename);
+          if (gdriveResult.success) {
+            storageLocation = `Local + Google Drive [ID: ${gdriveResult.fileId}]`;
+            gdriveSynced = true;
+          } else {
+            storageLocation = `Local (GDrive Notice: ${gdriveResult.message.slice(0, 50)})`;
+          }
+        }
+      } catch (gdriveErr: any) {
+        console.warn('[Google Drive Sync Warning]:', gdriveErr.message);
       }
 
       // 6. Update Success Status in MySQL Log Record
@@ -228,6 +222,7 @@ export class BackupService {
         await logRecord.update({
           fileSize: stats.size,
           storageLocation,
+          checksum,
           completedAt,
           status: 'SUCCESS',
         });
@@ -239,7 +234,11 @@ export class BackupService {
         filePath,
         fileSize: stats.size,
         checksum,
-        message: `Database backup completed successfully (${(stats.size / 1024).toFixed(2)} KB).`,
+        storageLocation,
+        gdriveSynced,
+        message: `Database backup completed successfully (${(stats.size / 1024).toFixed(2)} KB)${
+          gdriveSynced ? ' & Synced to Google Drive' : ''
+        }.`,
       };
     } catch (error: any) {
       if (logRecord) {
@@ -256,9 +255,48 @@ export class BackupService {
   }
 
   /**
+   * Cleans up local disk archives according to the retention policy:
+   * - Daily: Kept for 14 days
+   * - Weekly: Kept for 60 days
+   * - Monthly: Kept for 365 days
+   */
+  public async cleanupOldBackups(): Promise<number> {
+    let deletedCount = 0;
+    try {
+      if (!fs.existsSync(this.backupDir)) return 0;
+      const files = fs.readdirSync(this.backupDir);
+      const now = Date.now();
+
+      for (const file of files) {
+        if (!file.endsWith('.sql.gz')) continue;
+        const filePath = path.join(this.backupDir, file);
+        const stats = fs.statSync(filePath);
+        const ageInDays = (now - stats.mtimeMs) / (1000 * 60 * 60 * 24);
+
+        if (file.startsWith('daily_') && ageInDays > 14) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        } else if (file.startsWith('weekly_') && ageInDays > 60) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        } else if (file.startsWith('manual_') && ageInDays > 7) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      }
+      if (deletedCount > 0) {
+        console.log(`[Backup Retention Policy] Purged ${deletedCount} expired local backup archives.`);
+      }
+    } catch (err: any) {
+      console.warn('[Backup Cleanup Warning]:', err.message);
+    }
+    return deletedCount;
+  }
+
+  /**
    * Retrieves recent backup logs from MySQL database.
    */
-  public async getBackupLogs(limit = 20): Promise<BackupLog[]> {
+  public async getBackupLogs(limit = 50): Promise<BackupLog[]> {
     return BackupLog.findAll({
       order: [['startedAt', 'DESC']],
       limit,

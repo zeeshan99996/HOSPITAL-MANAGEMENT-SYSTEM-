@@ -136,6 +136,13 @@ const startServer = async () => {
     // Start server
     app.listen(PORT, () => {
       console.log(`[Server] HMS backend running at: http://localhost:${PORT}`);
+      // Initialize automated database backup & strategy scheduler
+      try {
+        const { backupScheduler } = require('./services/backupScheduler');
+        backupScheduler.start();
+      } catch (schErr: any) {
+        console.warn('[Backup Scheduler Warning]:', schErr.message);
+      }
     });
   } catch (error) {
     console.error('[Server] Failed to start:', error);
