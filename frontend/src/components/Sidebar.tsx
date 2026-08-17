@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Reports',
       path: '/reports',
       icon: FileText,
-      roles: ['admin', 'receptionist', 'accountant'],
+      roles: ['admin', 'accountant'],
     },
     {
       name: 'Profile',
@@ -178,8 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         '/token-queue',
         '/doctors-schedule',
         '/admissions',
-        '/billing',
-        '/reports'
+        '/billing'
       ];
       return allowedPaths.includes(item.path);
     }

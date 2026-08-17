@@ -87,11 +87,12 @@ const App: React.FC = () => {
   const isPharmacist = user.role === 'pharmacist';
   const isAccountant = user.role === 'accountant';
   const isNurse = user.role === 'nurse';
+  const isReceptionist = user.role === 'receptionist';
   const hideSidebar = isPharmacist;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-dark-950 text-slate-900 dark:text-slate-100">
-      {/* Sidebar Layout — Hidden only for dedicated dispensary terminal mode */}
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-dark-950 font-sans text-slate-900 dark:text-slate-100 antialiased selection:bg-brand-500 selection:text-white">
+      {/* Dynamic Collapsible Sidebar */}
       {!hideSidebar && <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />}
 
       {/* Main Panel Content */}
@@ -116,7 +117,7 @@ const App: React.FC = () => {
               <Route path="/pharmacy" element={isDoctor ? <Navigate to="/dashboard" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Pharmacy />} />
               <Route path="/billing" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Billing />} />
               <Route path="/expenses" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isNurse ? <Navigate to="/patients" replace /> : <ClinicExpenses />} />
-              <Route path="/reports" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Reports />} />
+              <Route path="/reports" element={isDoctor || isReceptionist ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Reports />} />
               <Route path="/profile" element={isDoctor || user.role === 'receptionist' || isPharmacist || isAccountant || isNurse ? <Navigate to="/patients" replace /> : <Profile />} />
               <Route path="/security" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <SecurityManagement />} />
               <Route path="/backups" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <DatabaseBackups />} />
