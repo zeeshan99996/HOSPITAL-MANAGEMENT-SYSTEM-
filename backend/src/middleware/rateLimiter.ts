@@ -7,19 +7,37 @@ interface RateLimitInfo {
 
 const store: Record<string, RateLimitInfo> = {};
 
+// Clean up expired keys every 5 minutes to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const key in store) {
+    if (store[key].resetTime < now) {
+      delete store[key];
+    }
+  }
+}, 300000);
+
 /**
- * Custom memory-based rate limiting middleware.
+ * Enhanced memory-based rate limiting middleware.
+ * Supports reverse proxies, user IDs, and admin exemptions.
  * @param limit Maximum number of requests allowed in the time window.
  * @param windowMs Time window in milliseconds.
  */
 export const rateLimiter = (limit: number, windowMs: number) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const user = (req as any).user;
+    
+    // System Admins get elevated rate limits for operational management
+    const effectiveLimit = user?.role === 'admin' ? Math.max(limit * 5, 60) : limit;
+
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : (req.ip || req.socket.remoteAddress || 'unknown');
+    const key = user?.id ? `user_${user.id}_${req.baseUrl || ''}` : `${ip}_${req.baseUrl || ''}`;
     const now = Date.now();
 
     // Check if store record exists or expired
-    if (!store[ip] || now > store[ip].resetTime) {
-      store[ip] = {
+    if (!store[key] || now > store[key].resetTime) {
+      store[key] = {
         count: 1,
         resetTime: now + windowMs
       };
@@ -27,14 +45,14 @@ export const rateLimiter = (limit: number, windowMs: number) => {
     }
 
     // Increment request count
-    store[ip].count++;
+    store[key].count++;
 
     // Check if limit exceeded
-    if (store[ip].count > limit) {
-      const retryAfter = Math.ceil((store[ip].resetTime - now) / 1000);
+    if (store[key].count > effectiveLimit) {
+      const retryAfter = Math.ceil((store[key].resetTime - now) / 1000);
       res.setHeader('Retry-After', retryAfter);
       return res.status(429).json({
-        message: `Too many requests from this client. Please try again after ${retryAfter} seconds.`
+        message: `Too many requests. Please wait ${retryAfter}s before retrying.`
       });
     }
 

@@ -444,7 +444,7 @@ router.get('/admin/departments', authenticateToken, getDepartments);
 router.post('/admin/departments', authenticateToken, requireRoles(['admin']), createDepartment);
 router.get('/admin/logs', authenticateToken, requireRoles(['admin']), getActivityLogs);
 router.get('/admin/backups', authenticateToken, requireRoles(['admin']), getBackupLogsHandler);
-router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), rateLimiter(3, 300000), triggerBackupHandler);
+router.post('/admin/backups/run', authenticateToken, requireRoles(['admin']), rateLimiter(30, 60000), triggerBackupHandler);
 
 // ==========================================
 // RECEPTIONIST PORTAL ENDPOINTS
