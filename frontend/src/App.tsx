@@ -43,6 +43,7 @@ const Billing = lazyWithRetry(() => import('./pages/Billing').then(m => ({ defau
 const Reports = lazyWithRetry(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Profile = lazyWithRetry(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
 const SecurityManagement = lazyWithRetry(() => import('./pages/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
+const DatabaseBackups = lazyWithRetry(() => import('./pages/DatabaseBackups').then(m => ({ default: m.DatabaseBackups })));
 const Staff = lazyWithRetry(() => import('./pages/Staff').then(m => ({ default: m.Staff })));
 const Logs = lazyWithRetry(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
 const ClinicExpenses = lazyWithRetry(() => import('./pages/ClinicExpenses').then(m => ({ default: m.ClinicExpenses })));
@@ -117,6 +118,7 @@ const App: React.FC = () => {
               <Route path="/reports" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Reports />} />
               <Route path="/profile" element={isDoctor || user.role === 'receptionist' || isPharmacist || isAccountant || isNurse ? <Navigate to="/patients" replace /> : <Profile />} />
               <Route path="/security" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <SecurityManagement />} />
+              <Route path="/backups" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <DatabaseBackups />} />
               <Route path="/staff" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Staff />} />
               <Route path="/logs" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Logs />} />
               <Route path="/settings" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Settings />} />

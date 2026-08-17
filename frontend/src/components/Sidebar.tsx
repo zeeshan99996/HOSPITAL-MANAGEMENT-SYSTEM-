@@ -22,7 +22,8 @@ import {
   ShieldCheck,
   Pill,
   Coffee,
-  ClipboardList
+  ClipboardList,
+  Database
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -126,6 +127,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       name: 'Security & Access',
       path: '/security',
       icon: ShieldCheck,
+      roles: ['admin'],
+    },
+    {
+      name: 'Database Backups',
+      path: '/backups',
+      icon: Database,
       roles: ['admin'],
     },
     {
