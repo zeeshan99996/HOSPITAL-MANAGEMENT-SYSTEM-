@@ -177,6 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         '/appointments',
         '/token-queue',
         '/doctors-schedule',
+        '/admissions',
         '/billing',
         '/reports'
       ];

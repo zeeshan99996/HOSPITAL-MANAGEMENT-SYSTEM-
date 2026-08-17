@@ -373,13 +373,13 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 // BED & ADMISSION MANAGEMENT (IPD & SURGERY)
 // ==========================================
 router.get('/beds', authenticateToken, getBeds);
-router.post('/beds', authenticateToken, requireRoles(['admin']), createBed);
-router.put('/beds/:id', authenticateToken, requireRoles(['admin']), updateBed);
+router.post('/beds', authenticateToken, requireRoles(['admin', 'receptionist']), createBed);
+router.put('/beds/:id', authenticateToken, requireRoles(['admin', 'receptionist']), updateBed);
 router.delete('/beds/:id', authenticateToken, requireRoles(['admin']), deleteBed);
 router.post('/admissions', authenticateToken, requireRoles(['admin', 'receptionist']), validateAdmission, admitPatient);
 router.get('/admissions', authenticateToken, getAdmissions);
-router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse']), updateAdmissionNotes);
-router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin', 'doctor']), dischargePatient);
+router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist']), updateAdmissionNotes);
+router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin', 'doctor', 'receptionist']), dischargePatient);
 
 // ==========================================
 // LABORATORY MANAGEMENT
