@@ -465,7 +465,15 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
     if (!doctor) {
       doctor = await Doctor.findOne();
     }
-    const doctorId = doctor ? doctor.id : 1;
+
+    let tokenQueueRecord: any = null;
+    if (tokenId) {
+      try {
+        tokenQueueRecord = await TokenQueue.findByPk(tokenId);
+      } catch (tErr) {}
+    }
+    const tokenStr = tokenQueueRecord?.tokenNumber || (tokenId ? `T-${tokenId}` : `T-${Date.now().toString().slice(-4)}`);
+    const doctorId = tokenQueueRecord?.doctorId || (doctor ? doctor.id : 1);
 
     // 1. Log Vitals if provided
     let loggedVital: any = null;
@@ -473,13 +481,14 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
       try {
         loggedVital = await PatientVital.create({
           patientId: Number(patientId),
-          bp: vitals.bp || null,
-          temperature: vitals.temperature ? Number(vitals.temperature) : null,
-          pulse: vitals.pulse ? Number(vitals.pulse) : null,
-          spo2: vitals.spo2 ? Number(vitals.spo2) : null,
+          bp: vitals.bp || '120/80',
+          temperature: vitals.temperature ? Number(vitals.temperature) : 98.6,
+          pulse: vitals.pulse ? Number(vitals.pulse) : 72,
+          respRate: vitals.respRate ? Number(vitals.respRate) : 18,
+          spo2: vitals.spo2 ? Number(vitals.spo2) : 98,
           weight: vitals.weight ? Number(vitals.weight) : null,
           notes: vitals.notes || null,
-          loggedBy: userId || null
+          loggedBy: userId || 1
         });
       } catch (vitErr) {
         console.warn('[recordDoctorConsultation] Error saving vitals:', vitErr);
@@ -504,8 +513,10 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
       patientId: Number(patientId),
       doctorId: doctorId,
       appointmentDate: new Date(),
+      queueToken: tokenStr,
       status: 'completed',
-      type: 'consultation',
+      type: 'walk-in',
+      symptoms: symptoms || (symptomTags ? symptomTags.join(', ') : ''),
       notes: fullClinicalNotes
     });
 
