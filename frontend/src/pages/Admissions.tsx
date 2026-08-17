@@ -882,7 +882,9 @@ export const Admissions: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <span className="font-semibold text-slate-850 dark:text-slate-250">Diag: {adm.condition}</span>
-                            <span className="block text-[10px] text-slate-500 mt-0.5">Doctor: {adm.doctor?.user?.name || 'Unassigned'}</span>
+                            <span className="block text-[10px] text-slate-500 mt-0.5 font-medium">
+                              Doctor: <strong className="text-slate-700 dark:text-slate-300">{adm.doctorName || adm.doctor?.name || adm.doctor?.staffMember?.name || adm.doctor?.user?.name || adm.Doctor?.user?.name || adm.Doctor?.staffMember?.name || 'Unassigned'}</strong>
+                            </span>
                             {adm.surgeryDetails && (
                               <span className="block text-[10px] text-rose-500 font-medium truncate max-w-[180px] mt-0.5">Surg Notes: {adm.surgeryDetails}</span>
                             )}

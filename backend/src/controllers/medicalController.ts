@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Bed, Admission, Patient, Doctor, User, LabRequest, LaboratoryTest, Invoice, InvoiceItem, TokenQueue, Appointment } from '../models';
+import { Bed, Admission, Patient, Doctor, User, StaffMember, LabRequest, LaboratoryTest, Invoice, InvoiceItem, TokenQueue, Appointment } from '../models';
 import sequelize from '../config/db';
 
 // ==========================================
@@ -260,7 +260,13 @@ export const getAdmissions = async (req: Request, res: Response) => {
       include: [
         { model: Patient, attributes: ['id', 'name', 'phone', 'bloodGroup', 'allergies', 'mrNumber', 'dob', 'gender'] },
         { model: Bed, attributes: ['bedNumber', 'wardName', 'type'] },
-        { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
+        {
+          model: Doctor,
+          include: [
+            { model: User, attributes: ['name'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+          ]
+        },
       ],
       order: [['admissionDate', 'DESC']],
     });
@@ -268,16 +274,65 @@ export const getAdmissions = async (req: Request, res: Response) => {
     const admissions = await Promise.all(
       rawAdmissions.map(async (adm: any) => {
         const plain = adm.toJSON ? adm.toJSON() : adm;
-        if (!plain.doctor && plain.patientId) {
+        let d = plain.Doctor || plain.doctor;
+
+        // If no doctor assigned directly, look up from TokenQueue or Appointment
+        if (!d && plain.patientId) {
           const latestToken = await TokenQueue.findOne({
             where: { patientId: plain.patientId },
-            include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+            include: [
+              {
+                model: Doctor,
+                include: [
+                  { model: User, attributes: ['name'] },
+                  { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+                ]
+              }
+            ],
             order: [['id', 'DESC']]
           });
+
           if (latestToken && (latestToken as any).Doctor) {
-            plain.doctor = (latestToken as any).Doctor;
+            d = (latestToken as any).Doctor.toJSON ? (latestToken as any).Doctor.toJSON() : (latestToken as any).Doctor;
+            // Auto-heal database record in background
+            try {
+              await Admission.update({ doctorId: (latestToken as any).Doctor.id }, { where: { id: plain.id } });
+            } catch (e) {}
+          } else {
+            const latestAppt = await Appointment.findOne({
+              where: { patientId: plain.patientId },
+              include: [
+                {
+                  model: Doctor,
+                  include: [
+                    { model: User, attributes: ['name'] },
+                    { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] }
+                  ]
+                }
+              ],
+              order: [['id', 'DESC']]
+            });
+            if (latestAppt && (latestAppt as any).Doctor) {
+              d = (latestAppt as any).Doctor.toJSON ? (latestAppt as any).Doctor.toJSON() : (latestAppt as any).Doctor;
+              try {
+                await Admission.update({ doctorId: (latestAppt as any).Doctor.id }, { where: { id: plain.id } });
+              } catch (e) {}
+            }
           }
         }
+
+        // Format clean doctor name
+        const rawName = d?.staffMember?.name || d?.user?.name || d?.name || (d?.specialization ? `Doctor (${d.specialization})` : '');
+        const cleanName = rawName ? (rawName.startsWith('Dr') ? rawName : `Dr. ${rawName}`) : 'Unassigned';
+
+        plain.doctor = {
+          ...(d || {}),
+          name: cleanName,
+          user: { name: cleanName },
+          staffMember: d?.staffMember || { name: cleanName }
+        };
+        plain.doctorName = cleanName;
+
         return plain;
       })
     );
