@@ -23,7 +23,31 @@ export const getBeds = async (req: Request, res: Response) => {
       }
       beds = await Bed.findAll({ order: [['id', 'ASC']] });
     }
-    return res.status(200).json(beds);
+
+    // Auto-sync real-time bed status with active admissions table
+    const activeAdmissions = await Admission.findAll({
+      where: { status: 'admitted' },
+      attributes: ['bedId']
+    });
+    const occupiedBedIds = new Set(activeAdmissions.map((a: any) => a.bedId));
+
+    const syncedBeds = await Promise.all(
+      beds.map(async (b: any) => {
+        const shouldBeOccupied = occupiedBedIds.has(b.id);
+        const currentStatus = b.status;
+        const expectedStatus = shouldBeOccupied ? 'occupied' : (currentStatus === 'occupied' ? 'available' : currentStatus);
+
+        if (currentStatus !== expectedStatus) {
+          try {
+            await Bed.update({ status: expectedStatus }, { where: { id: b.id } });
+            b.status = expectedStatus;
+          } catch (e) {}
+        }
+        return b;
+      })
+    );
+
+    return res.status(200).json(syncedBeds);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving beds.', error: error.message });
   }
