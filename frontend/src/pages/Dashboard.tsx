@@ -27,7 +27,8 @@ import {
   Search,
   Plus,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
+  Receipt
 } from 'lucide-react';
 import {
   AreaChart,
