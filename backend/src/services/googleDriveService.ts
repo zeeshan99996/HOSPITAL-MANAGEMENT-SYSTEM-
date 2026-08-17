@@ -259,7 +259,7 @@ export class GoogleDriveService {
       const response = await this.makeRequest(
         {
           hostname: 'www.googleapis.com',
-          path: '/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,size',
+          path: '/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,size',
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
