@@ -130,13 +130,46 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     // DOCTOR ROLE SPECIFIC DASHBOARD
     if (userRole === 'doctor') {
-      const currentDoc = await Doctor.findOne({
-        where: { userId: (req as any).user.id },
-        include: [{ model: User, attributes: ['name', 'email'] }, { model: Department, attributes: ['name'] }]
+      const loggedInUserId = (req as any).user?.id;
+      const loggedInEmail = (req as any).user?.email;
+      const loggedInName = (req as any).user?.name || '';
+      const cleanLoggedInName = loggedInName.toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+
+      // 1. Fetch all doctors with associated User, StaffMember, and Department
+      const allDoctors = await Doctor.findAll({
+        include: [
+          { model: User, attributes: ['id', 'name', 'email'] },
+          { model: StaffMember, as: 'staffMember', attributes: ['id', 'name', 'designation'] },
+          { model: Department, attributes: ['name'] }
+        ]
       });
 
-      const docObj = currentDoc || (doctorsList.length > 0 ? doctorsList[0] : null);
+      // 2. Identify the exact Doctor profile for the logged-in doctor
+      let docObj: any = null;
+
+      // Match by userId
+      if (loggedInUserId) {
+        docObj = allDoctors.find(d => d.userId === loggedInUserId || d.user?.id === loggedInUserId);
+      }
+
+      // Match by email
+      if (!docObj && loggedInEmail) {
+        docObj = allDoctors.find(d => (d.user?.email || '').toLowerCase() === loggedInEmail.toLowerCase());
+      }
+
+      // Match by name
+      if (!docObj && cleanLoggedInName) {
+        docObj = allDoctors.find(d => {
+          const uName = (d.user?.name || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+          const sName = (d.staffMember?.name || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+          return (uName && (uName === cleanLoggedInName || uName.includes(cleanLoggedInName) || cleanLoggedInName.includes(uName))) ||
+                 (sName && (sName === cleanLoggedInName || sName.includes(cleanLoggedInName) || cleanLoggedInName.includes(sName)));
+        });
+      }
+
       const targetDocId = docObj ? docObj.id : null;
+      const resolvedDocName = docObj?.staffMember?.name || docObj?.user?.name || loggedInName || 'Doctor';
+      const cleanDocDisplayName = resolvedDocName.startsWith('Dr') ? resolvedDocName : `Dr. ${resolvedDocName}`;
 
       const docTodayTokens = targetDocId ? await TokenQueue.findAll({
         where: {
@@ -173,10 +206,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       return res.status(200).json({
         isDoctorView: true,
         doctorInfo: {
-          id: docObj?.id,
-          name: docObj?.user?.name ? (docObj.user.name.startsWith('Dr.') ? docObj.user.name : `Dr. ${docObj.user.name}`) : 'Dr. Medical Doctor',
+          id: targetDocId,
+          name: cleanDocDisplayName,
           specialization: docObj?.specialization || (docObj as any)?.department?.name || 'General OPD',
-          roomNumber: (docObj as any)?.roomNumber || `Room 10${docObj?.id || 1}`,
+          roomNumber: (docObj as any)?.roomNumber || `Room 10${targetDocId || 1}`,
         },
         stats: {
           totalPatients: uniqueDocTokens.length,

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Bed, Admission, Patient, Doctor, User, StaffMember, LabRequest, LaboratoryTest, Invoice, InvoiceItem, TokenQueue, Appointment } from '../models';
+import { Bed, Admission, Patient, Doctor, User, StaffMember, Department, LabRequest, LaboratoryTest, Invoice, InvoiceItem, TokenQueue, Appointment } from '../models';
 import sequelize from '../config/db';
 
 // ==========================================
@@ -364,37 +364,48 @@ export const getAdmissions = async (req: Request, res: Response) => {
     // If logged-in user is a Doctor, filter so they only see their assigned admitted patients
     const userRole = (req as any).user?.role;
     const userId = (req as any).user?.id;
-    const userName = (req as any).user?.name;
+    const userEmail = (req as any).user?.email;
+    const userName = (req as any).user?.name || '';
+    const cleanUserN = userName ? userName.toLowerCase().replace(/^dr\.?\s*/i, '').trim() : '';
 
     if (userRole === 'doctor') {
-      let docRecord = await Doctor.findOne({ where: { userId } });
-      if (!docRecord && userName) {
-        docRecord = await Doctor.findOne({
-          include: [{ model: StaffMember, as: 'staffMember', where: { name: userName } }]
-        });
+      const allDoctors = await Doctor.findAll({
+        include: [
+          { model: User, attributes: ['id', 'name', 'email'] },
+          { model: StaffMember, as: 'staffMember', attributes: ['id', 'name', 'designation'] },
+          { model: Department, attributes: ['name'] }
+        ]
+      });
+
+      let docRecord: any = null;
+      if (userId) {
+        docRecord = allDoctors.find(d => d.userId === userId || d.user?.id === userId);
       }
-      if (!docRecord && userName) {
-        docRecord = await Doctor.findOne({
-          include: [{ model: User, where: { name: userName } }]
-        });
+      if (!docRecord && userEmail) {
+        docRecord = allDoctors.find(d => (d.user?.email || '').toLowerCase() === userEmail.toLowerCase());
       }
-      if (!docRecord) {
-        docRecord = await Doctor.findOne();
+      if (!docRecord && cleanUserN) {
+        docRecord = allDoctors.find(d => {
+          const uName = (d.user?.name || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+          const sName = (d.staffMember?.name || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+          return (uName && (uName === cleanUserN || uName.includes(cleanUserN) || cleanUserN.includes(uName))) ||
+                 (sName && (sName === cleanUserN || sName.includes(cleanUserN) || cleanUserN.includes(sName)));
+        });
       }
 
       const doctorIdFilter = docRecord ? docRecord.id : null;
-      const cleanUserN = userName ? userName.toLowerCase().replace(/^dr\.?\s*/i, '').trim() : '';
 
       const doctorOnlyAdmissions = admissions.filter((adm: any) => {
         const docObj = adm.doctor || adm.Doctor;
         const admDocId = adm.doctorId || docObj?.id;
+
         if (doctorIdFilter && admDocId && Number(admDocId) === Number(doctorIdFilter)) {
           return true;
         }
 
         if (cleanUserN) {
-          const admDocName = (adm.doctorName || docObj?.name || docObj?.user?.name || docObj?.staffMember?.name || '').toLowerCase();
-          if (admDocName.includes(cleanUserN)) {
+          const admDocName = (adm.doctorName || docObj?.name || docObj?.user?.name || docObj?.staffMember?.name || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
+          if (admDocName && (admDocName === cleanUserN || admDocName.includes(cleanUserN) || cleanUserN.includes(admDocName))) {
             return true;
           }
         }
