@@ -172,6 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       const allowedPaths = [
         '/dashboard',
         '/patient-registration',
+        '/old-patient',
         '/patients',
         '/appointments',
         '/token-queue',
