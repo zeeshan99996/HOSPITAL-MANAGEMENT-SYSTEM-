@@ -112,7 +112,7 @@ const App: React.FC = () => {
               <Route path="/appointments" element={<Navigate to="/token-queue" replace />} />
               <Route path="/token-queue" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <TokenQueue />} />
               <Route path="/doctors-schedule" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <DoctorsSchedule />} />
-              <Route path="/admissions" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Admissions />} />
+              <Route path="/admissions" element={isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Admissions />} />
               <Route path="/laboratory" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isAccountant ? <Navigate to="/billing" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Laboratory />} />
               <Route path="/pharmacy" element={isDoctor ? <Navigate to="/dashboard" replace /> : isAccountant ? <Navigate to="/billing" replace /> : <Pharmacy />} />
               <Route path="/billing" element={isDoctor ? <Navigate to="/dashboard" replace /> : isPharmacist ? <Navigate to="/pharmacy" replace /> : isNurse ? <Navigate to="/patients" replace /> : <Billing />} />

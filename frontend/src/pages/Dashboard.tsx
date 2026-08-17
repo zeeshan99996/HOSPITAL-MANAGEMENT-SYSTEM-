@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
 import { Card, Button, Badge, Drawer } from '../components/UI';
@@ -45,6 +46,7 @@ import {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
@@ -366,7 +368,10 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Admitted Inpatients */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-indigo-500/20 dark:border-indigo-900/30 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+          <div
+            onClick={() => navigate('/admissions')}
+            className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-indigo-500/20 dark:border-indigo-900/30 shadow-sm hover:shadow-md transition-all relative overflow-hidden group cursor-pointer hover:border-indigo-500/50"
+          >
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Admitted Inpatients</p>
@@ -376,7 +381,12 @@ export const Dashboard: React.FC = () => {
                 <Bed className="h-5 w-5" />
               </div>
             </div>
-            <p className="text-[11px] text-slate-500 mt-3 font-medium">Under active hospital ward care</p>
+            <p className="text-[11px] text-indigo-500/80 dark:text-indigo-400/80 mt-3 font-semibold flex items-center justify-between">
+              <span>Under active ward care</span>
+              <span className="text-[10px] font-bold text-brand-500 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                View Ward →
+              </span>
+            </p>
           </div>
 
         </div>

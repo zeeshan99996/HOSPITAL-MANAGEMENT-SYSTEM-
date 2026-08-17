@@ -337,6 +337,50 @@ export const getAdmissions = async (req: Request, res: Response) => {
       })
     );
 
+    // If logged-in user is a Doctor, filter so they only see their assigned admitted patients
+    const userRole = (req as any).user?.role;
+    const userId = (req as any).user?.id;
+    const userName = (req as any).user?.name;
+
+    if (userRole === 'doctor') {
+      let docRecord = await Doctor.findOne({ where: { userId } });
+      if (!docRecord && userName) {
+        docRecord = await Doctor.findOne({
+          include: [{ model: StaffMember, as: 'staffMember', where: { name: userName } }]
+        });
+      }
+      if (!docRecord && userName) {
+        docRecord = await Doctor.findOne({
+          include: [{ model: User, where: { name: userName } }]
+        });
+      }
+      if (!docRecord) {
+        docRecord = await Doctor.findOne();
+      }
+
+      const doctorIdFilter = docRecord ? docRecord.id : null;
+      const cleanUserN = userName ? userName.toLowerCase().replace(/^dr\.?\s*/i, '').trim() : '';
+
+      const doctorOnlyAdmissions = admissions.filter((adm: any) => {
+        const docObj = adm.doctor || adm.Doctor;
+        const admDocId = adm.doctorId || docObj?.id;
+        if (doctorIdFilter && admDocId && Number(admDocId) === Number(doctorIdFilter)) {
+          return true;
+        }
+
+        if (cleanUserN) {
+          const admDocName = (adm.doctorName || docObj?.name || docObj?.user?.name || docObj?.staffMember?.name || '').toLowerCase();
+          if (admDocName.includes(cleanUserN)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+
+      return res.status(200).json(doctorOnlyAdmissions);
+    }
+
     return res.status(200).json(admissions);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving admissions.', error: error.message });
