@@ -152,6 +152,28 @@ export const Admissions: React.FC = () => {
     fetchData();
   }, []);
 
+  const handleSelectPatient = (selectedPId: string) => {
+    setPatientId(selectedPId);
+    if (!selectedPId) return;
+
+    const p = patients.find((pat: any) => String(pat.id) === String(selectedPId));
+    if (p) {
+      // Find assigned doctor from TokenQueue, Appointment, or patient profile
+      const tokens = p.TokenQueues || p.tokenQueues || p.tokens || [];
+      const latestToken = tokens.length > 0 ? tokens[tokens.length - 1] : null;
+      const docId = latestToken?.doctorId || p.doctorId || p.Appointments?.[0]?.doctorId || p.Doctor?.id || p.doctor?.id;
+      if (docId) {
+        setDoctorId(String(docId));
+      }
+    }
+  };
+
+  const handleOpenAdmitModal = (preselectedPatientId?: string) => {
+    const targetId = preselectedPatientId || patientId || (patients[0]?.id ? String(patients[0].id) : '');
+    handleSelectPatient(targetId);
+    setIsAdmitOpen(true);
+  };
+
   const handleAdmitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -667,7 +689,7 @@ export const Admissions: React.FC = () => {
                 {(user?.role === 'receptionist' || user?.role === 'admin') && (
                   <button
                     type="button"
-                    onClick={() => setIsAdmitOpen(true)}
+                    onClick={() => handleOpenAdmitModal()}
                     className="px-4 py-2 rounded-xl text-xs font-extrabold bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/25 transition-all flex items-center gap-1.5"
                   >
                     <Plus className="h-4 w-4" />
@@ -974,7 +996,7 @@ export const Admissions: React.FC = () => {
             <select
               required
               value={patientId}
-              onChange={e => setPatientId(e.target.value)}
+              onChange={e => handleSelectPatient(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
             >
               <option value="">-- Select Registered Patient --</option>
@@ -1004,7 +1026,10 @@ export const Admissions: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Admitting Doctor</label>
+              <label className="block text-xs font-semibold text-slate-655 dark:text-slate-400 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                <span>Admitting Doctor</span>
+                <span className="text-[10px] text-brand-500 font-semibold normal-case">(Auto-assigned from Token)</span>
+              </label>
               <select
                 required
                 value={doctorId}

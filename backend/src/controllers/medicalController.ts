@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Bed, Admission, Patient, Doctor, User, LabRequest, LaboratoryTest, Invoice, InvoiceItem } from '../models';
+import { Bed, Admission, Patient, Doctor, User, LabRequest, LaboratoryTest, Invoice, InvoiceItem, TokenQueue, Appointment } from '../models';
 import sequelize from '../config/db';
 
 // ==========================================
@@ -139,10 +139,31 @@ export const admitPatient = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Bed is not available for admission.' });
     }
 
+    let finalDoctorId = doctorId ? Number(doctorId) : null;
+    if ((!finalDoctorId || isNaN(finalDoctorId)) && patientId) {
+      const latestToken = await TokenQueue.findOne({
+        where: { patientId: Number(patientId) },
+        order: [['id', 'DESC']],
+        transaction
+      });
+      if (latestToken?.doctorId) {
+        finalDoctorId = Number(latestToken.doctorId);
+      } else {
+        const latestAppt = await Appointment.findOne({
+          where: { patientId: Number(patientId) },
+          order: [['id', 'DESC']],
+          transaction
+        });
+        if (latestAppt?.doctorId) {
+          finalDoctorId = Number(latestAppt.doctorId);
+        }
+      }
+    }
+
     const admission = await Admission.create({
       patientId,
       bedId,
-      doctorId,
+      doctorId: finalDoctorId,
       condition,
       status: 'admitted',
       notes,
@@ -234,7 +255,7 @@ export const getAdmissions = async (req: Request, res: Response) => {
   if (stayType) whereClause.stayType = stayType;
 
   try {
-    const admissions = await Admission.findAll({
+    const rawAdmissions = await Admission.findAll({
       where: whereClause,
       include: [
         { model: Patient, attributes: ['id', 'name', 'phone', 'bloodGroup', 'allergies', 'mrNumber', 'dob', 'gender'] },
@@ -243,6 +264,24 @@ export const getAdmissions = async (req: Request, res: Response) => {
       ],
       order: [['admissionDate', 'DESC']],
     });
+
+    const admissions = await Promise.all(
+      rawAdmissions.map(async (adm: any) => {
+        const plain = adm.toJSON ? adm.toJSON() : adm;
+        if (!plain.doctor && plain.patientId) {
+          const latestToken = await TokenQueue.findOne({
+            where: { patientId: plain.patientId },
+            include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+            order: [['id', 'DESC']]
+          });
+          if (latestToken && (latestToken as any).Doctor) {
+            plain.doctor = (latestToken as any).Doctor;
+          }
+        }
+        return plain;
+      })
+    );
+
     return res.status(200).json(admissions);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving admissions.', error: error.message });
