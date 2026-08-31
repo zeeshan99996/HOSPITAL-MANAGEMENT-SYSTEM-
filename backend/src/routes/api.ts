@@ -569,7 +569,7 @@ router.get('/doctors', authenticateToken, async (req, res) => {
     });
 
     const formatted = doctors
-      .filter((d: any) => d.staffMember || d.user || d.specialization)
+      .filter((d: any) => d.staffMember || d.user)
       .map((d: any) => {
         const staff = d.staffMember;
         const user = d.user;
