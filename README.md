@@ -1,6 +1,6 @@
-# LifeFlow - Modern Hospital Management System (HMS)
+# Dr. Talha Clinic - Modern Hospital Management System (HMS)
 
-LifeFlow is a production-quality, responsive, and secure Hospital Management System (HMS) built with a React-Node-MySQL stack. The system supports full Role-Based Access Control (RBAC) across 8 distinct user roles.
+Dr. Talha Clinic EMR is a production-quality, responsive, and secure Hospital Management System (HMS) built with a React-Node-MySQL stack. The system supports full Role-Based Access Control (RBAC) across 8 distinct user roles.
 
 ## Monorepo Architecture
 
@@ -16,14 +16,14 @@ The system automatically seeds initial database records on first startup (if emp
 
 | Role | Username (Email) | Default Context |
 | :--- | :--- | :--- |
-| **System Admin** | `admin@lifeflow.com` | Complete system configuration, staff management, audit logs |
-| **Doctor** | `doctor@lifeflow.com` | Patient consultation, prescribing pad, lab orders, admit patient |
-| **Nurse** | `nurse@lifeflow.com` | Vital records, bed monitoring, care log checks |
-| **Receptionist** | `receptionist@lifeflow.com` | Walk-in patient registration, doctor schedules, token queuing |
-| **Lab Technician** | `lab@lifeflow.com` | Lab request samples, test processing, diagnostic uploads |
-| **Pharmacist** | `pharmacist@lifeflow.com` | Drug stock inventory levels, quick POS cart invoice generation |
-| **Accountant** | `accountant@lifeflow.com` | Billing, custom invoices, transaction payment recording |
-| **Patient** | `patient@lifeflow.com` | Portal booking, medical history, Rx viewer, online payment |
+| **System Admin** | `admin@drtalhaclinic.com` | Complete system configuration, staff management, audit logs |
+| **Doctor** | `doctor@drtalhaclinic.com` | Patient consultation, prescribing pad, lab orders, admit patient |
+| **Nurse** | `nurse@drtalhaclinic.com` | Vital records, bed monitoring, care log checks |
+| **Receptionist** | `receptionist@drtalhaclinic.com` | Walk-in patient registration, doctor schedules, token queuing |
+| **Lab Technician** | `lab@drtalhaclinic.com` | Lab request samples, test processing, diagnostic uploads |
+| **Pharmacist** | `pharmacist@drtalhaclinic.com` | Drug stock inventory levels, quick POS cart invoice generation |
+| **Accountant** | `accountant@drtalhaclinic.com` | Billing, custom invoices, transaction payment recording |
+| **Patient** | `patient@drtalhaclinic.com` | Portal booking, medical history, Rx viewer, online payment |
 
 ---
 

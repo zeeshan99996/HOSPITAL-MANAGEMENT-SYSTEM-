@@ -13,7 +13,7 @@ async function seedAdminUser() {
     console.log('[DB Status] Database Connection OK & Tables Synced.');
 
     const adminAccounts = [
-      { name: 'System Admin', email: 'admin@lifeflow.com', password: 'Password123' },
+      { name: 'System Admin', email: 'admin@drtalhaclinic.com', password: 'Password123' },
       { name: 'System Admin', email: 'admin@gmail.com', password: 'Password123' },
     ];
 
@@ -60,7 +60,7 @@ async function seedAdminUser() {
 
     console.log(`\n=============================================================`);
     console.log(`🎉 SYSTEM ADMIN ACCOUNTS SUCCESSFULLY CREATED IN MYSQL!`);
-    console.log(`   Emails:   admin@lifeflow.com  /  admin@gmail.com`);
+    console.log(`   Emails:   admin@drtalhaclinic.com  /  admin@gmail.com`);
     console.log(`   Password: Password123`);
     console.log(`=============================================================\n`);
     process.exit(0);

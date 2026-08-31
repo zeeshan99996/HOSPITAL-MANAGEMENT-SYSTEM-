@@ -444,6 +444,9 @@ export const dischargePatient = async (req: Request, res: Response) => {
   const {
     dischargeDate,
     dischargeNotes,
+    dischargeSummary,
+    dischargeCondition,
+    homeMedications,
     bedCharges,
     doctorFee,
     nursingFee,
@@ -481,14 +484,18 @@ export const dischargePatient = async (req: Request, res: Response) => {
     const bed = admission.bed || (await Bed.findByPk(admission.bedId, { transaction }));
 
     // 1. Update Admission record
-    const updatedNotes = dischargeNotes
-      ? (admission.notes ? `${admission.notes}\n[Discharge Summary]: ${dischargeNotes}` : `[Discharge Summary]: ${dischargeNotes}`)
+    const summaryText = dischargeSummary || dischargeNotes || '';
+    const updatedNotes = summaryText
+      ? (admission.notes ? `${admission.notes}\n[Discharge Summary]: ${summaryText}` : `[Discharge Summary]: ${summaryText}`)
       : admission.notes;
 
     await admission.update({
       status: 'discharged',
       dischargeDate: actualDischargeDate,
       notes: updatedNotes,
+      dischargeSummary: summaryText || null,
+      dischargeCondition: dischargeCondition || 'Recovered / Stable',
+      homeMedications: homeMedications || null,
     }, { transaction });
 
     // 2. Free up the Bed
@@ -857,3 +864,78 @@ export const deleteLaboratoryTest = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error deleting laboratory test.', error: error.message });
   }
 };
+
+// ==========================================
+// BED / WARD TRANSFER CONTROLLER
+// ==========================================
+export const transferAdmissionBed = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { newBedId, transferReason } = req.body;
+
+  if (!newBedId) {
+    return res.status(400).json({ message: 'Target bed ID is required for transfer.' });
+  }
+
+  const transaction = await sequelize.transaction();
+  try {
+    const admission = await Admission.findByPk(id, {
+      include: [{ model: Bed }, { model: Patient }],
+      transaction
+    });
+    if (!admission || admission.status === 'discharged') {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Active admission not found or already discharged.' });
+    }
+
+    if (admission.bedId === Number(newBedId)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Patient is already assigned to this bed.' });
+    }
+
+    const targetBed = await Bed.findByPk(newBedId, { transaction });
+    if (!targetBed) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Target bed does not exist.' });
+    }
+
+    if (targetBed.status === 'occupied') {
+      await transaction.rollback();
+      return res.status(400).json({ message: `Target Bed ${targetBed.bedNumber} is currently occupied.` });
+    }
+
+    const oldBedId = admission.bedId;
+    const oldBed = admission.bed || (await Bed.findByPk(oldBedId, { transaction }));
+
+    // Free old bed
+    if (oldBed) {
+      await oldBed.update({ status: 'available' }, { transaction });
+    }
+
+    // Occupy target bed
+    await targetBed.update({ status: 'occupied' }, { transaction });
+
+    // Update admission record
+    const noteEntry = `\n[Bed Transfer on ${new Date().toLocaleString()}]: Transferred from Bed ${oldBed?.bedNumber || oldBedId} to Bed ${targetBed.bedNumber} (${targetBed.wardName}). Reason: ${transferReason || 'Clinical reallocation'}`;
+    const updatedNotes = admission.notes ? `${admission.notes}${noteEntry}` : noteEntry;
+
+    await admission.update({
+      bedId: Number(newBedId),
+      transferredFromBedId: oldBedId,
+      transferReason: transferReason || null,
+      notes: updatedNotes
+    }, { transaction });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      message: `Patient successfully transferred to Bed ${targetBed.bedNumber} (${targetBed.wardName}).`,
+      admission,
+      newBed: targetBed
+    });
+  } catch (error: any) {
+    await transaction.rollback();
+    console.error('[transferAdmissionBed] Error:', error);
+    return res.status(500).json({ message: 'Error transferring patient bed.', error: error.message });
+  }
+};
+

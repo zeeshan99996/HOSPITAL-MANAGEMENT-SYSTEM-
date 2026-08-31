@@ -285,7 +285,7 @@ export const Staff: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
               {staff
-                .filter(s => s.role !== 'lab_technician' && s.email !== 'lab@lifeflow.com' && s.user?.role !== 'lab_technician' && s.user?.email !== 'lab@lifeflow.com')
+                .filter(s => s.role !== 'lab_technician' && s.email !== 'lab@drtalhaclinic.com' && s.user?.role !== 'lab_technician' && s.user?.email !== 'lab@drtalhaclinic.com')
                 .map(s => (
                 <tr key={s.id} className="text-slate-700 dark:text-slate-300 hover:bg-slate-50/60 dark:hover:bg-dark-850/50 transition-colors">
                   <td className="px-6 py-4">

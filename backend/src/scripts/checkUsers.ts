@@ -13,23 +13,23 @@ async function checkUsers() {
       console.log(`ID: ${u.id} | Email: ${u.email} | Role: ${u.role} | PassHash: ${String(u.password).substring(0, 20)}...`);
     }
 
-    // Ensure admin@lifeflow.com user exists and has valid hashed password
-    let adminUser = await User.findOne({ where: { email: 'admin@lifeflow.com' } });
+    // Ensure admin@drtalhaclinic.com user exists and has valid hashed password
+    let adminUser = await User.findOne({ where: { email: 'admin@drtalhaclinic.com' } });
     if (!adminUser) {
-      const hashed = await bcrypt.hash('Password123', 10);
+      const hashedPassword = await bcrypt.hash('Password123', 10);
       adminUser = await User.create({
         name: 'System Admin',
-        email: 'admin@lifeflow.com',
-        password: hashed,
+        email: 'admin@drtalhaclinic.com',
+        password: hashedPassword,
         role: 'admin',
         phone: '0300-1234567',
         status: 'active'
       });
-      console.log('✅ Created default System Admin account.');
-    } else {
-      const hashed = await bcrypt.hash('Password123', 10);
-      await adminUser.update({ password: hashed, status: 'active' });
-      console.log('✅ Reset admin@lifeflow.com password hash to Password123.');
+      console.log('✅ Created admin@drtalhaclinic.com account with Password123.');
+    } else if (!adminUser.password || (!adminUser.password.startsWith('$2a$') && !adminUser.password.startsWith('$2b$') && !adminUser.password.startsWith('$2y$'))) {
+      const hashedPassword = await bcrypt.hash('Password123', 10);
+      await adminUser.update({ password: hashedPassword, status: 'active' });
+      console.log('✅ Reset admin@drtalhaclinic.com password hash to Password123.');
     }
 
     process.exit(0);

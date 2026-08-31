@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye, ActivitySquare, Ticket, Thermometer, User, RotateCcw, BedDouble, Scissors, Stethoscope, Clock, Pill } from 'lucide-react';
+import {
+  Search, UserPlus, Phone, Calendar, Heart, Shield, Activity, MapPin, Eye,
+  ActivitySquare, Ticket, Thermometer, User, RotateCcw, BedDouble, Scissors,
+  Stethoscope, Clock, Pill, Star, MessageSquare, AlertTriangle, CheckCircle2,
+  ClipboardList, ThumbsUp, HelpCircle
+} from 'lucide-react';
 import { ThermalPrinter } from '../components/ThermalPrinter';
 import { DoctorEMRModal } from '../components/DoctorEMRModal';
 
@@ -31,6 +36,14 @@ export const Patients: React.FC = () => {
   
   // Vitals form modal control
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
+
+  // Feedback form modal control
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('appreciation');
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackPriority, setFeedbackPriority] = useState('normal');
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
   
   // Token printing simulator control
   const [isPrintOpen, setIsPrintOpen] = useState(false);
@@ -137,6 +150,40 @@ export const Patients: React.FC = () => {
       setVitalsNotes('');
     } catch (err) {
       alert('Failed to log patient vitals.');
+    }
+  };
+
+  const handleSaveFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPatientId) return;
+    if (!feedbackComment.trim()) {
+      alert('Please enter your feedback comments or details.');
+      return;
+    }
+
+    setFeedbackSaving(true);
+    try {
+      await apiClient.post(`/patients/${selectedPatientId}/feedback`, {
+        feedbackType,
+        rating: Number(feedbackRating),
+        comment: feedbackComment,
+        priority: feedbackPriority
+      });
+
+      setIsFeedbackOpen(false);
+      // Refresh patient drawer
+      const updated = await apiClient.get(`/patients/${selectedPatientId}`);
+      setSelectedPatient(updated);
+      alert('Feedback logged successfully!');
+
+      setFeedbackComment('');
+      setFeedbackRating(5);
+      setFeedbackType('appreciation');
+      setFeedbackPriority('normal');
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit patient feedback.');
+    } finally {
+      setFeedbackSaving(false);
     }
   };
 
@@ -630,14 +677,20 @@ export const Patients: React.FC = () => {
                     onClick={() => setIsVitalsOpen(true)}
                     className="flex-1 px-3 py-2 rounded-lg border border-brand-500/30 bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                   >
-                    <Thermometer className="h-4 w-4" /> Log Patient Vitals
+                    <Thermometer className="h-4 w-4" /> Log Vitals
                   </button>
                 )}
+                <button
+                  onClick={() => setIsFeedbackOpen(true)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                  <MessageSquare className="h-4 w-4" /> Add Feedback
+                </button>
                 <a
                   href="/laboratory"
                   className="flex-1 px-3 py-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                 >
-                  <Activity className="h-4 w-4" /> Request Lab Test
+                  <Activity className="h-4 w-4" /> Lab Test
                 </a>
               </div>
             </div>
@@ -645,7 +698,7 @@ export const Patients: React.FC = () => {
             {/* Current Vitals Snapshot Banner */}
             {selectedPatient.patient_vitals && selectedPatient.patient_vitals.length > 0 && (
               <div className="space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block border-b border-slate-200/50 dark:border-slate-850 pb-1">
                   Current Vital Signs Snapshot
                 </span>
                 {(() => {
@@ -676,7 +729,7 @@ export const Patients: React.FC = () => {
 
             {/* Demographics Block */}
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-800 pb-1">Demographics</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 dark:text-slate-555 block mb-2 border-b border-slate-200/50 dark:border-slate-850 pb-1">Demographics</span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                 <div>
                   <span className="text-[10px] text-slate-450 dark:text-slate-500 block">Date of Birth</span>
@@ -697,6 +750,93 @@ export const Patients: React.FC = () => {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Clinical Visits & Intake Records */}
+            <div>
+              <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555 flex items-center gap-1.5">
+                  <ClipboardList className="h-3.5 w-3.5 text-emerald-600" /> Clinical Visits & Intake History
+                </span>
+                <span className="text-[10px] text-slate-450 font-mono">{selectedPatient.patient_visits?.length || 0} visits</span>
+              </div>
+              
+              {selectedPatient.patient_visits && selectedPatient.patient_visits.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedPatient.patient_visits.map((v: any) => (
+                    <div key={v.id} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1.5">
+                      <div className="flex justify-between items-center text-[10px] text-slate-450 border-b border-slate-200/40 dark:border-slate-850 pb-1">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">{v.visitType?.replace('_', ' ')}</span>
+                        <span>{new Date(v.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        {v.reasonForVisit}
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[10px] text-slate-500 font-mono bg-white dark:bg-dark-900 p-2 rounded-lg">
+                        <div>BP: {v.bp || 'N/A'}</div>
+                        <div>Temp: {v.temperature || 'N/A'}°F</div>
+                        <div>Pulse: {v.pulse || 'N/A'}</div>
+                        <div>Weight: {v.weight ? `${v.weight}kg` : 'N/A'}</div>
+                      </div>
+                      {v.notes && <p className="text-[10px] text-slate-400 italic">Notes: {v.notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
+                  No clinic intake records recorded yet.
+                </div>
+              )}
+            </div>
+
+            {/* Patient Feedback & Grievances Tracker */}
+            <div>
+              <div className="flex justify-between items-center mb-2.5 border-b border-slate-200/50 dark:border-slate-800 pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-455 dark:text-slate-555 flex items-center gap-1.5">
+                  <Star className="h-3.5 w-3.5 text-amber-500" /> Patient Feedback & Grievances
+                </span>
+                <button
+                  onClick={() => setIsFeedbackOpen(true)}
+                  className="text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1 hover:underline"
+                >
+                  <MessageSquare className="h-3 w-3" /> Log Feedback
+                </button>
+              </div>
+              
+              {selectedPatient.patient_feedbacks && selectedPatient.patient_feedbacks.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedPatient.patient_feedbacks.map((fb: any) => (
+                    <div key={fb.id} className="p-3 bg-slate-100/60 dark:bg-dark-950/60 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs space-y-1.5">
+                      <div className="flex justify-between items-center text-[10px] text-slate-450 border-b border-slate-200/40 dark:border-slate-850 pb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">{fb.feedbackType?.replace('_', ' ')}</span>
+                          <span className="text-amber-500 font-bold">
+                            {'★'.repeat(fb.rating || 5)}{'☆'.repeat(5 - (fb.rating || 5))}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant={fb.status === 'resolved' ? 'success' : (fb.status === 'reviewed' ? 'info' : 'warning')}>
+                            {fb.status}
+                          </Badge>
+                          <span className="font-mono">{new Date(fb.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 italic">
+                        "{fb.comment}"
+                      </p>
+                      {fb.resolutionNotes && (
+                        <div className="p-2 bg-emerald-50/50 dark:bg-emerald-950/30 text-[10px] text-emerald-800 dark:text-emerald-300 rounded-lg border border-emerald-200 dark:border-emerald-900">
+                          <strong>Admin Resolution:</strong> {fb.resolutionNotes}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-xs text-slate-450 bg-slate-50/50 dark:bg-dark-950/30 rounded-xl border border-dashed border-slate-250">
+                  No feedback or grievance logged for this patient yet.
+                </div>
+              )}
             </div>
 
             {/* Vitals History Tracking */}
@@ -800,6 +940,82 @@ export const Patients: React.FC = () => {
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
             <Button type="button" variant="secondary" onClick={() => setIsVitalsOpen(false)}>Cancel</Button>
             <Button type="submit">Commit Vitals Entry</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Record Patient Feedback Modal */}
+      <Modal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} title="Record Patient Feedback & Grievance">
+        <form onSubmit={handleSaveFeedbackSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Feedback Category</label>
+              <select
+                value={feedbackType}
+                onChange={e => setFeedbackType(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+              >
+                <option value="appreciation">🌟 Appreciation & Compliment</option>
+                <option value="complaint">⚠️ Service Complaint</option>
+                <option value="billing_issue">💳 Billing / Charge Dispute</option>
+                <option value="care_quality">🩺 Clinical Care Quality</option>
+                <option value="suggestion">💡 Improvement Suggestion</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Star Rating (1 - 5)</label>
+              <select
+                value={feedbackRating}
+                onChange={e => setFeedbackRating(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white font-bold"
+              >
+                <option value={5}>⭐⭐⭐⭐⭐ (5 - Excellent)</option>
+                <option value={4}>⭐⭐⭐⭐ (4 - Good)</option>
+                <option value={3}>⭐⭐⭐ (3 - Satisfactory)</option>
+                <option value={2}>⭐⭐ (2 - Poor)</option>
+                <option value={1}>⭐ (1 - Very Bad)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Priority / Severity</label>
+            <div className="flex gap-3">
+              {['low', 'normal', 'high', 'urgent'].map((p) => (
+                <label key={p} className="flex items-center gap-1 text-xs capitalize cursor-pointer">
+                  <input
+                    type="radio"
+                    name="priority"
+                    value={p}
+                    checked={feedbackPriority === p}
+                    onChange={e => setFeedbackPriority(e.target.value)}
+                  />
+                  <span>{p}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Feedback Remarks / Patient Statement <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              required
+              rows={4}
+              value={feedbackComment}
+              onChange={e => setFeedbackComment(e.target.value)}
+              placeholder="Enter patient feedback, review of doctor consultation, nursing care, or grievance details..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" onClick={() => setIsFeedbackOpen(false)}>Cancel</Button>
+            <Button type="submit" isLoading={feedbackSaving} className="bg-amber-600 hover:bg-amber-700">
+              Submit Feedback Entry
+            </Button>
           </div>
         </form>
       </Modal>

@@ -15,10 +15,14 @@ export default defineConfig({
     }
   },
   build: {
-    target: 'esnext',
+    target: 'es2020',
     minify: 'esbuild',
     cssCodeSplit: true,
+    cssMinify: true,
     chunkSizeWarningLimit: 1000,
+    esbuild: {
+      drop: ['console', 'debugger'],
+    },
     rollupOptions: {
       output: {
         manualChunks: {

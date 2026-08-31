@@ -32,7 +32,14 @@ import {
   deletePatient,
   getPatientVitals,
   logPatientVitals,
-  recordDoctorConsultation
+  recordDoctorConsultation,
+  checkDuplicatePatient,
+  createPatientVisit,
+  getPatientVisits,
+  createPatientFeedback,
+  getPatientFeedbacks,
+  getAllFeedbacks,
+  updateFeedbackStatus
 } from '../controllers/patientController';
 import {
   createAppointment,
@@ -56,6 +63,7 @@ import {
   getAdmissions,
   updateAdmissionNotes,
   dischargePatient,
+  transferAdmissionBed,
   createLabRequest,
   getLabRequests,
   processLabSample,
@@ -69,6 +77,8 @@ import {
   createInvoice,
   getInvoices,
   payInvoice,
+  voidInvoice,
+  refundInvoicePayment,
   getMedicines,
   updateMedicineStock,
   addMedicine,
@@ -77,6 +87,7 @@ import {
   administerMedicine,
   getMedicineRates,
   saveMedicineRate,
+  getStockMovements,
   getDailyExpenses,
   createDailyExpense,
   deleteDailyExpense,
@@ -193,13 +204,24 @@ router.get('/health/db', handleDbHealthRoute);
 router.get('/db-health', handleDbHealthRoute);
 
 // ==========================================
-// PATIENT MANAGEMENT
+// PATIENT MANAGEMENT & DUPLICATE CHECK
 // ==========================================
+router.get('/patients/check-duplicate', authenticateToken, checkDuplicatePatient);
 router.post('/patients', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), validatePatient, createPatient);
 router.get('/patients', authenticateToken, getAllPatients);
 router.get('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse', 'accountant', 'patient']), getPatientById);
 router.put('/patients/:id', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), validatePatient, updatePatient);
 router.delete('/patients/:id', authenticateToken, requireRoles(['admin']), deletePatient);
+
+// PATIENT VISITS & INTAKE
+router.post('/patients/:id/visits', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse']), createPatientVisit);
+router.get('/patients/:id/visits', authenticateToken, getPatientVisits);
+
+// PATIENT FEEDBACK & GRIEVANCES
+router.post('/patients/:id/feedback', authenticateToken, createPatientFeedback);
+router.get('/patients/:id/feedback', authenticateToken, getPatientFeedbacks);
+router.get('/feedbacks', authenticateToken, getAllFeedbacks);
+router.put('/feedbacks/:id/status', authenticateToken, requireRoles(['admin', 'receptionist']), updateFeedbackStatus);
 
 // PATIENT VITALS LOGGING
 router.get('/patients/:id/vitals', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor', 'nurse', 'patient']), getPatientVitals);
@@ -380,6 +402,7 @@ router.post('/admissions', authenticateToken, requireRoles(['admin', 'receptioni
 router.get('/admissions', authenticateToken, getAdmissions);
 router.put('/admissions/:id/notes', authenticateToken, requireRoles(['admin', 'doctor', 'nurse', 'receptionist']), updateAdmissionNotes);
 router.put('/admissions/:id/discharge', authenticateToken, requireRoles(['admin', 'doctor', 'receptionist']), dischargePatient);
+router.post('/admissions/:id/transfer', authenticateToken, requireRoles(['admin', 'receptionist', 'nurse']), transferAdmissionBed);
 
 // ==========================================
 // LABORATORY MANAGEMENT
@@ -401,6 +424,8 @@ router.delete('/lab/tests/:id', authenticateToken, requireRoles(['admin']), dele
 router.post('/invoices', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), validateInvoice, createInvoice);
 router.get('/invoices', authenticateToken, getInvoices);
 router.put('/invoices/:id/pay', authenticateToken, requireRoles(['admin', 'accountant', 'patient']), payInvoice);
+router.post('/invoices/:id/void', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), voidInvoice);
+router.post('/invoices/:id/refund', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), refundInvoicePayment);
 
 // PETTY CASH daily expenses ledger
 router.get('/expenses', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), getDailyExpenses);
@@ -421,6 +446,7 @@ router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist'
 router.put('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), updateMedicineStock);
 router.delete('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist']), deleteMedicine);
 router.post('/medicines/sale', authenticateToken, requireRoles(['admin', 'pharmacist', 'receptionist', 'accountant', 'nurse']), recordMedicineSale);
+router.get('/medicines/stock-movements', authenticateToken, getStockMovements);
 
 // DIRECT MEDICINE/INJECTION CLINICAL ADMINISTRATION
 router.post('/medicines/administer', authenticateToken, requireRoles(['admin', 'nurse', 'doctor', 'pharmacist']), administerMedicine);
@@ -493,6 +519,42 @@ router.put('/tokens/:id/status', authenticateToken, requireRoles(['admin', 'rece
     return res.status(200).json(token);
   } catch (err: any) {
     return res.status(500).json({ message: 'Error updating token status', error: err.message });
+  }
+});
+
+router.put('/tokens/:id/transfer', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor']), async (req, res) => {
+  const { doctorId, notes } = req.body;
+  try {
+    const token = await TokenQueue.findByPk(req.params.id);
+    if (!token) return res.status(404).json({ message: 'Token not found' });
+    const targetDocId = doctorId ? Number(doctorId) : null;
+    token.transferredToDoctorId = targetDocId;
+    token.doctorId = targetDocId;
+    token.status = 'transferred';
+    if (notes) token.detail = `${token.detail || ''} (Transferred: ${notes})`;
+    await token.save();
+    return res.status(200).json({ message: 'Token transferred successfully', token });
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error transferring token', error: err.message });
+  }
+});
+
+router.put('/tokens/:id/action', authenticateToken, requireRoles(['admin', 'receptionist', 'doctor']), async (req, res) => {
+  const { action } = req.body; // 'recall', 'no_show', 'cancel'
+  try {
+    const token = await TokenQueue.findByPk(req.params.id);
+    if (!token) return res.status(404).json({ message: 'Token not found' });
+    if (action === 'recall') {
+      token.status = 'waiting';
+    } else if (action === 'no_show') {
+      token.status = 'no_show';
+    } else if (action === 'cancel') {
+      token.status = 'cancelled';
+    }
+    await token.save();
+    return res.status(200).json({ message: `Token action ${action} applied.`, token });
+  } catch (err: any) {
+    return res.status(500).json({ message: 'Error updating token action', error: err.message });
   }
 });
 

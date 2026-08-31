@@ -15,7 +15,7 @@ async function testDrive() {
 
     console.log('\n2. Creating temporary test backup snapshot...');
     const tempFile = path.join(os.tmpdir(), `test_gdrive_sync_${Date.now()}.sql.gz`);
-    fs.writeFileSync(tempFile, Buffer.from('LifeFlow HMS Test Google Drive Cloud Snapshot Sync Content', 'utf-8'));
+    fs.writeFileSync(tempFile, Buffer.from('Dr. Talha Clinic HMS Test Google Drive Cloud Snapshot Sync Content', 'utf-8'));
 
     console.log('\n3. Uploading to Google Drive Target Folder (Folder ID:', status.folderId, ')...');
     const result = await googleDriveService.uploadBackupFile(tempFile, path.basename(tempFile));

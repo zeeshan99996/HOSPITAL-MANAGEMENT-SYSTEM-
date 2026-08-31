@@ -1,7 +1,7 @@
 /**
  * timezone.ts
  * ============================================================
- * Timezone utilities for Dr. Talha Clinic (LifeFlow HMS).
+ * Timezone utilities for Dr. Talha Clinic.
  * Standardized on Pakistan Standard Time (PKT, UTC+5).
  * ============================================================
  */

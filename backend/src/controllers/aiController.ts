@@ -169,7 +169,7 @@ const executeTool = async (
         const passwordHash = await bcrypt.hash('Password123', 10);
         const userAccount = await User.create({
           name,
-          email: email || `patient.${Date.now()}-${Math.floor(Math.random()*1000)}@lifeflow.com`,
+          email: email || `patient.${Date.now()}-${Math.floor(Math.random()*1000)}@drtalhaclinic.com`,
           password: passwordHash,
           role: 'patient',
           phone,
@@ -1208,7 +1208,7 @@ export const aiChat = async (req: AuthenticatedRequest, res: Response) => {
   const allowedMenus = SIDEBAR_MENUS[role] || ['Dashboard', 'Profile'];
 
   // Construct System Prompt enforcing Guardrails
-  const systemPrompt = `You are LifeFlow Copilot, an enterprise-grade medical automation engine for LifeFlow Hospital EMR.
+  const systemPrompt = `You are Dr. Talha Clinic Assistant, an enterprise-grade medical automation engine for Dr. Talha Clinic EMR.
 You are directly chatting with user "${userName}" holding the role of "${role}".
 
 SECURITY & RBAC CONSTRAINTS:
@@ -1314,7 +1314,7 @@ async function callOpenRouter(systemPrompt: string, conversationMessages: any[])
     'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
     'Content-Type': 'application/json',
     'HTTP-Referer': 'http://localhost:5000',
-    'X-Title': 'LifeFlow HMS Chatbot'
+    'X-Title': 'Dr. Talha Clinic Assistant'
   };
 
   let lastError: any = null;
@@ -1465,7 +1465,7 @@ const formatToolResultMarkdown = (toolName: string, result: any): string => {
   
   switch (toolName) {
     case 'get_dashboard_stats': {
-      return `### 📊 LifeFlow EMR Dashboard Statistics
+      return `### 📊 Dr. Talha Clinic EMR Dashboard Statistics
 
 | Metric | Value |
 | :--- | :--- |

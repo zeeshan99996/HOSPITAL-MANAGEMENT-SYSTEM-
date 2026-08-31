@@ -46,7 +46,7 @@ async function testLogin() {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, profileId: null },
-      process.env.JWT_SECRET || 'lifeflow_jwt_secret_token_key_for_hms_application_2026',
+      process.env.JWT_SECRET || 'drtalhaclinic_jwt_secret_token_key_for_hms_application_2026',
       { expiresIn: '1d' }
     );
     console.log('[DB Test] Generated Token successfully!');

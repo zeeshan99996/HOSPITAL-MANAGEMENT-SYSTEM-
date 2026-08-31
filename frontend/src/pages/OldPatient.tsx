@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { Search, UserCheck, Calendar, Phone, MapPin, Printer, Ticket, CheckCircle, Stethoscope, AlertCircle, Clock } from 'lucide-react';
+import {
+  Search, UserCheck, Calendar, Phone, MapPin, Printer, Ticket,
+  CheckCircle, Stethoscope, AlertCircle, Clock, Receipt, BedDouble,
+  FileText, Activity, HeartPulse, User, PlusCircle, ExternalLink, ArrowRight
+} from 'lucide-react';
 
 const escapeHtml = (str: any): string => {
   if (str === null || str === undefined) return '';
@@ -14,14 +18,16 @@ const escapeHtml = (str: any): string => {
 };
 
 export const OldPatient: React.FC = () => {
-  // Search Inputs (Image 02)
+  // Search Inputs
   const [searchName, setSearchName] = useState('');
   const [searchPhone, setSearchPhone] = useState('');
+  const [searchCnic, setSearchCnic] = useState('');
   const [searchArea, setSearchArea] = useState('');
   const [searchDate, setSearchDate] = useState('');
 
   const [patients, setPatients] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -29,23 +35,39 @@ export const OldPatient: React.FC = () => {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [chargedFee, setChargedFee] = useState<number>(0);
   const [isWithin5Days, setIsWithin5Days] = useState<boolean>(false);
   const [daysDifference, setDaysDifference] = useState<number>(999);
+
+  // New Visit Intake Form State
+  const [visitType, setVisitType] = useState('consultation');
+  const [reasonForVisit, setReasonForVisit] = useState('');
+  const [visitNotes, setVisitNotes] = useState('');
+  const [vitalBP, setVitalBP] = useState('120/80');
+  const [vitalTemp, setVitalTemp] = useState('98.6');
+  const [vitalPulse, setVitalPulse] = useState('72');
+  const [vitalWeight, setVitalWeight] = useState('');
+  const [visitSaving, setVisitSaving] = useState(false);
+  const [visitSuccessMsg, setVisitSuccessMsg] = useState('');
+  const [patientPastVisits, setPatientPastVisits] = useState<any[]>([]);
 
   // Modal / Receipt state
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
   const [generatedToken, setGeneratedToken] = useState<any>(null);
 
-  const fetchDoctors = async () => {
+  const fetchDoctorsAndDepts = async () => {
     try {
-      const rawDocs = await apiClient.get('/doctors');
+      const [rawDocs, depts] = await Promise.all([
+        apiClient.get('/doctors').catch(() => []),
+        apiClient.get('/admin/departments').catch(() => [])
+      ]);
+      setDepartments(Array.isArray(depts) ? depts : []);
       if (Array.isArray(rawDocs) && rawDocs.length > 0) {
         setDoctors(rawDocs);
       } else {
-        const depts = await apiClient.get('/admin/departments');
         const docList: any[] = [];
-        depts.forEach((d: any) => {
+        (depts || []).forEach((d: any) => {
           if (d.doctors) {
             d.doctors.forEach((doc: any) => docList.push(doc));
           }
@@ -53,12 +75,12 @@ export const OldPatient: React.FC = () => {
         setDoctors(docList);
       }
     } catch (err) {
-      console.error('Error loading doctors', err);
+      console.error('Error loading doctors and departments', err);
     }
   };
 
   useEffect(() => {
-    fetchDoctors();
+    fetchDoctorsAndDepts();
   }, []);
 
   const handleSearch = async (e?: React.FormEvent) => {
@@ -69,11 +91,12 @@ export const OldPatient: React.FC = () => {
       const params = new URLSearchParams();
       if (searchName) params.append('name', searchName);
       if (searchPhone) params.append('phone', searchPhone);
+      if (searchCnic) params.append('cnic', searchCnic);
       if (searchArea) params.append('area', searchArea);
       if (searchDate) params.append('date', searchDate);
 
       const data = await apiClient.get(`/patients?${params.toString()}`);
-      setPatients(data);
+      setPatients(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error searching old patients', err);
     } finally {
@@ -81,8 +104,17 @@ export const OldPatient: React.FC = () => {
     }
   };
 
-  const handleSelectPatient = (patient: any) => {
+  const handleSelectPatient = async (patient: any) => {
     setSelectedPatient(patient);
+    setVisitSuccessMsg('');
+
+    // Fetch patient past visits
+    try {
+      const visitsRes = await apiClient.get(`/patients/${patient.id}/visits`).catch(() => []);
+      setPatientPastVisits(Array.isArray(visitsRes) ? visitsRes : []);
+    } catch (e) {
+      setPatientPastVisits([]);
+    }
 
     // Calculate Last Visit Date and 5-Day Fee Rule
     let lastVisit: Date | null = null;
@@ -151,12 +183,46 @@ export const OldPatient: React.FC = () => {
     if (matchedDoc) {
       setSelectedDoctorId(String(matchedDoc.id));
       setSelectedDoctor(matchedDoc);
+      setSelectedDepartmentId(String(matchedDoc.departmentId || '1'));
       const fee = Number(matchedDoc.consultationFee) || 1500;
       setChargedFee(isWithin ? 0 : fee);
     } else {
       setSelectedDoctorId('');
       setSelectedDoctor(null);
       setChargedFee(isWithin ? 0 : 1500);
+    }
+  };
+
+  const handleSaveVisitIntake = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPatient) return;
+    if (!reasonForVisit.trim()) {
+      alert('Please enter reason for visit / chief complaints.');
+      return;
+    }
+
+    setVisitSaving(true);
+    try {
+      await apiClient.post(`/patients/${selectedPatient.id}/visits`, {
+        doctorId: selectedDoctorId ? Number(selectedDoctorId) : null,
+        departmentId: selectedDepartmentId ? Number(selectedDepartmentId) : null,
+        visitType,
+        reasonForVisit,
+        notes: visitNotes,
+        bp: vitalBP,
+        temperature: vitalTemp,
+        pulse: vitalPulse,
+        weight: vitalWeight
+      });
+
+      setVisitSuccessMsg('✅ New Clinical Visit & Intake logged successfully in patient folder!');
+      // Refresh past visits
+      const visitsRes = await apiClient.get(`/patients/${selectedPatient.id}/visits`).catch(() => []);
+      setPatientPastVisits(Array.isArray(visitsRes) ? visitsRes : []);
+    } catch (err: any) {
+      alert(err.message || 'Failed to record visit intake.');
+    } finally {
+      setVisitSaving(false);
     }
   };
 
@@ -182,7 +248,7 @@ export const OldPatient: React.FC = () => {
 
     const printWindow = window.open('', '_blank', 'width=380,height=600');
     if (!printWindow) {
-      alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print token slips automatically.');
+      alert('Pop-up window was blocked by your browser. Please allow pop-ups for Dr. Talha Clinic EMR to print token slips automatically.');
       return;
     }
 
@@ -191,53 +257,88 @@ export const OldPatient: React.FC = () => {
       <head>
         <title>OPD Token Ticket - ${tokenObj.tokenNumber || 'TOKEN'}</title>
         <style>
-          body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 12px; width: 280px; margin: 0 auto; color: #000; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 78mm;
+            margin: 0 auto;
+            padding: 8px;
+            color: #000;
+          }
           .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .divider { border-top: 1px dashed #000; margin: 8px 0; }
-          .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 2px; }
-          .hospital-info { font-size: 10px; color: #222; line-height: 1.3; }
-          .token-box { border: 2px solid #000; padding: 8px; margin: 10px 0; text-align: center; background-color: #f8f9fa; }
-          .token-label { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
-          .token-number { font-size: 26px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
-          .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
-          .info-label { font-weight: bold; }
-          .footer-text { font-size: 9px; text-align: center; margin-top: 12px; font-weight: bold; line-height: 1.3; }
+          .header { border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 8px; }
+          .clinic-name { font-size: 16px; font-weight: 900; margin: 0; text-transform: uppercase; }
+          .sub { font-size: 10px; margin: 2px 0 0 0; }
+          .token-box {
+            border: 2px solid #000;
+            padding: 8px 4px;
+            margin: 8px 0;
+            text-align: center;
+          }
+          .token-lbl { font-size: 11px; font-weight: bold; text-transform: uppercase; }
+          .token-num { font-size: 32px; font-weight: 900; margin: 2px 0; }
+          .doc-name { font-size: 12px; font-weight: bold; margin-top: 2px; }
+          .doc-spec { font-size: 10px; font-style: italic; }
+          .meta-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+          .meta-table td { padding: 2px 0; vertical-align: top; }
+          .meta-table td.lbl { width: 40%; font-weight: bold; }
+          .footer {
+            border-top: 1px dashed #000;
+            margin-top: 10px;
+            padding-top: 6px;
+            text-align: center;
+            font-size: 9px;
+          }
+          @media print {
+            body { margin: 0; padding: 0; }
+            @page { size: auto; margin: 0mm; }
+          }
         </style>
       </head>
       <body>
-        <div class="text-center hospital-name">DR. TALHA CLINIC</div>
-        <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
-        <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
-        
-        <div class="divider"></div>
-
-        <div class="token-box">
-          <div class="token-label">OPD RE-VISIT TOKEN</div>
-          <div class="token-number">${escapeHtml(tokenObj.tokenNumber || 'T-01')}</div>
-          <div style="font-size: 10px; margin-top: 3px; font-weight: bold; color: #333;">MRN: ${escapeHtml(selectedPatient?.mrNumber || 'MR-N/A')}</div>
+        <div class="header text-center">
+          <h1 class="clinic-name">Dr. Talha Clinic</h1>
+          <p class="sub">Healthcare Management & Diagnostic System</p>
+          <p class="sub">Main Boulevard, Lahore • Tel: 0300-1234567</p>
         </div>
 
-        <div class="divider"></div>
+        <div class="token-box">
+          <div class="token-lbl">Doctor OPD Token Sequence</div>
+          <div class="token-num">${escapeHtml(tokenObj.tokenNumber || 'T-01')}</div>
+          <div class="doc-name">${escapeHtml(docTitle)}</div>
+          <div class="doc-spec">${escapeHtml(targetDoc?.specialization || 'Consultant Physician')}</div>
+        </div>
 
-        <div class="info-row"><span class="info-label">Patient Name:</span> <span>${escapeHtml(selectedPatient?.name || 'Patient')}</span></div>
-        <div class="info-row"><span class="info-label">Assigned Doctor:</span> <span>${escapeHtml(docTitle)}</span></div>
-        <div class="info-row"><span class="info-label">Phone:</span> <span>${escapeHtml(selectedPatient?.phone || 'N/A')}</span></div>
-        <div class="info-row"><span class="info-label">Visit Type:</span> <span>${escapeHtml(isWithin5Days ? `Followup within ${daysDifference <= 1 ? '1 day' : `${daysDifference} days`}` : 'Regular OPD Visit')}</span></div>
-        <div class="info-row"><span class="info-label">Fee Charged:</span> <span>Rs. ${escapeHtml(chargedFee)}</span></div>
-        <div class="info-row"><span class="info-label">Date & Time:</span> <span>${escapeHtml(new Date().toLocaleString())}</span></div>
+        <table class="meta-table">
+          <tr>
+            <td class="lbl">Patient Name:</td>
+            <td><strong>${escapeHtml(selectedPatient?.name || 'N/A')}</strong></td>
+          </tr>
+          <tr>
+            <td class="lbl">MR Number:</td>
+            <td>${escapeHtml(selectedPatient?.mrNumber || 'N/A')}</td>
+          </tr>
+          <tr>
+            <td class="lbl">Contact Phone:</td>
+            <td>${escapeHtml(selectedPatient?.phone || 'N/A')}</td>
+          </tr>
+          <tr>
+            <td class="lbl">Fee Charged:</td>
+            <td><strong>${chargedFee === 0 ? 'FREE (5-Day Re-visit)' : `Rs. ${chargedFee}`}</strong></td>
+          </tr>
+          <tr>
+            <td class="lbl">Issued Time:</td>
+            <td>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${new Date().toLocaleDateString()}</td>
+          </tr>
+        </table>
 
-        <div class="divider"></div>
-
-        <div class="footer-text">
-          THANK YOU FOR VISITING DR. TALHA CLINIC<br/>
-          PLEASE RETAIN THIS TOKEN SLIP FOR YOUR TURN
+        <div class="footer">
+          <p>Please wait for your token number to be announced on the queue monitor.</p>
+          <p>Wishing you a quick and healthy recovery!</p>
         </div>
 
         <script>
           window.onload = function() {
             window.print();
-            setTimeout(function(){ window.close(); }, 500);
           };
         </script>
       </body>
@@ -285,18 +386,21 @@ export const OldPatient: React.FC = () => {
         </p>
       </div>
 
-      {/* Search Bar Panel (Image 02 Layout) */}
+      {/* Search Bar Panel (Workflow Architecture Layout) */}
       <Card className="p-5 bg-white dark:bg-dark-900 border border-slate-200/80 dark:border-slate-850 shadow-sm space-y-4">
-        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
-          Patient Database Search
-        </h3>
-        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Search className="h-3.5 w-3.5 text-brand-500" /> Patient Database Search
+          </h3>
+          <span className="text-[11px] text-slate-400">Search by MRN, Name, Mobile, CNIC or Area</span>
+        </div>
+        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           <div>
             <label className="block text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <UserCheck className="h-3 w-3 text-brand-500" /> Patient Name / MR#
+              <UserCheck className="h-3 w-3 text-brand-500" /> Name / MR#
             </label>
             <Input
-              placeholder="Search Name or MR..."
+              placeholder="e.g. John / MRN-001..."
               value={searchName}
               onChange={e => setSearchName(e.target.value)}
               className="!py-2 text-xs"
@@ -305,12 +409,24 @@ export const OldPatient: React.FC = () => {
 
           <div>
             <label className="block text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <Phone className="h-3 w-3 text-brand-500" /> Phone Number
+              <Phone className="h-3 w-3 text-brand-500" /> Phone
             </label>
             <Input
-              placeholder="Search Phone..."
+              placeholder="0300-1234567..."
               value={searchPhone}
               onChange={e => setSearchPhone(e.target.value)}
+              className="!py-2 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+              <FileText className="h-3 w-3 text-brand-500" /> CNIC Number
+            </label>
+            <Input
+              placeholder="42101-1234567-1..."
+              value={searchCnic}
+              onChange={e => setSearchCnic(e.target.value)}
               className="!py-2 text-xs"
             />
           </div>
@@ -329,7 +445,7 @@ export const OldPatient: React.FC = () => {
 
           <div>
             <label className="block text-2xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <Calendar className="h-3 w-3 text-brand-500" /> Date
+              <Calendar className="h-3 w-3 text-brand-500" /> Reg. Date
             </label>
             <Input
               type="date"
@@ -339,9 +455,23 @@ export const OldPatient: React.FC = () => {
             />
           </div>
 
-          <div className="lg:col-span-4 flex justify-end">
-            <Button type="submit" className="flex items-center gap-2 shadow-sm">
-              <Search className="h-4 w-4" /> Search Patient
+          <div className="lg:col-span-5 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setSearchName('');
+                setSearchPhone('');
+                setSearchCnic('');
+                setSearchArea('');
+                setSearchDate('');
+              }}
+            >
+              Clear
+            </Button>
+            <Button type="submit" size="sm" className="flex items-center gap-1.5 shadow-sm">
+              <Search className="h-3.5 w-3.5" /> Search Patient Database
             </Button>
           </div>
         </form>
@@ -356,8 +486,14 @@ export const OldPatient: React.FC = () => {
             Matching Patients Found ({patients.length})
           </h3>
           {patients.length === 0 ? (
-            <Card className="p-8 text-center text-xs text-slate-500">
-              No existing patient files found matching the search criteria. Please register as a New Patient.
+            <Card className="p-8 text-center text-xs text-slate-500 space-y-2">
+              <p>No existing patient files found matching the search criteria.</p>
+              <a
+                href="/registration"
+                className="inline-flex items-center gap-1 text-brand-600 font-bold hover:underline"
+              >
+                <PlusCircle className="h-3.5 w-3.5" /> Register as a New Patient
+              </a>
             </Card>
           ) : (
             <Card className="overflow-x-auto p-0 border border-slate-200 dark:border-slate-850">
@@ -366,9 +502,10 @@ export const OldPatient: React.FC = () => {
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-dark-950/20 text-slate-450 uppercase text-[10px] tracking-wider">
                     <th className="px-5 py-3">Patient Name & MR#</th>
                     <th className="px-5 py-3">Contact Phone</th>
+                    <th className="px-5 py-3">CNIC</th>
                     <th className="px-5 py-3">Age / Gender</th>
-                    <th className="px-5 py-3">Last Date of Visit</th>
-                    <th className="px-5 py-3">Doctor Last Checked</th>
+                    <th className="px-5 py-3">Last Visit</th>
+                    <th className="px-5 py-3">Last Doctor</th>
                     <th className="px-5 py-3 text-right">Action</th>
                   </tr>
                 </thead>
@@ -382,6 +519,8 @@ export const OldPatient: React.FC = () => {
                       lastVisitStr = new Date(sortedTokens[0].createdAt).toLocaleDateString();
                       if (sortedTokens[0].doctor?.user?.name) {
                         lastDocStr = sortedTokens[0].doctor.user.name;
+                      } else if (sortedTokens[0].doctor?.name) {
+                        lastDocStr = sortedTokens[0].doctor.name;
                       }
                     } else if (p.appointments && p.appointments.length > 0) {
                       const sortedAppts = [...p.appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
@@ -402,6 +541,7 @@ export const OldPatient: React.FC = () => {
                           <span className="block text-[9px] text-slate-500 font-mono mt-0.5">{p.mrNumber}</span>
                         </td>
                         <td className="px-5 py-3.5 text-slate-700 dark:text-slate-300 font-mono">{p.phone || 'N/A'}</td>
+                        <td className="px-5 py-3.5 text-slate-500 font-mono text-[11px]">{p.cnic || 'N/A'}</td>
                         <td className="px-5 py-3.5 capitalize">{p.age ? `${p.age} Yrs` : 'N/A'} • {p.gender || 'male'}</td>
                         <td className="px-5 py-3.5 text-slate-700 dark:text-slate-300">{lastVisitStr}</td>
                         <td className="px-5 py-3.5 text-slate-700 dark:text-slate-300">{lastDocStr}</td>
@@ -427,72 +567,272 @@ export const OldPatient: React.FC = () => {
         </div>
       )}
 
-      {/* Fee Calculation & Token Generation Panel */}
+      {/* SELECTED PATIENT PROFILE & ACTION SUITE */}
       {selectedPatient && (
-        <Card className="p-6 space-y-5 bg-slate-50/50 dark:bg-dark-900/50 border border-brand-500/30 rounded-xl shadow-sm">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Ticket className="h-4 w-4 text-brand-500" /> Patient Selection & Doctor Token Fee Panel
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Patient: <strong className="text-slate-800 dark:text-slate-200">{selectedPatient.name}</strong> ({selectedPatient.mrNumber})
-              </p>
-            </div>
-            <Badge type={isWithin5Days ? 'success' : 'info'}>
-              {isWithin5Days ? `Followup within ${daysDifference <= 1 ? '1 day' : `${daysDifference} days`} (Free Re-visit)` : `Regular Visit (${daysDifference === 999 ? 'First' : `${daysDifference} days ago`})`}
-            </Badge>
-          </div>
-
-          <form onSubmit={handleGenerateToken} className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Select Available OPD Physician
-                </label>
-                <select
-                  required
-                  value={selectedDoctorId}
-                  onChange={e => handleDoctorChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 font-medium"
-                >
-                  <option value="">-- Select Doctor --</option>
-                  {doctors.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {d.user?.name ? (d.user.name.startsWith('Dr.') ? d.user.name : `Dr. ${d.user.name}`) : `Dr. ${d.specialization || 'Physician'}`} ({d.specialization || d.department?.name || 'General OPD'}) - Fee: Rs. {d.consultationFee || 1500}
-                    </option>
-                  ))}
-                </select>
+        <div className="space-y-6">
+          {/* Patient Overview Card */}
+          <Card className="p-5 bg-gradient-to-r from-slate-50 via-brand-50/20 to-white dark:from-dark-900 dark:via-brand-950/10 dark:to-dark-900 border border-brand-500/30 rounded-2xl shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-brand-500/20">
+                  {selectedPatient.name.charAt(0)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">{selectedPatient.name}</h3>
+                    <Badge variant="brand">{selectedPatient.mrNumber}</Badge>
+                    <Badge variant={isWithin5Days ? 'success' : 'neutral'}>
+                      {isWithin5Days ? `Free Re-visit (${daysDifference <= 1 ? '1 day' : `${daysDifference} days`})` : `Standard Fee (${daysDifference === 999 ? 'First' : `${daysDifference} days ago`})`}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span>📞 {selectedPatient.phone}</span>
+                    {selectedPatient.cnic && <span>🪪 CNIC: {selectedPatient.cnic}</span>}
+                    <span>🎂 {selectedPatient.age || 'N/A'} Yrs ({selectedPatient.gender})</span>
+                    <span>🩸 {selectedPatient.bloodGroup || 'Blood: N/A'}</span>
+                    <span>📍 {selectedPatient.area || selectedPatient.address || 'N/A'}</span>
+                  </p>
+                </div>
               </div>
 
-              {/* Fee Breakdown Box */}
-              <div className="p-4 bg-white dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 block">Consultation Fee Charge</span>
-                <div className="flex justify-between items-baseline mt-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Charged Amount:</span>
-                  <span className={`text-xl font-extrabold ${isWithin5Days ? 'text-emerald-500' : 'text-brand-600 dark:text-brand-400'}`}>
-                    Rs. {chargedFee.toLocaleString()}
-                  </span>
+              {/* Quick Jump Shortcuts */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={`/billing`}
+                  className="px-3 py-1.5 bg-white dark:bg-dark-950 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:text-emerald-400 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-800 transition-all flex items-center gap-1.5"
+                >
+                  <Receipt className="h-3.5 w-3.5 text-emerald-600" /> Direct Bill
+                </a>
+                <a
+                  href={`/admissions`}
+                  className="px-3 py-1.5 bg-white dark:bg-dark-950 hover:bg-rose-50 hover:text-rose-700 dark:hover:text-rose-400 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-800 transition-all flex items-center gap-1.5"
+                >
+                  <BedDouble className="h-3.5 w-3.5 text-rose-600" /> Admit IPD
+                </a>
+                <a
+                  href={`/patients`}
+                  className="px-3 py-1.5 bg-white dark:bg-dark-950 hover:bg-brand-50 hover:text-brand-700 dark:hover:text-brand-400 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-800 transition-all flex items-center gap-1.5"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-brand-600" /> View EMR
+                </a>
+              </div>
+            </div>
+
+            {/* Sub-panels Grid: 1. New Visit Intake Form  2. Token Generation & 5-Day Exemption */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-4">
+              
+              {/* Left Column: New Clinical Visit Intake Form (7 cols) */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="p-4 bg-white dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3.5">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-850 pb-2">
+                    <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                      <Stethoscope className="h-4 w-4 text-emerald-600" /> Log Clinical Visit / Intake Record
+                    </h4>
+                    <span className="text-[10px] text-slate-450">OPD & Triage Intake</span>
+                  </div>
+
+                  {visitSuccessMsg && (
+                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-lg border border-emerald-200 dark:border-emerald-800">
+                      {visitSuccessMsg}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSaveVisitIntake} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Visit Type</label>
+                        <select
+                          value={visitType}
+                          onChange={e => setVisitType(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+                        >
+                          <option value="consultation">OPD Doctor Consultation</option>
+                          <option value="follow_up">Follow-Up Visit</option>
+                          <option value="emergency">Emergency / Triage</option>
+                          <option value="routine_checkup">Routine Checkup</option>
+                          <option value="vaccination">Vaccination / Immunization</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Attending Doctor</label>
+                        <select
+                          value={selectedDoctorId}
+                          onChange={e => {
+                            setSelectedDoctorId(e.target.value);
+                            const d = doctors.find(doc => String(doc.id) === e.target.value);
+                            if (d) {
+                              setSelectedDoctor(d);
+                              setSelectedDepartmentId(String(d.departmentId || '1'));
+                              setChargedFee(isWithin5Days ? 0 : (Number(d.consultationFee) || 1500));
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+                        >
+                          <option value="">-- Select Doctor --</option>
+                          {doctors.map(d => (
+                            <option key={d.id} value={d.id}>
+                              {d.user?.name || d.name || `Dr. #${d.id}`} ({d.specialization || d.department?.name || 'OPD'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Reason for Visit / Chief Complaints <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="e.g. Severe headache, persistent cough for 3 days, high fever..."
+                        value={reasonForVisit}
+                        onChange={e => setReasonForVisit(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    {/* Quick Vitals Triage Row */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 flex items-center gap-1">
+                        <Activity className="h-3 w-3 text-brand-500" /> Triage Vitals
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <Input
+                          label="BP (mmHg)"
+                          placeholder="120/80"
+                          value={vitalBP}
+                          onChange={e => setVitalBP(e.target.value)}
+                          className="!py-1.5 text-xs"
+                        />
+                        <Input
+                          label="Temp (°F)"
+                          placeholder="98.6"
+                          value={vitalTemp}
+                          onChange={e => setVitalTemp(e.target.value)}
+                          className="!py-1.5 text-xs"
+                        />
+                        <Input
+                          label="Pulse (bpm)"
+                          placeholder="72"
+                          value={vitalPulse}
+                          onChange={e => setVitalPulse(e.target.value)}
+                          className="!py-1.5 text-xs"
+                        />
+                        <Input
+                          label="Weight (kg)"
+                          placeholder="e.g. 68"
+                          value={vitalWeight}
+                          onChange={e => setVitalWeight(e.target.value)}
+                          className="!py-1.5 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <Button type="submit" size="sm" isLoading={visitSaving} className="bg-emerald-600 hover:bg-emerald-700 text-xs flex items-center gap-1.5">
+                        <CheckCircle className="h-3.5 w-3.5" /> Save Visit Intake Record
+                      </Button>
+                    </div>
+                  </form>
                 </div>
-                {isWithin5Days ? (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" /> Fee Exempted: Followup within {daysDifference <= 1 ? '1 day' : `${daysDifference} days`}.
-                  </p>
-                ) : (
-                  <p className="text-[10px] text-slate-450 font-semibold mt-1">
-                    Standard doctor consultation fee applied.
-                  </p>
+
+                {/* Recent Visits History list */}
+                {patientPastVisits.length > 0 && (
+                  <div className="p-3 bg-white dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Recent Recorded Visits ({patientPastVisits.length})
+                    </p>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                      {patientPastVisits.slice(0, 3).map((v: any) => (
+                        <div key={v.id} className="p-2 rounded-lg bg-slate-50 dark:bg-dark-900 border border-slate-100 dark:border-slate-800 text-[11px] flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">{v.visitType?.replace('_', ' ')}: </span>
+                            <span className="text-slate-600 dark:text-slate-400">{v.reasonForVisit}</span>
+                            <div className="text-[10px] text-slate-450 mt-0.5 flex gap-2">
+                              <span>BP: {v.bp || 'N/A'}</span>
+                              <span>Temp: {v.temperature || 'N/A'}°F</span>
+                              <span>Pulse: {v.pulse || 'N/A'}</span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            {new Date(v.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <Button type="submit" disabled={!selectedDoctorId} className="flex items-center gap-2 shadow-md">
-                <Printer className="h-4 w-4" /> Issue OPD Token & Print Slip
-              </Button>
+              {/* Right Column: OPD Token Fee Calculation & Issue Slip (5 cols) */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="p-4 bg-white dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3.5">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-850 pb-2">
+                    <h4 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                      <Ticket className="h-4 w-4 text-brand-500" /> OPD Doctor Queue Token
+                    </h4>
+                    <span className="text-[10px] text-slate-450">5-Day Exemption Engine</span>
+                  </div>
+
+                  <form onSubmit={handleGenerateToken} className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Select Doctor
+                      </label>
+                      <select
+                        required
+                        value={selectedDoctorId}
+                        onChange={e => {
+                          setSelectedDoctorId(e.target.value);
+                          const d = doctors.find(doc => String(doc.id) === e.target.value);
+                          if (d) {
+                            setSelectedDoctor(d);
+                            setSelectedDepartmentId(String(d.departmentId || '1'));
+                            setChargedFee(isWithin5Days ? 0 : (Number(d.consultationFee) || 1500));
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+                      >
+                        <option value="">-- Select Doctor --</option>
+                        {doctors.map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.user?.name || d.name || `Dr. #${d.id}`} - Rs. {d.consultationFee || 1500}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Fee Calculation Badge */}
+                    <div className="p-3 bg-slate-50 dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Consultation Fee:</span>
+                        <span className={`text-lg font-black ${isWithin5Days ? 'text-emerald-600' : 'text-brand-600'}`}>
+                          Rs. {chargedFee.toLocaleString()}
+                        </span>
+                      </div>
+                      {isWithin5Days ? (
+                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold flex items-center gap-1.5">
+                          <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>Follow-up within 5 days ({daysDifference <= 1 ? '1 day' : `${daysDifference} days`}) - Free OPD Token</span>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-450">
+                          {daysDifference === 999 ? 'First visit on record' : `Last checked ${daysDifference} days ago (exceeds 5-day limit)`}. Standard consultation fee applies.
+                        </p>
+                      )}
+                    </div>
+
+                    <Button type="submit" disabled={!selectedDoctorId} className="w-full flex items-center justify-center gap-2 shadow-md">
+                      <Printer className="h-4 w-4" /> Issue Token & Print Slip
+                    </Button>
+                  </form>
+                </div>
+              </div>
             </div>
-          </form>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {/* Print Thermal Token Slip Modal */}

@@ -6,7 +6,8 @@ import {
   Receipt, Plus, CreditCard, Eye, ShieldCheck, Printer, Trash,
   DollarSign, Activity, Clock, Stethoscope, Bed, Sparkles, Check,
   Search, Pill, Beaker, FileText, UserCheck, HeartPulse, CheckCircle2,
-  AlertCircle, ChevronRight, Filter, TrendingUp, Wallet
+  AlertCircle, ChevronRight, Filter, TrendingUp, Wallet, Undo2, RotateCcw,
+  Ban, Percent, HelpCircle
 } from 'lucide-react';
 
 const escapeHtml = (str: any): string => {
@@ -35,7 +36,7 @@ export const Billing: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [mrSearch, setMrSearch] = useState('');
   const [receptionistDiscount, setReceptionistDiscount] = useState<number | ''>('');
-  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid' | 'voided'>('all');
 
   // Printable Bill Receipt Modal
   const [isPrintReceiptOpen, setIsPrintReceiptOpen] = useState(false);
@@ -46,6 +47,19 @@ export const Billing: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
+  // Void Invoice Modal State
+  const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+  const [voidingInvoice, setVoidingInvoice] = useState<any>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidLoading, setVoidLoading] = useState(false);
+
+  // Issue Refund Modal State
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [refundingInvoice, setRefundingInvoice] = useState<any>(null);
+  const [refundAmount, setRefundAmount] = useState<number | ''>('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundLoading, setRefundLoading] = useState(false);
+
   // Admit Patient Deposit Settlement Modal
   const [isAdmissionPayOpen, setIsAdmissionPayOpen] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState<any>(null);
@@ -54,6 +68,7 @@ export const Billing: React.FC = () => {
   // Custom Invoice Creation State
   const [customPatientId, setCustomPatientId] = useState('');
   const [customDiscount, setCustomDiscount] = useState(0);
+  const [customTaxRate, setCustomTaxRate] = useState(0);
   const [invoiceLines, setInvoiceLines] = useState<Array<{ itemName: string; itemCategory: string; unitPrice: number; quantity: number }>>([
     { itemName: '', itemCategory: 'Consultation', unitPrice: 0, quantity: 1 }
   ]);
@@ -259,7 +274,7 @@ export const Billing: React.FC = () => {
 
     const printWindow = window.open('', '_blank', 'width=780,height=900');
     if (!printWindow) {
-      alert('Pop-up window was blocked by your browser. Please allow pop-ups for LifeFlow EMR to print billing receipts automatically.');
+      alert('Pop-up window was blocked by your browser. Please allow pop-ups for Dr. Talha Clinic EMR to print billing receipts automatically.');
       return;
     }
 
@@ -368,6 +383,7 @@ export const Billing: React.FC = () => {
       await apiClient.post('/invoices', {
         patientId: Number(customPatientId),
         discount: Number(customDiscount),
+        tax: Number(customTaxRate),
         items: validLines.map(l => ({
           description: l.itemName,
           category: l.itemCategory,
@@ -381,6 +397,70 @@ export const Billing: React.FC = () => {
       alert('Custom Billing Invoice Created Successfully!');
     } catch (err: any) {
       alert(`Failed to create invoice: ${err.message}`);
+    }
+  };
+
+  // Void Invoice Handler
+  const handleOpenVoidModal = (inv: any) => {
+    setVoidingInvoice(inv);
+    setVoidReason('');
+    setIsVoidModalOpen(true);
+  };
+
+  const handleExecuteVoid = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!voidingInvoice) return;
+    if (!voidReason.trim()) {
+      alert('Please specify an official reason for voiding this invoice.');
+      return;
+    }
+
+    setVoidLoading(true);
+    try {
+      await apiClient.post(`/invoices/${voidingInvoice.id}/void`, {
+        reason: voidReason.trim()
+      });
+      alert('✅ Invoice successfully marked as VOIDED.');
+      setIsVoidModalOpen(false);
+      setVoidingInvoice(null);
+      fetchBillingData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to void invoice.');
+    } finally {
+      setVoidLoading(false);
+    }
+  };
+
+  // Issue Refund Handler
+  const handleOpenRefundModal = (inv: any) => {
+    setRefundingInvoice(inv);
+    const maxRefund = Number(inv.paidAmount || 0);
+    setRefundAmount(maxRefund);
+    setRefundReason('');
+    setIsRefundModalOpen(true);
+  };
+
+  const handleExecuteRefund = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!refundingInvoice || !refundAmount || Number(refundAmount) <= 0) {
+      alert('Please enter a valid refund amount.');
+      return;
+    }
+
+    setRefundLoading(true);
+    try {
+      await apiClient.post(`/invoices/${refundingInvoice.id}/refund`, {
+        amount: Number(refundAmount),
+        reason: refundReason.trim()
+      });
+      alert(`✅ Successfully processed customer refund of Rs. ${Number(refundAmount).toLocaleString()}.`);
+      setIsRefundModalOpen(false);
+      setRefundingInvoice(null);
+      fetchBillingData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to process refund.');
+    } finally {
+      setRefundLoading(false);
     }
   };
 
@@ -411,8 +491,9 @@ export const Billing: React.FC = () => {
   };
 
   const filteredInvoices = invoices.filter(inv => {
-    if (invoiceFilter === 'paid') return inv.status === 'paid' || Number(inv.paidAmount || 0) >= Number(inv.grandTotal || inv.totalAmount || 0);
-    if (invoiceFilter === 'unpaid') return inv.status !== 'paid' && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0);
+    if (invoiceFilter === 'voided') return inv.isVoided || inv.status === 'voided';
+    if (invoiceFilter === 'paid') return !inv.isVoided && (inv.status === 'paid' || Number(inv.paidAmount || 0) >= Number(inv.grandTotal || inv.totalAmount || 0));
+    if (invoiceFilter === 'unpaid') return !inv.isVoided && inv.status !== 'paid' && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0);
     return true;
   });
 
@@ -681,7 +762,7 @@ export const Billing: React.FC = () => {
             </div>
 
             {/* Invoice Filter Pills */}
-            <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold">
+            <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold flex-wrap">
               <button
                 onClick={() => setInvoiceFilter('all')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
@@ -712,23 +793,39 @@ export const Billing: React.FC = () => {
               >
                 Unpaid / Partial
               </button>
+              <button
+                onClick={() => setInvoiceFilter('voided')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  invoiceFilter === 'voided'
+                    ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Voided
+              </button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredInvoices.length === 0 ? (
               <div className="col-span-full p-8 text-center text-slate-400 text-xs">
-                No invoices found in ledger history.
+                No invoices found in ledger history matching filter.
               </div>
             ) : (
               filteredInvoices.map((inv: any) => {
                 const total = Number(inv.grandTotal || inv.totalAmount || 0);
                 const paid = Number(inv.paidAmount || 0);
+                const refunded = Number(inv.refundAmount || 0);
                 const balance = Math.max(0, total - paid);
-                const isPaidFull = balance === 0;
+                const isVoided = inv.isVoided || inv.status === 'voided';
+                const isPaidFull = balance === 0 && !isVoided;
 
                 return (
-                  <Card key={inv.id} className="p-4 border border-slate-200/80 dark:border-slate-800 space-y-3 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/30 transition-all rounded-xl">
+                  <Card key={inv.id} className={`p-4 border space-y-3 transition-all rounded-xl ${
+                    isVoided
+                      ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/20 opacity-85'
+                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/30'
+                  }`}>
                     <div className="flex justify-between items-start">
                       <div>
                         <span className="text-[9px] font-mono font-bold bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
@@ -740,9 +837,22 @@ export const Billing: React.FC = () => {
                         <p className="text-[10px] text-slate-500 font-mono">MRN: {inv.patient?.mrNumber || 'N/A'}</p>
                       </div>
 
-                      <Badge type={isPaidFull ? 'success' : 'danger'} className="text-[10px] font-bold uppercase">
-                        {isPaidFull ? 'PAID' : 'UNPAID'}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        {isVoided ? (
+                          <Badge type="error" className="text-[10px] font-bold uppercase">
+                            VOIDED
+                          </Badge>
+                        ) : (
+                          <Badge type={isPaidFull ? 'success' : 'danger'} className="text-[10px] font-bold uppercase">
+                            {isPaidFull ? 'PAID' : 'UNPAID'}
+                          </Badge>
+                        )}
+                        {refunded > 0 && (
+                          <span className="text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
+                            Refunded: Rs. {refunded.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="p-2.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200/60 dark:border-slate-850 font-mono text-xs space-y-1">
@@ -758,19 +868,45 @@ export const Billing: React.FC = () => {
                         <span>Amount Paid:</span>
                         <span>Rs. {paid.toLocaleString()}</span>
                       </div>
-                      {balance > 0 && (
+                      {!isVoided && balance > 0 && (
                         <div className="flex justify-between text-rose-500 font-bold text-[11px] border-t border-slate-100 dark:border-slate-850 pt-1">
                           <span>Balance Due:</span>
                           <span>Rs. {balance.toLocaleString()}</span>
                         </div>
                       )}
+                      {isVoided && inv.voidReason && (
+                        <p className="text-[10px] text-rose-600 font-sans italic border-t border-rose-200 dark:border-rose-900/40 pt-1">
+                          Reason: {inv.voidReason}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-1">
-                      {balance > 0 && (
-                        <Button onClick={() => handlePayClick(inv)} size="sm" className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-lg text-xs flex items-center gap-1">
-                          <CreditCard className="h-3.5 w-3.5" /> Settle Payment
+                    {/* Action Toolbar */}
+                    <div className="flex justify-end items-center gap-1.5 pt-1 flex-wrap">
+                      {!isVoided && balance > 0 && (
+                        <Button onClick={() => handlePayClick(inv)} size="sm" className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1">
+                          <CreditCard className="h-3 w-3" /> Pay
                         </Button>
+                      )}
+
+                      {!isVoided && paid > 0 && (
+                        <button
+                          onClick={() => handleOpenRefundModal(inv)}
+                          title="Process refund for this payment"
+                          className="p-1 px-2 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 hover:bg-purple-600 hover:text-white rounded-lg border border-purple-200 dark:border-purple-800 text-[10px] font-bold transition-all flex items-center gap-1"
+                        >
+                          <RotateCcw className="h-3 w-3" /> Refund
+                        </button>
+                      )}
+
+                      {!isVoided && (
+                        <button
+                          onClick={() => handleOpenVoidModal(inv)}
+                          title="Void / Cancel this invoice"
+                          className="p-1 px-2 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 dark:border-rose-800 text-[10px] font-bold transition-all flex items-center gap-1"
+                        >
+                          <Ban className="h-3 w-3" /> Void
+                        </button>
                       )}
                     </div>
                   </Card>
@@ -891,13 +1027,24 @@ export const Billing: React.FC = () => {
             </select>
           </div>
 
-          <Input
-            label="Special Discount Amount (Rs.)"
-            type="number"
-            min="0"
-            value={customDiscount}
-            onChange={e => setCustomDiscount(Number(e.target.value))}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Special Discount (Rs.)"
+              type="number"
+              min="0"
+              value={customDiscount}
+              onChange={e => setCustomDiscount(Number(e.target.value))}
+            />
+            <Input
+              label="Tax Rate (%) - Optional"
+              type="number"
+              min="0"
+              max="100"
+              value={customTaxRate}
+              onChange={e => setCustomTaxRate(Number(e.target.value))}
+              placeholder="e.g. 16"
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Invoice Items List</label>
@@ -989,6 +1136,108 @@ export const Billing: React.FC = () => {
             Confirm Cash Payment Collection
           </Button>
         </form>
+      </Modal>
+
+      {/* MODAL: VOID INVOICE */}
+      <Modal
+        isOpen={isVoidModalOpen}
+        onClose={() => setIsVoidModalOpen(false)}
+        title={`Void Invoice #${voidingInvoice?.id}`}
+      >
+        {voidingInvoice && (
+          <form onSubmit={handleExecuteVoid} className="space-y-4">
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs space-y-1">
+              <span className="font-extrabold text-rose-800 dark:text-rose-300 block">
+                ⚠️ Caution: Voiding this Invoice is irreversible.
+              </span>
+              <p className="text-slate-600 dark:text-slate-400">
+                Patient: <strong>{voidingInvoice.patient?.name || `ID #${voidingInvoice.patientId}`}</strong> (MRN: {voidingInvoice.patient?.mrNumber || 'N/A'})
+              </p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Amount: <strong>Rs. {Number(voidingInvoice.grandTotal || voidingInvoice.totalAmount || 0).toLocaleString()}</strong>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Official Void Reason <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={voidReason}
+                onChange={e => setVoidReason(e.target.value)}
+                placeholder="e.g. Duplicate invoice entry, billing error, cancelled consultation, incorrect charge applied..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <Button type="button" variant="secondary" onClick={() => setIsVoidModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={voidLoading} className="bg-rose-600 hover:bg-rose-700">
+                Confirm Void Invoice
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* MODAL: ISSUE REFUND */}
+      <Modal
+        isOpen={isRefundModalOpen}
+        onClose={() => setIsRefundModalOpen(false)}
+        title={`Process Refund for Invoice #${refundingInvoice?.id}`}
+      >
+        {refundingInvoice && (
+          <form onSubmit={handleExecuteRefund} className="space-y-4">
+            <div className="p-3 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 rounded-xl text-xs space-y-1">
+              <span className="font-extrabold text-purple-800 dark:text-purple-300 block">
+                💰 Patient Payment Refund Settlement
+              </span>
+              <p className="text-slate-600 dark:text-slate-400">
+                Patient: <strong>{refundingInvoice.patient?.name || `ID #${refundingInvoice.patientId}`}</strong>
+              </p>
+              <p className="text-slate-600 dark:text-slate-400">
+                Total Paid: <strong>Rs. {Number(refundingInvoice.paidAmount || 0).toLocaleString()}</strong>
+              </p>
+            </div>
+
+            <Input
+              label="Refund Amount (Rs.) *"
+              type="number"
+              min="1"
+              max={Number(refundingInvoice.paidAmount || 0)}
+              required
+              value={refundAmount}
+              onChange={e => setRefundAmount(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Refund Reason / Audit Notes <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={refundReason}
+                onChange={e => setRefundReason(e.target.value)}
+                placeholder="e.g. Test cancelled by physician, patient discharged early, overpayment settlement..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <Button type="button" variant="secondary" onClick={() => setIsRefundModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={refundLoading} className="bg-purple-600 hover:bg-purple-700">
+                Confirm & Issue Refund
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

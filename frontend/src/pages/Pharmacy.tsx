@@ -5,14 +5,15 @@ import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   Pill, Plus, ShoppingBag, Trash2, Package, Layers, Edit3,
   UserCheck, BedDouble, Check, AlertTriangle, Search, Syringe, Filter,
-  FileText, CheckCircle2, Receipt, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Minus
+  FileText, CheckCircle2, Receipt, ArrowRight, ShieldCheck, Sparkles, AlertCircle, Minus,
+  History, TrendingUp, TrendingDown, ArrowDownRight, ArrowUpRight, BarChart3
 } from 'lucide-react';
 
 export const Pharmacy: React.FC = () => {
   const { user } = useAuth();
 
-  // Primary Tab: 'patient' | 'store'
-  const [mainTab, setMainTab] = useState<'patient' | 'store'>('patient');
+  // Primary Tab: 'patient' | 'store' | 'ledger'
+  const [mainTab, setMainTab] = useState<'patient' | 'store' | 'ledger'>('patient');
 
   // Patient Sub-Tab: 'today' | 'admit'
   const [patientSubTab, setPatientSubTab] = useState<'today' | 'admit'>('today');
@@ -20,6 +21,9 @@ export const Pharmacy: React.FC = () => {
   const [medicines, setMedicines] = useState<any[]>([]);
   const [todayPatients, setTodayPatients] = useState<any[]>([]);
   const [admitPatients, setAdmitPatients] = useState<any[]>([]);
+  const [stockMovements, setStockMovements] = useState<any[]>([]);
+  const [movementFilter, setMovementFilter] = useState('all');
+  const [movementLoading, setMovementLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Patient Dispensing State
@@ -108,8 +112,21 @@ export const Pharmacy: React.FC = () => {
     }
   };
 
+  const fetchMovements = async () => {
+    setMovementLoading(true);
+    try {
+      const data = await apiClient.get('/medicines/stock-movements');
+      setStockMovements(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching stock movements', err);
+    } finally {
+      setMovementLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPharmacyData();
+    fetchMovements();
   }, []);
 
   useEffect(() => {
@@ -342,33 +359,53 @@ export const Pharmacy: React.FC = () => {
               </div>
             </div>
 
-            {/* Dedicated Action Buttons (Hidden for Nurse to maintain pure focus on Admitted Patient care) */}
+            {/* Dedicated Action Buttons */}
             {user?.role !== 'nurse' && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
                 <button
                   type="button"
-                  onClick={() => setMainTab(mainTab === 'patient' ? 'store' : 'patient')}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm border whitespace-nowrap ${
-                    mainTab === 'store'
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-emerald-900/20'
-                      : 'bg-brand-600 hover:bg-brand-500 text-white border-brand-500 shadow-brand-900/20'
+                  onClick={() => setMainTab('patient')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm border whitespace-nowrap ${
+                    mainTab === 'patient'
+                      ? 'bg-brand-600 text-white border-brand-500 shadow-brand-900/20'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
                   }`}
                 >
-                  {mainTab === 'patient' ? (
-                    <>
-                      <Package className="h-4 w-4" />
-                      <span>Store Inventory ({medicines.length})</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="h-4 w-4" />
-                      <span>← Dispensing Console</span>
-                    </>
-                  )}
+                  <UserCheck className="h-4 w-4" />
+                  <span>Dispense Console</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMainTab('store')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm border whitespace-nowrap ${
+                    mainTab === 'store'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-900/20'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                  }`}
+                >
+                  <Package className="h-4 w-4" />
+                  <span>Store Inventory ({medicines.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMainTab('ledger');
+                    fetchMovements();
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm border whitespace-nowrap ${
+                    mainTab === 'ledger'
+                      ? 'bg-amber-600 text-white border-amber-500 shadow-amber-900/20'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                  }`}
+                >
+                  <History className="h-4 w-4" />
+                  <span>Stock Ledger</span>
                 </button>
 
                 {isSysAdmin && mainTab === 'store' && (
-                  <Button onClick={() => setIsAddMedOpen(true)} className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-xs border border-brand-500">
+                  <Button onClick={() => setIsAddMedOpen(true)} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-xs border border-brand-500">
                     <Plus className="h-4 w-4" />
                     <span>Add Stock</span>
                   </Button>
@@ -386,7 +423,9 @@ export const Pharmacy: React.FC = () => {
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
             {mainTab === 'patient'
               ? (user?.role === 'nurse' ? 'Nurse Admitted Inpatient Medication Console' : user?.role === 'pharmacist' ? 'Pharmacist OPD Prescription Dispensing Console' : 'Patient Medication Dispensing Console')
-              : 'Store Inventory & Stock Register'}
+              : mainTab === 'store'
+              ? 'Store Inventory & Stock Register'
+              : 'Pharmacy Stock Movement & Inventory Ledger'}
           </h2>
         </div>
 
@@ -839,6 +878,153 @@ export const Pharmacy: React.FC = () => {
                       </tr>
                     );
                   })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 3: PHARMACY STOCK MOVEMENT & AUDIT LEDGER */}
+      {/* ======================================================== */}
+      {mainTab === 'ledger' && (
+        <Card className="p-0 border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/50 dark:bg-dark-950/40">
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <History className="h-4 w-4 text-amber-500" />
+                Live Stock Movement & Audit Ledger ({stockMovements.length} Records)
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Complete historical tracking of inventory additions, POS prescription sales, and manual adjustments.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={movementFilter}
+                onChange={e => setMovementFilter(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white font-medium"
+              >
+                <option value="all">All Movement Types</option>
+                <option value="purchase_addition">📥 Purchases & Stock Additions</option>
+                <option value="sale_dispense">📤 Patient Sales & Dispenses</option>
+                <option value="adjustment_increase">📈 Manual Increase (+)</option>
+                <option value="adjustment_decrease">📉 Manual Decrease (-)</option>
+              </select>
+
+              <Button onClick={fetchMovements} variant="secondary" size="sm" className="flex items-center gap-1">
+                <History className="h-3.5 w-3.5" /> Refresh Ledger
+              </Button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-dark-950/20 text-slate-450 uppercase text-[10px] tracking-wider">
+                  <th className="px-5 py-3.5">Date & Time</th>
+                  <th className="px-5 py-3.5">Medicine Name</th>
+                  <th className="px-5 py-3.5">Movement Type</th>
+                  <th className="px-5 py-3.5">Qty Change</th>
+                  <th className="px-5 py-3.5">Unit Price & Value</th>
+                  <th className="px-5 py-3.5">Patient / Context</th>
+                  <th className="px-5 py-3.5">Staff Logger</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
+                {movementLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
+                      Loading inventory movement ledger...
+                    </td>
+                  </tr>
+                ) : stockMovements.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
+                      No stock movements recorded yet in this system.
+                    </td>
+                  </tr>
+                ) : (
+                  stockMovements
+                    .filter(m => movementFilter === 'all' || m.movementType === movementFilter)
+                    .map((mv: any) => {
+                      const isAddition = mv.movementType === 'purchase_addition' || mv.movementType === 'adjustment_increase';
+                      const typeLabel =
+                        mv.movementType === 'purchase_addition'
+                          ? 'Stock Addition'
+                          : mv.movementType === 'sale_dispense'
+                          ? 'Prescription Sale'
+                          : mv.movementType === 'adjustment_increase'
+                          ? 'Audit Increase'
+                          : 'Audit Decrease';
+
+                      const badgeType =
+                        mv.movementType === 'purchase_addition'
+                          ? 'success'
+                          : mv.movementType === 'sale_dispense'
+                          ? 'info'
+                          : mv.movementType === 'adjustment_increase'
+                          ? 'purple'
+                          : 'error';
+
+                      return (
+                        <tr key={mv.id} className="hover:bg-slate-50/50 dark:hover:bg-dark-900/50">
+                          <td className="px-5 py-3.5 font-mono text-[11px] text-slate-500">
+                            {new Date(mv.createdAt).toLocaleDateString()}{' '}
+                            <span className="text-[10px] text-slate-400">
+                              {new Date(mv.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className="font-bold text-slate-900 dark:text-slate-100 block">
+                              {mv.medicine?.name || `Medicine #${mv.medicineId}`}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              Batch: {mv.batchNumber || mv.medicine?.batchNumber || 'N/A'} • {mv.medicine?.category || 'Pharmacy'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <Badge type={badgeType}>{typeLabel}</Badge>
+                          </td>
+                          <td className="px-5 py-3.5 font-mono font-black text-sm">
+                            <span className={isAddition ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                              {isAddition ? `+${mv.quantity}` : `-${Math.abs(mv.quantity)}`}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 font-mono">
+                            <span className="text-slate-900 dark:text-slate-100 font-bold block text-xs">
+                              Rs. {Number((mv.unitPrice || 0) * Math.abs(mv.quantity)).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              @ Rs. {Number(mv.unitPrice || 0).toLocaleString()} / unit
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {mv.patient ? (
+                              <div>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
+                                  {mv.patient.name}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  MRN: {mv.patient.mrNumber || 'N/A'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] italic">
+                                {mv.reason || 'Store Stock Operation'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className="text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                              {mv.user?.name || 'System Staff'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                 )}
               </tbody>
             </table>

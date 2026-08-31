@@ -78,7 +78,7 @@ export class BackupService {
     const tableNames: string[] = tablesResult.map((r: any) => r[tableKey]).filter(Boolean);
 
     let sql = `-- ========================================================\n`;
-    sql += `-- Dr. Talha Clinic (LifeFlow HMS) Pure Database Backup\n`;
+    sql += `-- Dr. Talha Clinic HMS Pure Database Backup\n`;
     sql += `-- Generated At: ${new Date().toISOString()}\n`;
     sql += `-- Database: ${process.env.DB_NAME || 'u526981273_drtalha_db'}\n`;
     sql += `-- ========================================================\n\n`;

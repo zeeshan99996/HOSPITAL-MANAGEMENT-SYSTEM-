@@ -273,7 +273,7 @@ export const DoctorsSchedule: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Email Address" type="email" required placeholder="doctor@lifeflow.com" value={email} onChange={e => setEmail(e.target.value)} />
+            <Input label="Email Address" type="email" required placeholder="doctor@drtalhaclinic.com" value={email} onChange={e => setEmail(e.target.value)} />
             <Input label="Mobile Phone" required placeholder="0311-1234567" value={phone} onChange={e => setPhone(e.target.value)} />
           </div>
 

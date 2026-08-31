@@ -1,6 +1,6 @@
-# LifeFlow Hospital EMR - AI Chatbot & Agent Stack Documentation
+# Dr. Talha Clinic EMR - AI Chatbot & Agent Stack Documentation
 
-This document outlines the detailed architecture, technology stack, model configurations, API integration layer, and role-based access control (RBAC) guardrails used for the AI Chatbot and Database Agents in the LifeFlow Hospital Management System (HMS).
+This document outlines the detailed architecture, technology stack, model configurations, API integration layer, and role-based access control (RBAC) guardrails used for the AI Chatbot and Database Agents in the Dr. Talha Clinic Hospital Management System (HMS).
 
 ---
 
@@ -30,7 +30,7 @@ The backend connects to **OpenRouter** to query LLM candidate models. It employs
 ### API Key Configuration
 *   **Environment variable**: `OPENROUTER_API_KEY`
 *   **Referer Header**: `http://localhost:5000`
-*   **App Identification**: `LifeFlow HMS Chatbot`
+*   **App Identification**: `Dr. Talha Clinic Assistant`
 
 ---
 

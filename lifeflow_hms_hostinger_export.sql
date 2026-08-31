@@ -1,4 +1,4 @@
--- LifeFlow Hospital Management System - Hostinger MySQL Database Dump
+-- Dr. Talha Clinic Hospital Management System - Hostinger MySQL Database Dump
 -- Target Database: u526981273_BfYkc
 -- Generated: 2026-08-13T09:44:08.525Z
 
@@ -56,7 +56,7 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table `users`
-INSERT INTO `users` (`id`, `supabase_user_id`, `name`, `email`, `password`, `role`, `phone`, `status`, `roleId`, `createdAt`, `updatedAt`, `deletedAt`) VALUES (1, 'ea375640-2859-4f14-8cf4-2aa5d2a9b7aa', 'System Admin', 'admin@lifeflow.com', '$2a$10$DuFC5A/NlyFt0CqIFdSIGONTgvWd0LussmmYWSgq3fgbAD3mDzLlu', 'admin', '0300-1234567', 'active', NULL, '2026-08-12 13:06:32.600 +00:00', '2026-08-12 13:06:32.600 +00:00', NULL);
+INSERT INTO `users` (`id`, `supabase_user_id`, `name`, `email`, `password`, `role`, `phone`, `status`, `roleId`, `createdAt`, `updatedAt`, `deletedAt`) VALUES (1, 'ea375640-2859-4f14-8cf4-2aa5d2a9b7aa', 'System Admin', 'admin@drtalhaclinic.com', '$2a$10$DuFC5A/NlyFt0CqIFdSIGONTgvWd0LussmmYWSgq3fgbAD3mDzLlu', 'admin', '0300-1234567', 'active', NULL, '2026-08-12 13:06:32.600 +00:00', '2026-08-12 13:06:32.600 +00:00', NULL);
 INSERT INTO `users` (`id`, `supabase_user_id`, `name`, `email`, `password`, `role`, `phone`, `status`, `roleId`, `createdAt`, `updatedAt`, `deletedAt`) VALUES (2, '17439996-cd37-4f63-8230-3adc644c6aea', 'System Admin', 'admin@gmail.com', '$2a$10$2XCKhJDJjpsYPUuOa9RZJeY.M1Z9DjyNZE3sheGZDnGOGNkrQKSL.', 'admin', '0300-1234567', 'active', NULL, '2026-08-12 13:06:33.064 +00:00', '2026-08-12 13:06:33.064 +00:00', NULL);
 
 -- Table structure for table `system_users`
@@ -77,7 +77,7 @@ CREATE TABLE `system_users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table `system_users`
-INSERT INTO `system_users` (`id`, `supabase_user_id`, `name`, `email`, `password`, `phone`, `role`, `status`, `createdAt`, `updatedAt`, `deletedAt`) VALUES (1, 'ea375640-2859-4f14-8cf4-2aa5d2a9b7aa', 'System Admin', 'admin@lifeflow.com', '$2a$10$P35dgXcnbUHV8hEe.dgJ5uWuKstOfyOJ50OBQDZ29I.SY03MkcA8a', '0300-1234567', 'admin', 'active', '2026-08-12 13:53:58.544 +00:00', '2026-08-12 13:53:58.544 +00:00', NULL);
+INSERT INTO `system_users` (`id`, `supabase_user_id`, `name`, `email`, `password`, `phone`, `role`, `status`, `createdAt`, `updatedAt`, `deletedAt`) VALUES (1, 'ea375640-2859-4f14-8cf4-2aa5d2a9b7aa', 'System Admin', 'admin@drtalhaclinic.com', '$2a$10$P35dgXcnbUHV8hEe.dgJ5uWuKstOfyOJ50OBQDZ29I.SY03MkcA8a', '0300-1234567', 'admin', 'active', '2026-08-12 13:53:58.544 +00:00', '2026-08-12 13:53:58.544 +00:00', NULL);
 INSERT INTO `system_users` (`id`, `supabase_user_id`, `name`, `email`, `password`, `phone`, `role`, `status`, `createdAt`, `updatedAt`, `deletedAt`) VALUES (2, '17439996-cd37-4f63-8230-3adc644c6aea', 'System Admin', 'admin@gmail.com', '$2a$10$L.qtE0fJf4e3.A5xZ.w4IuufF9ss2bA5bImh.RQWN8amChJ8LJNNO', '0300-1234567', 'admin', 'active', '2026-08-12 13:53:59.251 +00:00', '2026-08-12 13:53:59.251 +00:00', NULL);
 
 -- Table structure for table `staff`

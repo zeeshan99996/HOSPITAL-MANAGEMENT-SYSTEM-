@@ -302,6 +302,11 @@ export class Admission extends Model {
   declare baselineCost: number;
   declare advancePaid: number;
   declare discount: number;
+  declare dischargeSummary: string | null;
+  declare dischargeCondition: string | null;
+  declare homeMedications: string | null;
+  declare transferredFromBedId: number | null;
+  declare transferReason: string | null;
   declare patient?: Patient;
   declare doctor?: Doctor;
   declare bed?: Bed;
@@ -324,6 +329,11 @@ Admission.init(
     baselineCost: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
     advancePaid: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
     discount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
+    dischargeSummary: { type: DataTypes.TEXT, allowNull: true },
+    dischargeCondition: { type: DataTypes.STRING, allowNull: true },
+    homeMedications: { type: DataTypes.TEXT, allowNull: true },
+    transferredFromBedId: { type: DataTypes.INTEGER, allowNull: true },
+    transferReason: { type: DataTypes.STRING, allowNull: true },
   },
   { sequelize, modelName: 'admission' }
 );
@@ -516,7 +526,12 @@ export class Invoice extends Model {
   declare tax: number;
   declare grandTotal: number;
   declare paidAmount: number;
-  declare status: 'unpaid' | 'partially_paid' | 'paid';
+  declare status: 'unpaid' | 'partially_paid' | 'paid' | 'voided';
+  declare isVoided: boolean;
+  declare voidReason: string | null;
+  declare refundAmount: number;
+  declare refundReason: string | null;
+  declare refundDate: Date | null;
   declare insuranceClaimed: boolean;
   declare paymentMethod: 'cash' | 'card' | 'online' | 'pending';
   declare patient?: Patient;
@@ -532,9 +547,14 @@ Invoice.init(
     tax: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
     grandTotal: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
     paidAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
-    status: { type: DataTypes.ENUM('unpaid', 'partially_paid', 'paid'), defaultValue: 'unpaid' },
+    status: { type: DataTypes.STRING, defaultValue: 'unpaid' },
+    isVoided: { type: DataTypes.BOOLEAN, defaultValue: false },
+    voidReason: { type: DataTypes.TEXT, allowNull: true },
+    refundAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
+    refundReason: { type: DataTypes.TEXT, allowNull: true },
+    refundDate: { type: DataTypes.DATE, allowNull: true },
     insuranceClaimed: { type: DataTypes.BOOLEAN, defaultValue: false },
-    paymentMethod: { type: DataTypes.ENUM('cash', 'card', 'online', 'pending'), defaultValue: 'pending' },
+    paymentMethod: { type: DataTypes.STRING, defaultValue: 'pending' },
   },
   { sequelize, modelName: 'invoice', paranoid: true }
 );
@@ -736,7 +756,8 @@ export class TokenQueue extends Model {
   declare type: 'opd' | 'lab' | 'billing';
   declare patientId: number;
   declare doctorId: number | null;
-  declare status: 'waiting' | 'processing' | 'completed' | 'skipped';
+  declare transferredToDoctorId: number | null;
+  declare status: 'waiting' | 'processing' | 'completed' | 'skipped' | 'recalled' | 'cancelled' | 'transferred' | 'no_show';
   declare waitingTime: number;
   declare detail: string;
   declare patient?: Patient;
@@ -746,10 +767,11 @@ TokenQueue.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     tokenNumber: { type: DataTypes.STRING, allowNull: false },
-    type: { type: DataTypes.ENUM('opd', 'lab', 'billing'), defaultValue: 'opd' },
+    type: { type: DataTypes.STRING, defaultValue: 'opd' },
     patientId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'patients', key: 'id' } },
     doctorId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'doctors', key: 'id' } },
-    status: { type: DataTypes.ENUM('waiting', 'processing', 'completed', 'skipped'), defaultValue: 'waiting' },
+    transferredToDoctorId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'doctors', key: 'id' } },
+    status: { type: DataTypes.STRING, defaultValue: 'waiting' },
     waitingTime: { type: DataTypes.INTEGER, defaultValue: 0 },
     detail: { type: DataTypes.STRING, allowNull: true }
   },
@@ -911,4 +933,130 @@ ClinicalTemplate.init(
 
 Doctor.hasMany(ClinicalTemplate, { foreignKey: 'doctorId', onDelete: 'CASCADE' });
 ClinicalTemplate.belongsTo(Doctor, { foreignKey: 'doctorId' });
+
+// ==========================================
+// 20. PATIENT VISIT / INTAKE MODEL
+// ==========================================
+export class PatientVisit extends Model {
+  declare id: number;
+  declare patientId: number;
+  declare doctorId: number | null;
+  declare departmentId: number | null;
+  declare visitDate: Date;
+  declare visitType: 'routine' | 'emergency' | 'followup' | 'consultation';
+  declare reasonForVisit: string;
+  declare diagnosisSummary: string | null;
+  declare notes: string | null;
+  declare bp: string | null;
+  declare temperature: number | null;
+  declare pulse: number | null;
+  declare weight: number | null;
+  declare readonly createdAt: Date;
+  declare patient?: Patient;
+  declare doctor?: Doctor;
+  declare department?: Department;
+}
+
+PatientVisit.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    patientId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'patients', key: 'id' } },
+    doctorId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'doctors', key: 'id' } },
+    departmentId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'departments', key: 'id' } },
+    visitDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    visitType: { type: DataTypes.STRING, defaultValue: 'consultation' },
+    reasonForVisit: { type: DataTypes.STRING, allowNull: false },
+    diagnosisSummary: { type: DataTypes.TEXT, allowNull: true },
+    notes: { type: DataTypes.TEXT, allowNull: true },
+    bp: { type: DataTypes.STRING, allowNull: true },
+    temperature: { type: DataTypes.DECIMAL(4, 1), allowNull: true },
+    pulse: { type: DataTypes.INTEGER, allowNull: true },
+    weight: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
+  },
+  { sequelize, modelName: 'patient_visit', tableName: 'patient_visits' }
+);
+
+Patient.hasMany(PatientVisit, { foreignKey: 'patientId', onDelete: 'CASCADE' });
+PatientVisit.belongsTo(Patient, { foreignKey: 'patientId' });
+PatientVisit.belongsTo(Doctor, { foreignKey: 'doctorId' });
+PatientVisit.belongsTo(Department, { foreignKey: 'departmentId' });
+
+// ==========================================
+// 21. PATIENT FEEDBACK & GRIEVANCES MODEL
+// ==========================================
+export class PatientFeedback extends Model {
+  declare id: number;
+  declare patientId: number;
+  declare feedbackType: 'consultation' | 'nursing' | 'pharmacy' | 'cleanliness' | 'billing' | 'general';
+  declare rating: number; // 1 to 5
+  declare comment: string;
+  declare priority: 'low' | 'medium' | 'high' | 'urgent';
+  declare status: 'pending' | 'reviewed' | 'resolved';
+  declare loggedBy: number | null;
+  declare resolutionNotes: string | null;
+  declare readonly createdAt: Date;
+  declare patient?: Patient;
+  declare logger?: User;
+}
+
+PatientFeedback.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    patientId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'patients', key: 'id' } },
+    feedbackType: { type: DataTypes.STRING, defaultValue: 'general' },
+    rating: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 5 },
+    comment: { type: DataTypes.TEXT, allowNull: false },
+    priority: { type: DataTypes.STRING, defaultValue: 'medium' },
+    status: { type: DataTypes.STRING, defaultValue: 'pending' },
+    loggedBy: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
+    resolutionNotes: { type: DataTypes.TEXT, allowNull: true },
+  },
+  { sequelize, modelName: 'patient_feedback', tableName: 'patient_feedbacks' }
+);
+
+Patient.hasMany(PatientFeedback, { foreignKey: 'patientId', onDelete: 'CASCADE' });
+PatientFeedback.belongsTo(Patient, { foreignKey: 'patientId' });
+PatientFeedback.belongsTo(User, { as: 'logger', foreignKey: 'loggedBy' });
+
+// ==========================================
+// 22. MEDICINE STOCK MOVEMENT AUDIT LEDGER
+// ==========================================
+export class MedicineStockMovement extends Model {
+  declare id: number;
+  declare medicineId: number;
+  declare movementType: 'stock_in' | 'dispense_sale' | 'return' | 'adjustment' | 'transfer';
+  declare quantity: number;
+  declare batchNumber: string | null;
+  declare expiryDate: string | null;
+  declare unitPrice: number;
+  declare referenceNote: string | null;
+  declare patientId: number | null;
+  declare createdById: number | null;
+  declare readonly createdAt: Date;
+  declare medicine?: Medicine;
+  declare patient?: Patient;
+  declare createdByUser?: User;
+}
+
+MedicineStockMovement.init(
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    medicineId: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'medicines', key: 'id' } },
+    movementType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'stock_in' },
+    quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+    batchNumber: { type: DataTypes.STRING, allowNull: true },
+    expiryDate: { type: DataTypes.DATEONLY, allowNull: true },
+    unitPrice: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.00 },
+    referenceNote: { type: DataTypes.TEXT, allowNull: true },
+    patientId: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'patients', key: 'id' } },
+    createdById: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'users', key: 'id' } },
+  },
+  { sequelize, modelName: 'medicine_stock_movement', tableName: 'medicine_stock_movements' }
+);
+
+Medicine.hasMany(MedicineStockMovement, { foreignKey: 'medicineId', onDelete: 'CASCADE' });
+MedicineStockMovement.belongsTo(Medicine, { foreignKey: 'medicineId' });
+MedicineStockMovement.belongsTo(Patient, { foreignKey: 'patientId' });
+MedicineStockMovement.belongsTo(User, { as: 'createdByUser', foreignKey: 'createdById' });
+
 

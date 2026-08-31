@@ -142,7 +142,7 @@ export const AIChatbotWidget: React.FC = () => {
         ...prev,
         {
           role: 'assistant',
-          content: `Failed to communicate with LifeFlow Copilot: ${err.message || 'Please check if server is running.'}`,
+          content: `Failed to communicate with Dr. Talha Clinic Assistant: ${err.message || 'Please check if server is running.'}`,
           isError: true
         }
       ]);
@@ -187,7 +187,7 @@ export const AIChatbotWidget: React.FC = () => {
                   <Bot className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold tracking-wide">LifeFlow Copilot</h3>
+                  <h3 className="text-xs font-bold tracking-wide">Dr. Talha Clinic Assistant</h3>
                   <span className="text-[10px] opacity-90 font-medium">
                     {roleDisplayNames[user.role] || 'Staff Mode'}
                   </span>

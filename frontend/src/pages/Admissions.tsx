@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
-import { BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope, Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText, CheckCircle2, ArrowRight, Trash2, Edit2 } from 'lucide-react';
+import {
+  BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope,
+  Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText,
+  CheckCircle2, ArrowRight, Trash2, Edit2, ArrowRightLeft, ShieldAlert
+} from 'lucide-react';
 
 export const Admissions: React.FC = () => {
   const { user } = useAuth();
@@ -41,10 +45,19 @@ export const Admissions: React.FC = () => {
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [selectedAdmission, setSelectedAdmission] = useState<any>(null);
 
+  // Bed / Ward Transfer Modal States
+  const [isTransferBedOpen, setIsTransferBedOpen] = useState(false);
+  const [transferTargetBedId, setTransferTargetBedId] = useState('');
+  const [transferReasonNote, setTransferReasonNote] = useState('');
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+
   // Discharge & Inpatient Billing Modal States
   const [isDischargeOpen, setIsDischargeOpen] = useState(false);
   const [dischargeDate, setDischargeDate] = useState('');
   const [dischargeNotes, setDischargeNotes] = useState('');
+  const [dischargeCondition, setDischargeCondition] = useState('stable');
+  const [dischargeSummary, setDischargeSummary] = useState('');
+  const [homeMedications, setHomeMedications] = useState('');
   const [dischargeStayDays, setDischargeStayDays] = useState(1);
   const [dischargeBedCharges, setDischargeBedCharges] = useState('2500');
   const [dischargeDoctorFee, setDischargeDoctorFee] = useState('1500');
@@ -390,8 +403,43 @@ export const Admissions: React.FC = () => {
     setDischargeAdvancePaid(adm.advancePaid ? String(adm.advancePaid) : '0');
     setDischargePaidAmount(adm.advancePaid ? String(adm.advancePaid) : '0');
     setDischargePaymentMethod('cash');
+    setDischargeCondition(adm.dischargeCondition || 'stable');
+    setDischargeSummary(adm.dischargeSummary || 'Patient showed satisfactory clinical progress during the inpatient stay. Vitals are stable, surgical incisions (if any) are healing well, and the patient is cleared for home discharge.');
+    setHomeMedications(adm.homeMedications || 'Tab Panadol 500mg 1 TDS x 5 Days\nCap Augmentin 625mg 1 BD x 5 Days\nTab Omeprazole 20mg 1 OD (Before Breakfast)');
     setDischargeNotes('Patient has completed the course of clinical treatment, vitals are stable, and is cleared for discharge.');
     setIsDischargeOpen(true);
+  };
+
+  const handleOpenTransferBed = (adm: any) => {
+    setSelectedAdmission(adm);
+    const avail = beds.find(b => b.status === 'available' && b.id !== adm.bedId);
+    setTransferTargetBedId(avail ? String(avail.id) : '');
+    setTransferReasonNote('');
+    setIsTransferBedOpen(true);
+  };
+
+  const handleExecuteBedTransfer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAdmission || !transferTargetBedId) {
+      alert('Please select a valid destination bed.');
+      return;
+    }
+
+    setTransferSubmitting(true);
+    try {
+      await apiClient.post(`/admissions/${selectedAdmission.id}/transfer`, {
+        targetBedId: Number(transferTargetBedId),
+        reason: transferReasonNote
+      });
+
+      alert('Patient transferred to destination bed/ward successfully!');
+      setIsTransferBedOpen(false);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to transfer bed.');
+    } finally {
+      setTransferSubmitting(false);
+    }
   };
 
   const handleDischargeSubmit = async (e: React.FormEvent) => {
@@ -403,6 +451,9 @@ export const Admissions: React.FC = () => {
       const payload = {
         dischargeDate,
         dischargeNotes,
+        dischargeCondition,
+        dischargeSummary,
+        homeMedications,
         bedCharges: Number(dischargeBedCharges) || 0,
         doctorFee: Number(dischargeDoctorFee) || 0,
         nursingFee: Number(dischargeNursingFee) || 0,
@@ -563,7 +614,7 @@ export const Admissions: React.FC = () => {
         </div>
 
         <div class="footer">
-          This is an official computer-generated Discharge Summary and Invoice from LifeFlow HMS.<br/>
+          This is an official computer-generated Discharge Summary and Invoice from Dr. Talha Clinic HMS.<br/>
           Thank you for choosing Dr. Talha Clinic. We wish you a speedy recovery!
         </div>
 
@@ -935,6 +986,17 @@ export const Admissions: React.FC = () => {
                                   </button>
                                 )}
                               </>
+                            )}
+
+                            {/* Bed / Ward Transfer Button */}
+                            {adm.status === 'admitted' && (
+                              <button
+                                onClick={() => handleOpenTransferBed(adm)}
+                                className="inline-flex items-center gap-1 p-1 px-2.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 rounded-lg text-[10px] font-bold hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+                                title="Transfer Bed / Ward"
+                              >
+                                <ArrowRightLeft className="h-3 w-3" /> Transfer Bed
+                              </button>
                             )}
 
                             {/* Inpatient Discharge & Final Bill (For Admin, Doctor, Receptionist) */}
@@ -1412,16 +1474,72 @@ export const Admissions: React.FC = () => {
             })()}
           </div>
 
+          {/* Clinical Discharge Condition & Doctor Clearance */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                Discharge Condition / Outcome Status *
+              </label>
+              <select
+                value={dischargeCondition}
+                onChange={e => setDischargeCondition(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-bold"
+              >
+                <option value="stable">✅ Clinically Stable & Recovered</option>
+                <option value="improved">📈 Improved / Ambulatory</option>
+                <option value="referred">🏥 Referred to Higher Tertiary Center</option>
+                <option value="dama">⚠️ Discharge Against Medical Advice (DAMA)</option>
+                <option value="critical">🚨 Critical / Palliative Transfer</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                Attending Consultant Clearance
+              </label>
+              <input
+                disabled
+                value={selectedAdmission?.doctor?.name || selectedAdmission?.doctor?.user?.name || selectedAdmission?.doctor?.staffMember?.name || 'Dr. Attending Physician'}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 text-xs bg-slate-100 dark:bg-dark-950 text-slate-600 dark:text-slate-400 font-semibold"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+              Clinical Discharge Summary & Inpatient Course
+            </label>
+            <textarea
+              rows={2}
+              value={dischargeSummary}
+              onChange={e => setDischargeSummary(e.target.value)}
+              placeholder="Clinical course during stay, response to therapy, lab findings summary..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+              Post-Discharge Home Medications & Follow-up Plan
+            </label>
+            <textarea
+              rows={2}
+              value={homeMedications}
+              onChange={e => setHomeMedications(e.target.value)}
+              placeholder="e.g. Tab Panadol 500mg TDS x 5 days, Cap Amoxicillin 500mg BD x 7 days. Return to OPD in 7 days."
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
+            />
+          </div>
+
           {/* Discharge Clinical Remarks */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-              Discharge Summary & Physician Advice
+              Discharge Nursing & Administrative Notes
             </label>
             <textarea
-              rows={3}
+              rows={2}
               value={dischargeNotes}
               onChange={e => setDischargeNotes(e.target.value)}
-              placeholder="e.g. Patient recovered from acute condition. Vitals stable. Prescribed follow-up medications."
+              placeholder="e.g. Patient recovered from acute condition. Vitals stable. Cleared by nursing supervisor."
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
             />
           </div>
@@ -1437,6 +1555,77 @@ export const Admissions: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Bed / Ward Transfer Modal */}
+      <Modal
+        isOpen={isTransferBedOpen}
+        onClose={() => setIsTransferBedOpen(false)}
+        title="Transfer Inpatient to Another Bed / Ward"
+      >
+        {selectedAdmission && (
+          <form onSubmit={handleExecuteBedTransfer} className="space-y-4">
+            <div className="p-3.5 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+              <div className="flex justify-between items-center">
+                <span className="font-extrabold text-slate-900 dark:text-white">
+                  {selectedAdmission.patient?.name}
+                </span>
+                <span className="font-mono text-[10px] text-slate-500">
+                  MRN: {selectedAdmission.patient?.mrNumber || 'N/A'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Current Bed: <strong className="text-brand-600 dark:text-brand-400">{selectedAdmission.bed?.bedNumber} ({selectedAdmission.bed?.wardName})</strong>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Select Destination Available Bed <span className="text-rose-500">*</span>
+              </label>
+              <select
+                required
+                value={transferTargetBedId}
+                onChange={e => setTransferTargetBedId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white font-bold"
+              >
+                <option value="">-- Select Destination Available Bed --</option>
+                {beds.filter(b => b.status === 'available' && b.id !== selectedAdmission.bedId).map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.bedNumber} - {b.wardName} ({b.type || 'general'})
+                  </option>
+                ))}
+              </select>
+              {beds.filter(b => b.status === 'available' && b.id !== selectedAdmission.bedId).length === 0 && (
+                <p className="text-[10px] text-rose-500 font-bold mt-1">
+                  ⚠️ No other beds are currently available. Please create or discharge another bed first.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Reason for Bed / Ward Transfer
+              </label>
+              <textarea
+                rows={3}
+                value={transferReasonNote}
+                onChange={e => setTransferReasonNote(e.target.value)}
+                placeholder="e.g. Stepped down from ICU to General Ward, patient requested private room, isolation requirement..."
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <Button type="button" variant="secondary" onClick={() => setIsTransferBedOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={transferSubmitting} className="bg-blue-600 hover:bg-blue-700">
+                Confirm & Execute Bed Transfer
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Discharge Success & Invoice Slip Modal */}

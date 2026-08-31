@@ -209,7 +209,7 @@ export const SecurityManagement: React.FC = () => {
   };
 
   const filteredUsers = users.filter(u => {
-    if (u.role === 'lab_technician' || u.email === 'lab@lifeflow.com') return false;
+    if (u.role === 'lab_technician' || u.email === 'lab@drtalhaclinic.com') return false;
     const matchesSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -572,7 +572,7 @@ export const SecurityManagement: React.FC = () => {
             required
             value={addEmail}
             onChange={e => setAddEmail(e.target.value)}
-            placeholder="user@lifeflow.com"
+            placeholder="user@drtalhaclinic.com"
           />
 
           <Input

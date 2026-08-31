@@ -1,5 +1,21 @@
 import { Request, Response } from 'express';
-import { Patient, Appointment, Prescription, PrescriptionItem, LabRequest, Admission, Bed, Doctor, User, PatientVital, TokenQueue, ActivityLog } from '../models';
+import {
+  Patient,
+  Appointment,
+  Prescription,
+  PrescriptionItem,
+  LabRequest,
+  Admission,
+  Bed,
+  Doctor,
+  User,
+  PatientVital,
+  TokenQueue,
+  ActivityLog,
+  PatientVisit,
+  PatientFeedback,
+  Department
+} from '../models';
 import { Op } from 'sequelize';
 import sequelize from '../config/db';
 import { getPktDayBounds } from '../utils/timezone';
@@ -339,6 +355,19 @@ export const getPatientById = async (req: Request, res: Response) => {
           {
             model: PatientVital,
             include: [{ model: User, as: 'logger', attributes: ['name', 'role'] }]
+          },
+          {
+            model: PatientVisit,
+            include: [
+              { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
+              { model: Department }
+            ],
+            required: false
+          },
+          {
+            model: PatientFeedback,
+            include: [{ model: User, as: 'logger', attributes: ['name', 'role'] }],
+            required: false
           }
         ],
       });
@@ -601,4 +630,250 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error saving doctor consultation.', error: error.message });
   }
 };
+
+// ==========================================
+// DUPLICATE PATIENT CHECK CONTROLLER
+// ==========================================
+export const checkDuplicatePatient = async (req: Request, res: Response) => {
+  const { phone, cnic } = req.query;
+
+  if (!phone && !cnic) {
+    return res.status(200).json({ isDuplicate: false, duplicates: [] });
+  }
+
+  try {
+    const isPostgres = process.env.DB_DIALECT === 'postgres' || !!process.env.DATABASE_URL;
+    const likeOp = isPostgres ? Op.iLike : Op.like;
+    const sequelizeDb = (require('../config/db')).default;
+
+    const conditions: any[] = [];
+
+    // Check Phone duplicates (digits matching)
+    if (phone && typeof phone === 'string' && phone.trim() !== '') {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length >= 7) {
+        conditions.push({ phone: { [likeOp]: `%${digits.slice(-7)}%` } });
+        try {
+          conditions.push(
+            sequelizeDb.where(
+              sequelizeDb.fn('REPLACE', sequelizeDb.fn('REPLACE', sequelizeDb.col('phone'), '-', ''), ' ', ''),
+              { [likeOp]: `%${digits.slice(-7)}%` }
+            )
+          );
+        } catch (e) {}
+      }
+    }
+
+    // Check CNIC duplicates
+    if (cnic && typeof cnic === 'string' && cnic.trim() !== '' && cnic.trim() !== 'N/A') {
+      const cnicDigits = cnic.replace(/\D/g, '');
+      if (cnicDigits.length >= 8) {
+        conditions.push({ cnic: { [likeOp]: `%${cnic.trim()}%` } });
+        try {
+          conditions.push(
+            sequelizeDb.where(
+              sequelizeDb.fn('REPLACE', sequelizeDb.col('cnic'), '-', ''),
+              { [likeOp]: `%${cnicDigits}%` }
+            )
+          );
+        } catch (e) {}
+      }
+    }
+
+    if (conditions.length === 0) {
+      return res.status(200).json({ isDuplicate: false, duplicates: [] });
+    }
+
+    const duplicates = await Patient.findAll({
+      where: { [Op.or]: conditions },
+      limit: 5,
+      include: [
+        {
+          model: TokenQueue,
+          include: [{ model: Doctor, include: [{ model: User, attributes: ['name'] }] }],
+          required: false,
+          limit: 1
+        }
+      ]
+    });
+
+    return res.status(200).json({
+      isDuplicate: duplicates.length > 0,
+      count: duplicates.length,
+      duplicates
+    });
+  } catch (error: any) {
+    console.error('[checkDuplicatePatient] Error:', error);
+    return res.status(500).json({ message: 'Error checking duplicate patient.', error: error.message });
+  }
+};
+
+// ==========================================
+// PATIENT VISITS & INTAKE CONTROLLERS
+// ==========================================
+export const createPatientVisit = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { doctorId, departmentId, visitType, reasonForVisit, diagnosisSummary, notes, bp, temperature, pulse, weight } = req.body;
+
+  if (!reasonForVisit) {
+    return res.status(400).json({ message: 'Reason for visit is required.' });
+  }
+
+  try {
+    const patient = await Patient.findByPk(id);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    const visit = await PatientVisit.create({
+      patientId: Number(id),
+      doctorId: doctorId ? Number(doctorId) : null,
+      departmentId: departmentId ? Number(departmentId) : null,
+      visitDate: new Date(),
+      visitType: visitType || 'consultation',
+      reasonForVisit,
+      diagnosisSummary: diagnosisSummary || null,
+      notes: notes || null,
+      bp: bp || null,
+      temperature: temperature ? Number(temperature) : null,
+      pulse: pulse ? Number(pulse) : null,
+      weight: weight ? Number(weight) : null,
+    });
+
+    // Optionally log vitals if provided
+    if (bp || temperature || pulse) {
+      try {
+        await PatientVital.create({
+          patientId: Number(id),
+          bp: bp || '120/80',
+          temperature: temperature ? Number(temperature) : 98.6,
+          pulse: pulse ? Number(pulse) : 72,
+          respRate: 16,
+          spo2: 98,
+          weight: weight ? Number(weight) : null,
+          notes: `Intake visit notes: ${reasonForVisit}`,
+          loggedBy: (req as any).user?.id || 1
+        });
+      } catch (vitErr) {}
+    }
+
+    return res.status(201).json({ message: 'Patient visit recorded successfully.', visit });
+  } catch (error: any) {
+    console.error('[createPatientVisit] Error:', error);
+    return res.status(500).json({ message: 'Error recording patient visit.', error: error.message });
+  }
+};
+
+export const getPatientVisits = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const visits = await PatientVisit.findAll({
+      where: { patientId: Number(id) },
+      include: [
+        { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
+        { model: Department }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json(visits);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error retrieving patient visits.', error: error.message });
+  }
+};
+
+// ==========================================
+// PATIENT FEEDBACK & GRIEVANCES CONTROLLERS
+// ==========================================
+export const createPatientFeedback = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { feedbackType, rating, comment, priority, status } = req.body;
+
+  if (!comment) {
+    return res.status(400).json({ message: 'Comment / feedback details are required.' });
+  }
+
+  try {
+    const patient = await Patient.findByPk(id);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    const feedback = await PatientFeedback.create({
+      patientId: Number(id),
+      feedbackType: feedbackType || 'general',
+      rating: rating ? Math.min(5, Math.max(1, Number(rating))) : 5,
+      comment,
+      priority: priority || 'medium',
+      status: status || 'pending',
+      loggedBy: (req as any).user?.id || null
+    });
+
+    return res.status(201).json({ message: 'Feedback submitted successfully.', feedback });
+  } catch (error: any) {
+    console.error('[createPatientFeedback] Error:', error);
+    return res.status(500).json({ message: 'Error submitting feedback.', error: error.message });
+  }
+};
+
+export const getPatientFeedbacks = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const feedbacks = await PatientFeedback.findAll({
+      where: { patientId: Number(id) },
+      include: [{ model: User, as: 'logger', attributes: ['name', 'role'] }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json(feedbacks);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error retrieving feedbacks.', error: error.message });
+  }
+};
+
+export const getAllFeedbacks = async (req: Request, res: Response) => {
+  const { type, status, priority } = req.query;
+  const whereClause: any = {};
+
+  if (type) whereClause.feedbackType = type;
+  if (status) whereClause.status = status;
+  if (priority) whereClause.priority = priority;
+
+  try {
+    const feedbacks = await PatientFeedback.findAll({
+      where: whereClause,
+      include: [
+        { model: Patient, attributes: ['id', 'name', 'mrNumber', 'phone'] },
+        { model: User, as: 'logger', attributes: ['name', 'role'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json(feedbacks);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error retrieving all feedbacks.', error: error.message });
+  }
+};
+
+export const updateFeedbackStatus = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, resolutionNotes } = req.body;
+
+  try {
+    const feedback = await PatientFeedback.findByPk(id);
+    if (!feedback) {
+      return res.status(404).json({ message: 'Feedback record not found.' });
+    }
+
+    await feedback.update({
+      status: status || feedback.status,
+      resolutionNotes: resolutionNotes !== undefined ? resolutionNotes : feedback.resolutionNotes
+    });
+
+    return res.status(200).json({ message: 'Feedback updated successfully.', feedback });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error updating feedback status.', error: error.message });
+  }
+};
+
 

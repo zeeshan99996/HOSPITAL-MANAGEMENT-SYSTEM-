@@ -333,7 +333,7 @@ export const Reports: React.FC = () => {
   const handleExportPDF = () => {
     const printWindow = window.open('', '_blank', 'width=850,height=900');
     if (!printWindow) {
-      alert('Pop-up window blocked. Please allow pop-ups for LifeFlow EMR to print executive reports.');
+      alert('Pop-up window blocked. Please allow pop-ups for Dr. Talha Clinic EMR to print executive reports.');
       return;
     }
 
@@ -439,7 +439,7 @@ export const Reports: React.FC = () => {
         </table>
 
         <div class="footer">
-          Official Computer Generated Executive Summary Report • LifeFlow EMR System
+          Official Computer Generated Executive Summary Report • Dr. Talha Clinic EMR System
         </div>
 
         <script>

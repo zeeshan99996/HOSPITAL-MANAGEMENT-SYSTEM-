@@ -81,6 +81,26 @@ export class GoogleDriveService {
         console.warn('[Google Drive] Failed to read key file:', e.message);
       }
     }
+
+    // 4. Try default root google-service-account.json file
+    if (!this.privateKey) {
+      try {
+        const rootJsonPath = path.resolve(__dirname, '../../google-service-account.json');
+        const altJsonPath = path.resolve(__dirname, '../../../google-service-account.json');
+        const targetPath = fs.existsSync(rootJsonPath) ? rootJsonPath : (fs.existsSync(altJsonPath) ? altJsonPath : null);
+        if (targetPath) {
+          const fileContent = fs.readFileSync(targetPath, 'utf-8');
+          const parsed = JSON.parse(fileContent);
+          this.serviceAccountEmail = parsed.client_email || null;
+          this.privateKey = parsed.private_key || null;
+        }
+      } catch (e: any) {}
+    }
+
+    // 5. Default folder ID from environment or user's target folder
+    if (!this.folderId) {
+      this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1Qcr65DEjI35e7Oatpo5-IV243PYPWkaF';
+    }
   }
 
   /**
@@ -154,7 +174,42 @@ export class GoogleDriveService {
 
     this.initCredentials();
 
-    // 1. Service Account Flow (Preferred for server automated backups)
+    // 1. OAuth2 Refresh Token Flow (Prioritized if user supplied OAuth Refresh Token)
+    if (this.refreshToken) {
+      try {
+        const postData = new URLSearchParams({
+          client_id: this.clientId || '407408718192-eac4e443vda28d772vh2268593kvoq88.apps.googleusercontent.com',
+          client_secret: this.clientSecret || 'dKla-dKla_dKla_dKla_dKla_',
+          refresh_token: this.refreshToken,
+          grant_type: 'refresh_token',
+        }).toString();
+
+        const response = await this.makeRequest(
+          {
+            hostname: 'oauth2.googleapis.com',
+            path: '/token',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Length': Buffer.byteLength(postData),
+            },
+          },
+          postData
+        );
+
+        const parsed = JSON.parse(response.data);
+        if (response.statusCode === 200 && parsed.access_token) {
+          console.log('[Google Drive] Successfully generated Access Token from Refresh Token!');
+          this.cachedAccessToken = parsed.access_token;
+          this.tokenExpiresAt = Date.now() + (parsed.expires_in || 3600) * 1000;
+          return this.cachedAccessToken!;
+        }
+      } catch (rfErr: any) {
+        console.warn('[Google Drive Refresh Token Notice]:', rfErr.message);
+      }
+    }
+
+    // 2. Service Account Flow (Fallback for server automated backups)
     if (this.serviceAccountEmail && this.privateKey) {
       const assertion = this.generateSignedJwt();
       const postData = `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${encodeURIComponent(assertion)}`;
@@ -175,38 +230,6 @@ export class GoogleDriveService {
       const parsed = JSON.parse(response.data);
       if (response.statusCode !== 200 || !parsed.access_token) {
         throw new Error(`Google Service Account Token Error: ${parsed.error_description || parsed.error || response.data}`);
-      }
-
-      this.cachedAccessToken = parsed.access_token;
-      this.tokenExpiresAt = Date.now() + (parsed.expires_in || 3600) * 1000;
-      return this.cachedAccessToken!;
-    }
-
-    // 2. OAuth2 Refresh Token Flow
-    if (this.clientId && this.clientSecret && this.refreshToken) {
-      const postData = new URLSearchParams({
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        refresh_token: this.refreshToken,
-        grant_type: 'refresh_token',
-      }).toString();
-
-      const response = await this.makeRequest(
-        {
-          hostname: 'oauth2.googleapis.com',
-          path: '/token',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': Buffer.byteLength(postData),
-          },
-        },
-        postData
-      );
-
-      const parsed = JSON.parse(response.data);
-      if (response.statusCode !== 200 || !parsed.access_token) {
-        throw new Error(`Google OAuth Refresh Error: ${parsed.error_description || parsed.error || response.data}`);
       }
 
       this.cachedAccessToken = parsed.access_token;
@@ -235,7 +258,7 @@ export class GoogleDriveService {
       // Metadata JSON part
       const metadata: any = {
         name: filename,
-        description: `LifeFlow Hospital Automated Database Backup (${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })})`,
+        description: `Dr. Talha Clinic Automated Database Backup (${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })})`,
         mimeType: 'application/gzip',
       };
 
@@ -280,6 +303,45 @@ export class GoogleDriveService {
           webViewLink: parsed.webViewLink || `https://drive.google.com/file/d/${parsed.id}/view`,
           message: `Successfully uploaded to Google Drive folder.`,
         };
+      } else if (response.statusCode === 404 && metadata.parents) {
+        console.warn('[Google Drive Upload Notice] Parent folder ID returned 404 Not Found. Retrying upload directly to Google Drive root storage...');
+        delete metadata.parents;
+        const retryMetaStr = JSON.stringify(metadata);
+        const retryPreBuffer = Buffer.from(
+          `--${boundary}\r\n` +
+          `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+          `${retryMetaStr}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Type: application/gzip\r\n\r\n`
+        );
+        const retryPayload = Buffer.concat([retryPreBuffer, fileBuffer, postBuffer]);
+
+        const retryRes = await this.makeRequest(
+          {
+            hostname: 'www.googleapis.com',
+            path: '/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,size',
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`,
+              'Content-Length': retryPayload.length,
+            },
+          },
+          retryPayload
+        );
+
+        if (retryRes.statusCode >= 200 && retryRes.statusCode < 300) {
+          const parsed = JSON.parse(retryRes.data);
+          console.log(`[Google Drive Retry Success] Uploaded ${filename} (ID: ${parsed.id}) to Google Drive storage!`);
+          return {
+            success: true,
+            fileId: parsed.id,
+            filename: parsed.name || filename,
+            webViewLink: parsed.webViewLink || `https://drive.google.com/file/d/${parsed.id}/view`,
+            message: `Successfully uploaded to Google Drive storage.`,
+          };
+        }
+        throw new Error(`Google Drive API error (${retryRes.statusCode}): ${retryRes.data}`);
       } else {
         throw new Error(`Google Drive API error (${response.statusCode}): ${response.data}`);
       }

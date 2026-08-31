@@ -12,7 +12,8 @@ import {
   StaffMember,
   Notification,
   Payment,
-  InsuranceClaim
+  InsuranceClaim,
+  MedicineStockMovement
 } from '../models';
 import sequelize from '../config/db';
 import { Op } from 'sequelize';
@@ -197,7 +198,7 @@ export const getMedicines = async (req: Request, res: Response) => {
 
 export const updateMedicineStock = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { stockLevel, price, lowStockThreshold, unit } = req.body;
+  const { stockLevel, price, lowStockThreshold, unit, batchNumber, expiryDate, reason } = req.body;
   const transaction = await sequelize.transaction();
 
   try {
@@ -207,11 +208,14 @@ export const updateMedicineStock = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Medicine not found.' });
     }
 
+    const oldStock = med.stockLevel;
     const updates: any = {};
     if (stockLevel !== undefined) updates.stockLevel = stockLevel;
     if (price !== undefined) updates.price = price;
     if (lowStockThreshold !== undefined) updates.lowStockThreshold = lowStockThreshold;
     if (unit !== undefined) updates.unit = unit;
+    if (batchNumber !== undefined) updates.batchNumber = batchNumber;
+    if (expiryDate !== undefined) updates.expiryDate = expiryDate;
 
     await med.update(updates, { transaction });
 
@@ -220,6 +224,21 @@ export const updateMedicineStock = async (req: Request, res: Response) => {
       await MedicineRate.upsert({
         medicineId: med.id,
         unitRate: price,
+      }, { transaction });
+    }
+
+    // Log Stock Movement if stock quantity changed
+    if (stockLevel !== undefined && stockLevel !== oldStock) {
+      const diff = Number(stockLevel) - Number(oldStock);
+      await MedicineStockMovement.create({
+        medicineId: med.id,
+        movementType: diff > 0 ? 'stock_in' : 'adjustment',
+        quantity: Math.abs(diff),
+        batchNumber: batchNumber || med.batchNumber,
+        expiryDate: expiryDate || med.expiryDate,
+        unitPrice: price !== undefined ? Number(price) : Number(med.price),
+        referenceNote: reason || (diff > 0 ? `Stock replenishment (+${diff} ${med.unit || 'units'})` : `Stock adjustment (${diff} ${med.unit || 'units'})`),
+        createdById: (req as any).user?.id || null,
       }, { transaction });
     }
 
@@ -232,17 +251,34 @@ export const updateMedicineStock = async (req: Request, res: Response) => {
 };
 
 export const addMedicine = async (req: Request, res: Response) => {
+  const transaction = await sequelize.transaction();
   try {
-    const medicine = await Medicine.create(req.body);
+    const medicine = await Medicine.create(req.body, { transaction });
 
     // Create unit rate mapping
     await MedicineRate.create({
       medicineId: medicine.id,
       unitRate: medicine.price,
-    });
+    }, { transaction });
 
+    // Log Initial Stock Movement
+    if (Number(medicine.stockLevel) > 0) {
+      await MedicineStockMovement.create({
+        medicineId: medicine.id,
+        movementType: 'stock_in',
+        quantity: Number(medicine.stockLevel),
+        batchNumber: medicine.batchNumber,
+        expiryDate: medicine.expiryDate,
+        unitPrice: Number(medicine.price),
+        referenceNote: `Initial store intake (Batch: ${medicine.batchNumber})`,
+        createdById: (req as any).user?.id || null,
+      }, { transaction });
+    }
+
+    await transaction.commit();
     return res.status(201).json({ message: 'Medicine added to inventory.', medicine });
   } catch (error: any) {
+    await transaction.rollback();
     return res.status(500).json({ message: 'Error adding medicine.', error: error.message });
   }
 };
@@ -258,7 +294,7 @@ export const deleteMedicine = async (req: Request, res: Response) => {
 };
 
 export const recordMedicineSale = async (req: Request, res: Response) => {
-  const { patientId, items, discount } = req.body; // items: [{medicineId, quantity}], discount optional
+  const { patientId, items, discount } = req.body; // items: [{medicineId, quantity, batchNumber}], discount optional
   const transaction = await sequelize.transaction();
 
   try {
@@ -298,6 +334,19 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
       const newStock = medicine.stockLevel - qty;
       await medicine.update({ stockLevel: newStock }, { transaction });
 
+      // Record Stock Movement Log for dispense
+      await MedicineStockMovement.create({
+        medicineId: medicine.id,
+        movementType: 'dispense_sale',
+        quantity: qty,
+        batchNumber: item.batchNumber || medicine.batchNumber,
+        expiryDate: medicine.expiryDate,
+        unitPrice: Number(medicine.price),
+        referenceNote: `Pharmacy POS Dispense (Patient #${patientId})`,
+        patientId: Number(patientId),
+        createdById: (req as any).user?.id || null,
+      }, { transaction });
+
       // Low Stock Alert
       if (newStock <= medicine.lowStockThreshold) {
         await Notification.create({
@@ -316,7 +365,7 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
       subtotal += totalItemPrice;
 
       invoiceItems.push({
-        itemName: `${medicine.name} (Pharmacy Dispense)`,
+        itemName: `${medicine.name} (Pharmacy Dispense - Batch ${item.batchNumber || medicine.batchNumber || 'N/A'})`,
         itemCategory: 'Pharmacy',
         unitPrice: rate,
         quantity: qty,
@@ -808,3 +857,157 @@ export const payStaffPayroll = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error processing payroll clearance.', error: error.message });
   }
 };
+
+// ==========================================
+// STOCK MOVEMENT AUDIT TRAIL CONTROLLER
+// ==========================================
+export const getStockMovements = async (req: Request, res: Response) => {
+  const { medicineId, movementType, limit = 50 } = req.query;
+  const whereClause: any = {};
+
+  if (medicineId) whereClause.medicineId = Number(medicineId);
+  if (movementType) whereClause.movementType = movementType;
+
+  try {
+    const movements = await MedicineStockMovement.findAll({
+      where: whereClause,
+      include: [
+        { model: Medicine, attributes: ['id', 'name', 'category', 'unit'] },
+        { model: Patient, attributes: ['id', 'name', 'mrNumber'] },
+        { model: User, as: 'createdByUser', attributes: ['id', 'name', 'role'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: Math.min(200, Number(limit) || 50)
+    });
+
+    return res.status(200).json(movements);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Error retrieving stock movements.', error: error.message });
+  }
+};
+
+// ==========================================
+// VOID / CANCEL INVOICE CONTROLLER
+// ==========================================
+export const voidInvoice = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { voidReason } = req.body;
+
+  if (!voidReason || voidReason.trim() === '') {
+    return res.status(400).json({ message: 'Please provide a valid reason for voiding this invoice.' });
+  }
+
+  const transaction = await sequelize.transaction();
+  try {
+    const invoice = await Invoice.findByPk(id, { transaction });
+    if (!invoice) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Invoice not found.' });
+    }
+
+    if (invoice.isVoided || invoice.status === 'voided') {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Invoice is already voided.' });
+    }
+
+    await invoice.update({
+      status: 'voided',
+      isVoided: true,
+      voidReason: voidReason.trim(),
+    }, { transaction });
+
+    await ActivityLog.create({
+      userId: (req as any).user?.id || null,
+      action: 'INVOICE_VOIDED',
+      details: `Invoice #${invoice.id} (Patient ID: ${invoice.patientId}, Total: Rs. ${invoice.grandTotal}) was voided. Reason: ${voidReason.trim()}`,
+      ipAddress: req.ip
+    }, { transaction });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      message: `Invoice #${invoice.id} has been voided successfully.`,
+      invoice
+    });
+  } catch (error: any) {
+    await transaction.rollback();
+    return res.status(500).json({ message: 'Error voiding invoice.', error: error.message });
+  }
+};
+
+// ==========================================
+// REFUND PAYMENT CONTROLLER
+// ==========================================
+export const refundInvoicePayment = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { refundAmount, refundReason, refundMethod = 'cash' } = req.body;
+
+  const refAmt = Number(refundAmount);
+  if (isNaN(refAmt) || refAmt <= 0) {
+    return res.status(400).json({ message: 'Refund amount must be a positive number greater than zero.' });
+  }
+
+  const transaction = await sequelize.transaction();
+  try {
+    const invoice = await Invoice.findByPk(id, { transaction });
+    if (!invoice) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Invoice not found.' });
+    }
+
+    const currentPaid = Number(invoice.paidAmount) || 0;
+    const currentRefunded = Number(invoice.refundAmount) || 0;
+    const maxRefundable = Math.max(0, currentPaid - currentRefunded);
+
+    if (refAmt > maxRefundable) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: `Requested refund (Rs. ${refAmt}) exceeds the maximum refundable amount (Rs. ${maxRefundable}).`
+      });
+    }
+
+    const newRefundedTotal = currentRefunded + refAmt;
+    const newPaidNet = Math.max(0, currentPaid - refAmt);
+
+    let newStatus = invoice.status;
+    if (newPaidNet === 0) {
+      newStatus = 'unpaid';
+    } else if (newPaidNet < Number(invoice.grandTotal)) {
+      newStatus = 'partially_paid';
+    }
+
+    await invoice.update({
+      refundAmount: newRefundedTotal,
+      paidAmount: newPaidNet,
+      refundReason: refundReason || 'Patient service refund',
+      refundDate: new Date(),
+      status: newStatus
+    }, { transaction });
+
+    // Record negative payment / refund entry
+    await Payment.create({
+      invoiceId: invoice.id,
+      amount: -refAmt,
+      paymentMethod: refundMethod as any,
+      paymentDate: new Date()
+    }, { transaction });
+
+    await ActivityLog.create({
+      userId: (req as any).user?.id || null,
+      action: 'PAYMENT_REFUNDED',
+      details: `Refunded Rs. ${refAmt} on Invoice #${invoice.id} via ${refundMethod}. Reason: ${refundReason || 'N/A'}`,
+      ipAddress: req.ip
+    }, { transaction });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      message: `Refund of Rs. ${refAmt} processed successfully on Invoice #${invoice.id}.`,
+      invoice
+    });
+  } catch (error: any) {
+    await transaction.rollback();
+    return res.status(500).json({ message: 'Error processing refund.', error: error.message });
+  }
+};
+
