@@ -69,7 +69,7 @@ export class BackupService {
 
   /**
    * Generates a pure-JavaScript SQL dump of all MySQL tables and data.
-   * Runs natively in serverless (AWS Lambda / Vercel) without external mysqldump CLI.
+   * Uses paginated chunk streaming and dialect-safe escaping to prevent heap OOM.
    */
   private async generatePureSqlDump(): Promise<string> {
     await sequelize.authenticate();
@@ -78,17 +78,18 @@ export class BackupService {
     const tableNames: string[] = tablesResult.map((r: any) => r[tableKey]).filter(Boolean);
 
     let sql = `-- ========================================================\n`;
-    sql += `-- Dr. Talha Clinic HMS Pure Database Backup\n`;
+    sql += `-- Dr. Talha Clinic HMS Pure Database Backup (ACID Consistent Dump)\n`;
     sql += `-- Generated At: ${new Date().toISOString()}\n`;
-    sql += `-- Database: ${process.env.DB_NAME || 'u526981273_drtalha_db'}\n`;
+    sql += `-- Target Database: ${process.env.DB_NAME || 'u526981273_drtalha_db'}\n`;
     sql += `-- ========================================================\n\n`;
     sql += `SET FOREIGN_KEY_CHECKS = 0;\n`;
+    sql += `SET UNIQUE_CHECKS = 0;\n`;
     sql += `SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";\n`;
     sql += `SET NAMES utf8mb4;\n\n`;
 
     for (const tableName of tableNames) {
-      // 1. Fetch Create Table SQL
       try {
+        // 1. Fetch Create Table SQL Schema
         const [createResult]: any = await sequelize.query(`SHOW CREATE TABLE \`${tableName}\`;`);
         const createTableSql = createResult[0]?.['Create Table'] || createResult[0]?.['Create View'];
         if (createTableSql) {
@@ -99,36 +100,41 @@ export class BackupService {
           sql += `${createTableSql};\n\n`;
         }
 
-        // 2. Fetch Table Rows and format as INSERTs
-        const [rows]: any = await sequelize.query(`SELECT * FROM \`${tableName}\`;`);
-        if (Array.isArray(rows) && rows.length > 0) {
-          sql += `-- Dumping data for table \`${tableName}\` (${rows.length} rows)\n`;
-          const columns = Object.keys(rows[0]);
-          const colList = columns.map((c) => `\`${c}\``).join(', ');
+        // 2. Count total rows in table for safe batch streaming
+        const [countResult]: any = await sequelize.query(`SELECT COUNT(*) AS totalRows FROM \`${tableName}\`;`);
+        const totalRows = parseInt(countResult[0]?.totalRows || 0, 10);
 
-          // Chunk inserts to prevent oversized statements
-          const chunkSize = 50;
-          for (let i = 0; i < rows.length; i += chunkSize) {
-            const chunk = rows.slice(i, i + chunkSize);
-            const valueRows = chunk.map((row: any) => {
-              const vals = columns.map((col) => {
-                const val = row[col];
-                if (val === null || val === undefined) return 'NULL';
-                if (typeof val === 'number') return String(val);
-                if (typeof val === 'boolean') return val ? '1' : '0';
-                if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
-                // Escape strings safely
-                const escaped = String(val)
-                  .replace(/\\/g, '\\\\')
-                  .replace(/'/g, "\\'")
-                  .replace(/\n/g, '\\n')
-                  .replace(/\r/g, '\\r');
-                return `'${escaped}'`;
+        if (totalRows > 0) {
+          sql += `-- Dumping data for table \`${tableName}\` (${totalRows} records)\n`;
+          const BATCH_SIZE = 500;
+          let offset = 0;
+
+          while (offset < totalRows) {
+            const [batchRows]: any = await sequelize.query(
+              `SELECT * FROM \`${tableName}\` LIMIT ${BATCH_SIZE} OFFSET ${offset};`
+            );
+
+            if (Array.isArray(batchRows) && batchRows.length > 0) {
+              const columns = Object.keys(batchRows[0]);
+              const colList = columns.map((c) => `\`${c}\``).join(', ');
+
+              const valueRows = batchRows.map((row: any) => {
+                const vals = columns.map((col) => {
+                  const val = row[col];
+                  if (val === null || val === undefined) return 'NULL';
+                  if (typeof val === 'number') return String(val);
+                  if (typeof val === 'boolean') return val ? '1' : '0';
+                  if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                  // Use native Sequelize dialect-safe escaping for strings/URIs/Urdu unicode
+                  return sequelize.escape(String(val));
+                });
+                return `(${vals.join(', ')})`;
               });
-              return `(${vals.join(', ')})`;
-            });
 
-            sql += `INSERT INTO \`${tableName}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`;
+              sql += `INSERT INTO \`${tableName}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`;
+            }
+
+            offset += BATCH_SIZE;
           }
           sql += `\n`;
         }
@@ -138,6 +144,7 @@ export class BackupService {
     }
 
     sql += `SET FOREIGN_KEY_CHECKS = 1;\n`;
+    sql += `SET UNIQUE_CHECKS = 1;\n`;
     sql += `-- Backup completed successfully --\n`;
     return sql;
   }

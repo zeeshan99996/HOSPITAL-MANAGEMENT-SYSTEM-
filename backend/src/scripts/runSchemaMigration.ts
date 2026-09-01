@@ -57,6 +57,33 @@ async function runSchemaMigration() {
           }
         }
       }
+
+      // Safe Index Creation for High-Traffic Query Paths
+      const mysqlIndexes = [
+        { table: 'token_queues', name: 'idx_token_queues_created_status_doc', cols: '`createdAt`, `status`, `doctorId`' },
+        { table: 'token_queues', name: 'idx_token_queues_patient_id', cols: '`patientId`' },
+        { table: 'appointments', name: 'idx_appts_date_doc_status', cols: '`appointmentDate`, `doctorId`, `status`' },
+        { table: 'appointments', name: 'idx_appts_patient_id', cols: '`patientId`' },
+        { table: 'invoices', name: 'idx_invoices_patient_status_created', cols: '`patientId`, `status`, `createdAt`' },
+        { table: 'activity_logs', name: 'idx_activity_logs_created_user', cols: '`createdAt`, `userId`' },
+        { table: 'patient_visits', name: 'idx_patient_visits_patient_date', cols: '`patientId`, `visitDate`' },
+        { table: 'prescriptions', name: 'idx_prescriptions_appt_date', cols: '`appointmentId`, `prescriptionDate`' },
+        { table: 'lab_requests', name: 'idx_lab_requests_patient_status', cols: '`patientId`, `status`' },
+        { table: 'beds', name: 'idx_beds_status_ward', cols: '`status`, `wardName`' },
+      ];
+
+      for (const idx of mysqlIndexes) {
+        try {
+          await sequelize.query(`CREATE INDEX \`${idx.name}\` ON \`${idx.table}\` (${idx.cols});`);
+          console.log(`[Migration] ⚡ Created index \`${idx.name}\` on \`${idx.table}\`.`);
+        } catch (idxErr: any) {
+          if (idxErr.original?.errno === 1061 || idxErr.message?.includes('Duplicate key name')) {
+            console.log(`[Migration] ℹ️ Index \`${idx.name}\` already exists on \`${idx.table}\`.`);
+          } else {
+            console.warn(`[Migration] ⚠️ Index notice on \`${idx.table}\`.\`${idx.name}\`:`, idxErr.message);
+          }
+        }
+      }
     } else if (dialect === 'postgres') {
       const pgCols = [
         'ALTER TABLE "admissions" ADD COLUMN IF NOT EXISTS "admissionCategory" VARCHAR DEFAULT \'medical\';',

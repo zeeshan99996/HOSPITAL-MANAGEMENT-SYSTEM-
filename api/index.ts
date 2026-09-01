@@ -101,7 +101,8 @@ function getApp(): express.Application {
   instance.get('/health/db', handleDbHealth);
   instance.get('/api/health/db', handleDbHealth);
 
-  // Lazy DB Middleware without mock data seeding
+  // Lazy DB Middleware & Passive Automated Backup Strategy Evaluator
+  let lastPassiveBackupCheck = 0;
   instance.use(async (req, res, next) => {
     if (!isDbInitialized && sequelize) {
       try {
@@ -114,6 +115,29 @@ function getApp(): express.Application {
         console.error('[Serverless DB Init Error]:', err.message);
       }
     }
+
+    // Passive Background Automated Backup Strategy Evaluation (once per hour in serverless)
+    const now = Date.now();
+    if (isDbInitialized && now - lastPassiveBackupCheck > 60 * 60 * 1000) {
+      lastPassiveBackupCheck = now;
+      setTimeout(async () => {
+        try {
+          let schedulerMod: any;
+          try {
+            schedulerMod = require('../backend/dist/services/backupScheduler');
+          } catch (e) {
+            schedulerMod = require('../backend/src/services/backupScheduler');
+          }
+          const backupScheduler = schedulerMod.backupScheduler || schedulerMod.default || schedulerMod;
+          if (backupScheduler && typeof backupScheduler.evaluateAndRunStrategy === 'function') {
+            await backupScheduler.evaluateAndRunStrategy();
+          }
+        } catch (schedErr: any) {
+          console.warn('[Passive Serverless Backup Notice]:', schedErr.message);
+        }
+      }, 2000);
+    }
+
     next();
   });
 

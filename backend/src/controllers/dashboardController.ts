@@ -619,41 +619,67 @@ export const createSystemUserAdmin = async (req: Request, res: Response) => {
 
     let existingSys: any = null;
     let existingUsr: any = null;
-    try { existingSys = await SystemUser.findOne({ where: { email: normEmail } }); } catch (e) {}
-    try { existingUsr = await User.findOne({ where: { email: normEmail } }); } catch (e) {}
-
-    if (existingSys || existingUsr) {
-      return res.status(400).json({ message: 'System User with this email address already exists.' });
-    }
+    try { existingSys = await SystemUser.findOne({ where: { email: normEmail }, paranoid: false }); } catch (e) {}
+    try { existingUsr = await User.findOne({ where: { email: normEmail }, paranoid: false }); } catch (e) {}
 
     const hashed = await bcrypt.hash(password || 'Password123', 10);
-
-    // 1. Save into dedicated system_users table
     let sysUser: any = null;
-    try {
-      sysUser = await SystemUser.create({
-        name,
-        email: normEmail,
-        password: hashed,
-        role: role || 'admin',
-        phone: phone || '',
-        status: status || 'active',
-      });
-    } catch (sErr: any) {
-      console.warn('[SystemUser.create Warning]:', sErr?.message);
+
+    if (existingSys) {
+      if (existingSys.deletedAt) {
+        // Soft-deleted account found: Restore & reactivate with new details
+        await existingSys.restore();
+        await existingSys.update({
+          name,
+          password: hashed,
+          role: role || 'admin',
+          phone: phone || '',
+          status: status || 'active',
+        });
+        sysUser = existingSys;
+      } else {
+        return res.status(400).json({ message: 'System User with this email address already exists.' });
+      }
+    } else {
+      // 1. Save into dedicated system_users table
+      try {
+        sysUser = await SystemUser.create({
+          name,
+          email: normEmail,
+          password: hashed,
+          role: role || 'admin',
+          phone: phone || '',
+          status: status || 'active',
+        });
+      } catch (sErr: any) {
+        console.warn('[SystemUser.create Warning]:', sErr?.message);
+      }
     }
 
-    // 2. Also insert into User model for legacy joins
-    try {
-      await User.create({
-        name,
-        email: normEmail,
-        password: hashed,
-        role: role || 'admin',
-        phone: phone || '',
-        status: status || 'active',
-      });
-    } catch (uErr) {}
+    // 2. Also insert or restore in User model for legacy joins
+    if (existingUsr) {
+      if (existingUsr.deletedAt) {
+        await existingUsr.restore();
+        await existingUsr.update({
+          name,
+          password: hashed,
+          role: role || 'admin',
+          phone: phone || '',
+          status: status || 'active',
+        });
+      }
+    } else {
+      try {
+        await User.create({
+          name,
+          email: normEmail,
+          password: hashed,
+          role: role || 'admin',
+          phone: phone || '',
+          status: status || 'active',
+        });
+      } catch (uErr) {}
+    }
 
     const adminUser = (req as any).user;
     try {
@@ -725,9 +751,10 @@ export const triggerStrategyHandler = async (req: Request, res: Response) => {
 export const cronBackupHandler = async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET || 'drtalha_hms_cron_secret';
+  const isVercelCron = req.headers['x-vercel-cron'] === '1' || req.headers['user-agent']?.includes('vercel-cron');
   
-  // Allow if valid CRON_SECRET or query param
-  if (authHeader !== `Bearer ${cronSecret}` && req.query.secret !== cronSecret) {
+  // Allow if Vercel Cron header or valid CRON_SECRET or query param
+  if (!isVercelCron && authHeader !== `Bearer ${cronSecret}` && req.query.secret !== cronSecret) {
     return res.status(401).json({ message: 'Unauthorized cron trigger token.' });
   }
 

@@ -277,7 +277,13 @@ Bed.init(
     type: { type: DataTypes.ENUM('general', 'icu', 'semi-private', 'private'), defaultValue: 'general' },
     status: { type: DataTypes.ENUM('available', 'occupied', 'maintenance'), defaultValue: 'available' },
   },
-  { sequelize, modelName: 'bed' }
+  {
+    sequelize,
+    modelName: 'bed',
+    indexes: [
+      { name: 'idx_beds_status_ward', fields: ['status', 'wardName'] }
+    ]
+  }
 );
 
 // ==========================================
@@ -369,7 +375,15 @@ Appointment.init(
     symptoms: { type: DataTypes.TEXT, allowNull: true },
     notes: { type: DataTypes.TEXT, allowNull: true },
   },
-  { sequelize, modelName: 'appointment', paranoid: true }
+  {
+    sequelize,
+    modelName: 'appointment',
+    paranoid: true,
+    indexes: [
+      { name: 'idx_appts_date_doc_status', fields: ['appointmentDate', 'doctorId', 'status'] },
+      { name: 'idx_appts_patient_id', fields: ['patientId'] }
+    ]
+  }
 );
 
 // ==========================================
@@ -390,7 +404,13 @@ Prescription.init(
     notes: { type: DataTypes.TEXT, allowNull: true },
     prescriptionDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
-  { sequelize, modelName: 'prescription' }
+  {
+    sequelize,
+    modelName: 'prescription',
+    indexes: [
+      { name: 'idx_prescriptions_appt_date', fields: ['appointmentId', 'prescriptionDate'] }
+    ]
+  }
 );
 
 export class PrescriptionItem extends Model {
@@ -512,7 +532,13 @@ LabRequest.init(
     specimenCollectedAt: { type: DataTypes.DATE, allowNull: true },
     sentToLabAt: { type: DataTypes.DATE, allowNull: true },
   },
-  { sequelize, modelName: 'lab_request' }
+  {
+    sequelize,
+    modelName: 'lab_request',
+    indexes: [
+      { name: 'idx_lab_requests_patient_status', fields: ['patientId', 'status'] }
+    ]
+  }
 );
 
 // ==========================================
@@ -556,7 +582,14 @@ Invoice.init(
     insuranceClaimed: { type: DataTypes.BOOLEAN, defaultValue: false },
     paymentMethod: { type: DataTypes.STRING, defaultValue: 'pending' },
   },
-  { sequelize, modelName: 'invoice', paranoid: true }
+  {
+    sequelize,
+    modelName: 'invoice',
+    paranoid: true,
+    indexes: [
+      { name: 'idx_invoices_patient_status_created', fields: ['patientId', 'status', 'createdAt'] }
+    ]
+  }
 );
 
 export class InvoiceItem extends Model {
@@ -744,7 +777,13 @@ ActivityLog.init(
     details: { type: DataTypes.TEXT, allowNull: true },
     ipAddress: { type: DataTypes.STRING, allowNull: true },
   },
-  { sequelize, modelName: 'activity_log' }
+  {
+    sequelize,
+    modelName: 'activity_log',
+    indexes: [
+      { name: 'idx_activity_logs_created_user', fields: ['createdAt', 'userId'] }
+    ]
+  }
 );
 
 // ==========================================
@@ -775,7 +814,14 @@ TokenQueue.init(
     waitingTime: { type: DataTypes.INTEGER, defaultValue: 0 },
     detail: { type: DataTypes.STRING, allowNull: true }
   },
-  { sequelize, modelName: 'token_queue' }
+  {
+    sequelize,
+    modelName: 'token_queue',
+    indexes: [
+      { name: 'idx_token_queues_created_status_doc', fields: ['createdAt', 'status', 'doctorId'] },
+      { name: 'idx_token_queues_patient_id', fields: ['patientId'] }
+    ]
+  }
 );
 
 // ==========================================
@@ -973,7 +1019,14 @@ PatientVisit.init(
     pulse: { type: DataTypes.INTEGER, allowNull: true },
     weight: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
   },
-  { sequelize, modelName: 'patient_visit', tableName: 'patient_visits' }
+  {
+    sequelize,
+    modelName: 'patient_visit',
+    tableName: 'patient_visits',
+    indexes: [
+      { name: 'idx_patient_visits_patient_date', fields: ['patientId', 'visitDate'] }
+    ]
+  }
 );
 
 Patient.hasMany(PatientVisit, { foreignKey: 'patientId', onDelete: 'CASCADE' });

@@ -12,6 +12,12 @@
       ]
     }
   ],
+  "crons": [
+    {
+      "path": "/api/cron/backup?secret=drtalha_hms_cron_secret",
+      "schedule": "0 21 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

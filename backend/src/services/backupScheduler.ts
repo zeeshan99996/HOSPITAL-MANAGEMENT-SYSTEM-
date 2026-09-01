@@ -87,27 +87,24 @@ export class BackupScheduler {
         },
       });
 
-      const dayOfWeek = now.getDay(); // 0 = Sunday
-      const dayOfMonth = now.getDate(); // 1 = 1st of month
-
-      // 1. Monthly Backup Rule (First day of month)
-      if (dayOfMonth === 1 && !recentMonthly) {
+      // 1. Monthly Backup Rule (First day of month OR no monthly backup in 30 days)
+      if (!recentMonthly) {
         console.log('[Backup Strategy] Executing scheduled Monthly Database Archive...');
         const res = await backupService.createBackup({ type: 'monthly' });
         await backupService.cleanupOldBackups();
         return { triggered: true, type: 'monthly', message: res.message };
       }
 
-      // 2. Weekly Backup Rule (Sunday)
-      if (dayOfWeek === 0 && !recentWeekly) {
+      // 2. Weekly Backup Rule (Sunday OR no weekly backup in 7 days)
+      if (!recentWeekly) {
         console.log('[Backup Strategy] Executing scheduled Weekly Database Archive...');
         const res = await backupService.createBackup({ type: 'weekly' });
         await backupService.cleanupOldBackups();
         return { triggered: true, type: 'weekly', message: res.message };
       }
 
-      // 3. Daily Backup Rule (Nightly / past 02:00 AM or if no backup in 20h)
-      if (!recentDaily && (pktHours >= 2 || pktHours <= 6)) {
+      // 3. Daily Backup Rule (Nightly / every 20h window)
+      if (!recentDaily) {
         console.log('[Backup Strategy] Executing scheduled Daily Hospital Database Snapshot...');
         const res = await backupService.createBackup({ type: 'daily' });
         await backupService.cleanupOldBackups();
@@ -116,7 +113,7 @@ export class BackupScheduler {
 
       return {
         triggered: false,
-        message: `Database backup is up to date (Last Daily: ${recentDaily ? recentDaily.completedAt : 'None'}, PKT Time: ${pktHours}:00).`,
+        message: `Database backups are completely up to date (Daily: ${recentDaily ? recentDaily.completedAt : 'OK'}, Weekly: ${recentWeekly ? recentWeekly.completedAt : 'OK'}, Monthly: ${recentMonthly ? recentMonthly.completedAt : 'OK'}).`,
       };
     } catch (error: any) {
       console.error('[Backup Strategy Failure]:', error);

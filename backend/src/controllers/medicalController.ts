@@ -746,11 +746,11 @@ export const createLabRequest = async (req: Request, res: Response) => {
 
       // Recalculate invoice totals
       const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
-      const newTotal = allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0);
+      const newTotal = Math.round(allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0) * 100) / 100;
       const disc = Number(invoice.discount);
       const taxable = Math.max(0, newTotal - disc);
-      const newTax = Number((taxable * 0.08).toFixed(2));
-      const newGrandTotal = taxable + newTax;
+      const newTax = Math.round(taxable * 0.08 * 100) / 100;
+      const newGrandTotal = Math.round((taxable + newTax) * 100) / 100;
 
       await invoice.update({
         totalAmount: newTotal,
