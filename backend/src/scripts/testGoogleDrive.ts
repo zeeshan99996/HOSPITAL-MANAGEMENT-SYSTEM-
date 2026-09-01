@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import { googleDriveService } from '../services/googleDriveService';
 import fs from 'fs';
 import path from 'path';

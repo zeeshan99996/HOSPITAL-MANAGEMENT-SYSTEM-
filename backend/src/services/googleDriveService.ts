@@ -99,7 +99,7 @@ export class GoogleDriveService {
 
     // 5. Default folder ID from environment or user's target folder
     if (!this.folderId) {
-      this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1Qcr65DEjI35e7Oatpo5-IV243PYPWkaF';
+      this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || '1Qcr65DEjl35e7Oatpo5-lV243PYPWkaF';
     }
   }
 
