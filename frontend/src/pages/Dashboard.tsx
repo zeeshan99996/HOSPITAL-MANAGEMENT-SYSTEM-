@@ -714,7 +714,7 @@ export const Dashboard: React.FC = () => {
               <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest border-b border-slate-100 dark:border-slate-850 pb-2 mb-4">
                 Reception Desk Quick Actions
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <button
                   onClick={() => window.location.href = '/patient-registration'}
                   className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
@@ -733,6 +733,16 @@ export const Dashboard: React.FC = () => {
                     <UserCheck className="h-4.5 w-4.5" />
                   </div>
                   <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-350">Old Patient</span>
+                </button>
+
+                <button
+                  onClick={() => window.location.href = '/laboratory'}
+                  className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-indigo-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
+                >
+                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 group-hover:scale-110 transition-transform rounded-xl">
+                    <Activity className="h-4.5 w-4.5" />
+                  </div>
+                  <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-350">Lab Desk</span>
                 </button>
 
                 <button
@@ -757,7 +767,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-4 p-3 bg-slate-50 dark:bg-dark-950/40 border border-slate-100 dark:border-slate-850 rounded-lg text-2xs text-slate-550 dark:text-slate-400">
-              <strong>System Notice:</strong> Only receptionist actions are authorized on this session. Medical profiles, laboratory results entry, settings configuration and payroll editing are disabled.
+              <strong>Receptionist Session:</strong> Patient Registration, OPD Token Queue, Laboratory Tests Desk, Bed Admissions, and Billing & Invoicing are fully enabled.
             </div>
           </Card>
         )}

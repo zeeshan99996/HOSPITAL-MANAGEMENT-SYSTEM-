@@ -416,7 +416,7 @@ router.put('/lab/requests/:id/result', authenticateToken, requireRoles(['admin',
 // LAB TESTS RATE CATALOG
 router.get('/lab/tests', authenticateToken, getLaboratoryTests);
 router.post('/lab/tests', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), createLaboratoryTest);
-router.delete('/lab/tests/:id', authenticateToken, requireRoles(['admin']), deleteLaboratoryTest);
+router.delete('/lab/tests/:id', authenticateToken, requireRoles(['admin', 'receptionist']), deleteLaboratoryTest);
 
 // ==========================================
 // BILLING, PAYROLL, PETTY CASH LEDGER
