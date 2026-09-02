@@ -6,6 +6,7 @@ import {
   CheckCircle2, ArrowRight, Stethoscope, Clock, ShieldAlert
 } from 'lucide-react';
 import { apiClient } from '../services/api';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 import { formatCNIC, formatPhone } from '../utils/formatters';
 
 export const PatientRegistration: React.FC = () => {
@@ -314,6 +315,8 @@ export const PatientRegistration: React.FC = () => {
       return;
     }
 
+    const clinic = getCachedClinicSettings();
+
     printWindow.document.write(`
         <html>
         <head>
@@ -360,9 +363,9 @@ export const PatientRegistration: React.FC = () => {
           </style>
         </head>
         <body>
-          <div class="text-center hospital-name">DR. TALHA CLINIC</div>
-          <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
-          <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
+          <div class="text-center hospital-name">${clinic.clinicName}</div>
+          <div class="text-center hospital-info">${clinic.clinicAddress}</div>
+          <div class="text-center hospital-info">Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</div>
           
           <div class="divider"></div>
 
@@ -387,8 +390,7 @@ export const PatientRegistration: React.FC = () => {
           <div class="divider"></div>
 
           <div class="footer-text">
-            THANK YOU FOR VISITING DR. TALHA CLINIC<br/>
-            PLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD
+            ${clinic.receiptFooter.replace(/\n/g, '<br/>')}
           </div>
 
           <script>

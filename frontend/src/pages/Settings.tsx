@@ -11,10 +11,15 @@ export const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'core' | 'areas' | 'payments'>('core');
 
   // Settings configs states
-  const [hospitalName, setHospitalName] = useState('Dr. Talha Clinic');
+  const [hospitalName, setHospitalName] = useState('DR. TALHA CLINIC');
+  const [clinicAddress, setClinicAddress] = useState('12-B, Main Boulevard, Gulberg III, Lahore');
+  const [clinicPhone, setClinicPhone] = useState('(042) 35889900');
+  const [clinicMobile, setClinicMobile] = useState('0311-6353044');
+  const [receiptFooter, setReceiptFooter] = useState('THANK YOU FOR VISITING DR. TALHA CLINIC\nPLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD');
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(true);
   const [fileStorage, setFileStorage] = useState('local');
+  const [savingCore, setSavingCore] = useState(false);
 
   // Areas state
   const [areas, setAreas] = useState<any[]>([]);
@@ -33,9 +38,25 @@ export const Settings: React.FC = () => {
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
+    fetchClinicConfig();
     fetchAreas();
     fetchPaymentModes();
   }, []);
+
+  const fetchClinicConfig = async () => {
+    try {
+      const res = await apiClient.get('/settings/clinic');
+      if (res) {
+        if (res.clinicName) setHospitalName(res.clinicName);
+        if (res.clinicAddress) setClinicAddress(res.clinicAddress);
+        if (res.clinicPhone) setClinicPhone(res.clinicPhone);
+        if (res.clinicMobile) setClinicMobile(res.clinicMobile);
+        if (res.receiptFooter) setReceiptFooter(res.receiptFooter);
+      }
+    } catch (err) {
+      console.warn('Error loading clinic config:', err);
+    }
+  };
 
   const fetchAreas = async () => {
     try {
@@ -139,9 +160,33 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMsg({ text: 'System settings updated and saved to backend database configuration.', type: 'success' });
+    setSavingCore(true);
+    setMsg(null);
+    try {
+      const res = await apiClient.put('/settings/clinic', {
+        clinicName: hospitalName,
+        clinicAddress,
+        clinicPhone,
+        clinicMobile,
+        receiptFooter
+      });
+      if (res) {
+        localStorage.setItem('hms_clinic_settings', JSON.stringify({
+          clinicName: hospitalName,
+          clinicAddress,
+          clinicPhone,
+          clinicMobile,
+          receiptFooter
+        }));
+      }
+      setMsg({ text: '✅ Clinic profile & printing headers saved successfully!', type: 'success' });
+    } catch (err: any) {
+      setMsg({ text: err.message || 'Failed to update clinic parameters.', type: 'error' });
+    } finally {
+      setSavingCore(false);
+    }
   };
 
   const isAdmin = user?.role === 'admin';
@@ -150,7 +195,7 @@ export const Settings: React.FC = () => {
     <div className="space-y-6 max-w-4xl">
       <div>
         <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">System Settings</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure clinical parameters, reception dropdowns, and integrations.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure clinical parameters, receipt header details, and reception dropdowns.</p>
       </div>
 
       {msg && (
@@ -229,13 +274,57 @@ export const Settings: React.FC = () => {
           {activeTab === 'core' && (
             <form onSubmit={handleSaveSettings} className="space-y-5">
               <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
-                Hospital EMR parameters
+                Clinic & Receipt Printing Headers
               </h3>
               
-              <Input label="Hospital Display Name" required value={hospitalName} onChange={e => setHospitalName(e.target.value)} />
+              <div className="grid grid-cols-1 gap-4">
+                <Input
+                  label="Clinic / Hospital Display Name"
+                  required
+                  value={hospitalName}
+                  onChange={e => setHospitalName(e.target.value)}
+                  placeholder="e.g. DR. TALHA CLINIC"
+                />
+
+                <Input
+                  label="Clinic Address (Print Slip Header)"
+                  required
+                  value={clinicAddress}
+                  onChange={e => setClinicAddress(e.target.value)}
+                  placeholder="e.g. 12-B, Main Boulevard, Gulberg III, Lahore"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Telephone / Landline"
+                    value={clinicPhone}
+                    onChange={e => setClinicPhone(e.target.value)}
+                    placeholder="e.g. (042) 35889900"
+                  />
+                  <Input
+                    label="Mobile / WhatsApp Number"
+                    value={clinicMobile}
+                    onChange={e => setClinicMobile(e.target.value)}
+                    placeholder="e.g. 0311-6353044"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                    Receipt Slip Footer Note
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={receiptFooter}
+                    onChange={e => setReceiptFooter(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    placeholder="e.g. THANK YOU FOR VISITING DR. TALHA CLINIC..."
+                  />
+                </div>
+              </div>
 
               {/* Notification triggers */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-450 block"><BellRing className="inline h-3.5 w-3.5 mr-1" /> Alert Dispatch Channels</span>
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-655 cursor-pointer select-none">
                   <input type="checkbox" checked={emailAlerts} onChange={e => setEmailAlerts(e.target.checked)} className="rounded border-slate-350 text-brand-500" />
@@ -247,22 +336,10 @@ export const Settings: React.FC = () => {
                 </label>
               </div>
 
-              {/* File upload */}
-              <div className="pt-2">
-                <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Clinical report file storage</label>
-                <select
-                  value={fileStorage}
-                  onChange={e => setFileStorage(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-350 dark:border-slate-800 text-sm bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 focus:outline-none"
-                >
-                  <option value="local">Local Host Storage (/uploads)</option>
-                  <option value="s3">AWS Simple Storage Service (S3)</option>
-                  <option value="cloudinary">Cloudinary Media Gateway</option>
-                </select>
-              </div>
-
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <Button type="submit">Save Parameters</Button>
+                <Button type="submit" isLoading={savingCore}>
+                  Save Parameters
+                </Button>
               </div>
             </form>
           )}

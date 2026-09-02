@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   Search, UserCheck, Calendar, Phone, MapPin, Printer, Ticket,
@@ -252,6 +253,8 @@ export const OldPatient: React.FC = () => {
       return;
     }
 
+    const clinic = getCachedClinicSettings();
+
     printWindow.document.write(`
       <html>
       <head>
@@ -313,9 +316,9 @@ export const OldPatient: React.FC = () => {
       </head>
       <body>
         <div class="header text-center">
-          <h1 class="clinic-name">Dr. Talha Clinic</h1>
-          <p class="sub">Healthcare Management & Diagnostic System</p>
-          <p class="sub">Main Boulevard, Lahore • Tel: 0300-1234567</p>
+          <h1 class="clinic-name">${clinic.clinicName}</h1>
+          <p class="sub">${clinic.clinicAddress}</p>
+          <p class="sub">Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</p>
         </div>
 
         <div class="token-box">

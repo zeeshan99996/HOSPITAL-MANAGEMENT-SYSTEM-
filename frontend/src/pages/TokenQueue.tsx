@@ -6,6 +6,7 @@ import {
   Clock, Radio, Eye, AlertTriangle
 } from 'lucide-react';
 import { apiClient } from '../services/api';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 
 export const TokenQueue: React.FC = () => {
   const [tokens, setTokens] = useState<any[]>([]);
@@ -98,10 +99,13 @@ export const TokenQueue: React.FC = () => {
       alert('Pop-up window was blocked by your browser. Please allow pop-ups for Dr. Talha Clinic EMR to print token slips automatically.');
       return;
     }
+    const clinic = getCachedClinicSettings();
+
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
       <head>
-        <title>OPD Token Slip - ${tokenObj.tokenNumber}</title>
+        <title>Token Slip - ${tokenObj.tokenNumber}</title>
         <style>
           @page {
             size: 80mm auto;
@@ -144,9 +148,9 @@ export const TokenQueue: React.FC = () => {
         </style>
       </head>
       <body>
-        <div class="text-center hospital-name">DR. TALHA CLINIC</div>
-        <div class="text-center hospital-info">12-B, Main Boulevard, Gulberg III, Lahore</div>
-        <div class="text-center hospital-info">Tel: (042) 35889900 | Mobile: 0311-6353044</div>
+        <div class="text-center hospital-name">${clinic.clinicName}</div>
+        <div class="text-center hospital-info">${clinic.clinicAddress}</div>
+        <div class="text-center hospital-info">Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</div>
         
         <div class="divider"></div>
 
@@ -169,8 +173,7 @@ export const TokenQueue: React.FC = () => {
         <div class="divider"></div>
 
         <div class="footer-text">
-          THANK YOU FOR VISITING DR. TALHA CLINIC<br/>
-          PLEASE RETAIN THIS TOKEN SLIP FOR YOUR TURN
+          ${clinic.receiptFooter.replace(/\n/g, '<br/>')}
         </div>
 
         <script>
