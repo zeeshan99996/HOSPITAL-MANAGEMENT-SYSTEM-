@@ -321,48 +321,60 @@ export const PatientRegistration: React.FC = () => {
         <html>
         <head>
           <title>Receipt Ticket - ${target.mrNumber || 'MRN'}</title>
-          <style>
-            @page {
-              size: 80mm auto;
-              margin: 0mm !important;
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0 !important;
+          }
+          @media print {
+            html, body {
+              width: 72mm !important;
+              max-width: 72mm !important;
+              height: auto !important;
+              min-height: 0 !important;
+              max-height: max-content !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              background: #fff !important;
+              color: #000 !important;
+              overflow: hidden !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            @media print {
-              html, body {
-                width: 76mm !important;
-                max-width: 76mm !important;
-                margin: 0 auto !important;
-                padding: 2mm 2mm 6mm 2mm !important;
-                background: #fff !important;
-                color: #000 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
+            .ticket-wrap {
+              width: 72mm !important;
+              margin: 0 auto !important;
+              padding: 1.5mm 1mm 1.5mm 1mm !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
             }
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body {
-              font-family: 'Courier New', Courier, monospace, sans-serif;
-              width: 76mm;
-              max-width: 76mm;
-              margin: 0 auto;
-              padding: 4mm 3mm;
-              color: #000;
-              font-size: 11px;
-              line-height: 1.3;
-            }
-            .text-center { text-align: center; }
-            .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 6px 0; }
-            .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
-            .hospital-info { font-size: 9.5px; color: #000; line-height: 1.2; }
-            .token-box { border: 2px solid #000; padding: 6px 4px; margin: 7px 0; text-align: center; background-color: #fff; }
-            .token-label { font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
-            .token-number { font-size: 28px; font-weight: 900; margin: 3px 0; font-family: Arial, sans-serif; letter-spacing: 1.5px; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10.5px; }
-            .info-label { font-weight: bold; }
-            .footer-text { font-size: 9px; text-align: center; margin-top: 8px; font-weight: bold; line-height: 1.2; }
-          </style>
-        </head>
-        <body>
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            width: 72mm;
+            max-width: 72mm;
+            margin: 0 auto;
+            padding: 1.5mm 1mm;
+            color: #000;
+            font-size: 10.5px;
+            line-height: 1.2;
+          }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .divider { border-top: 1px dashed #000; margin: 4px 0; }
+          .hospital-name { font-size: 14px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 1px; }
+          .hospital-info { font-size: 9px; color: #000; line-height: 1.15; }
+          .token-box { border: 1.5px solid #000; padding: 4px 2px; margin: 5px 0; text-align: center; background-color: #fff; }
+          .token-label { font-size: 9.5px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; }
+          .token-number { font-size: 26px; font-weight: 900; margin: 2px 0; font-family: Arial, sans-serif; letter-spacing: 1.5px; }
+          .info-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 10px; }
+          .info-label { font-weight: bold; }
+          .footer-text { font-size: 8.5px; text-align: center; margin-top: 5px; font-weight: bold; line-height: 1.15; }
+        </style>
+      </head>
+      <body>
+        <div class="ticket-wrap">
           <div class="text-center hospital-name">${clinic.clinicName}</div>
           <div class="text-center hospital-info">${clinic.clinicAddress}</div>
           <div class="text-center hospital-info">Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</div>
@@ -372,11 +384,11 @@ export const PatientRegistration: React.FC = () => {
           <div class="token-box">
             <div class="token-label">TODAY'S DAILY TOKEN</div>
             <div class="token-number">TOKEN # ${target.tokenNumber || 'T-01'}</div>
-            <div style="font-size: 12px; margin-top: 3px; font-weight: 900; color: #000;">
+            <div style="font-size: 11px; margin-top: 2px; font-weight: 900; color: #000;">
               👨‍⚕️ ${doctorName}
             </div>
-            ${cleanSpec ? `<div style="font-size: 9px; font-weight: bold;">(${cleanSpec})</div>` : ''}
-            <div style="font-size: 10px; margin-top: 3px; font-weight: bold;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
+            ${cleanSpec ? `<div style="font-size: 8.5px; font-weight: bold;">(${cleanSpec})</div>` : ''}
+            <div style="font-size: 9.5px; margin-top: 2px; font-weight: bold;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
           </div>
 
           <div class="divider"></div>
@@ -392,17 +404,18 @@ export const PatientRegistration: React.FC = () => {
           <div class="footer-text">
             ${clinic.receiptFooter.replace(/\n/g, '<br/>')}
           </div>
-          <div style="font-size: 7.5px; text-align: center; margin-top: 6px; color: #444; letter-spacing: 0.3px; font-weight: bold;">
+          <div style="font-size: 7px; text-align: center; margin-top: 4px; color: #444; letter-spacing: 0.3px; font-weight: bold;">
             Developed by Erha Technologies
           </div>
+        </div>
 
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function(){ window.close(); }, 500);
-            };
-          </script>
-        </body>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function(){ window.close(); }, 500);
+          };
+        </script>
+      </body>
         </html>
       `);
     printWindow.document.close();

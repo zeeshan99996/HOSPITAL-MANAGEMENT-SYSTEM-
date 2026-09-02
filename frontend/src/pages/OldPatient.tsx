@@ -262,105 +262,119 @@ export const OldPatient: React.FC = () => {
         <style>
           @page {
             size: 80mm auto;
-            margin: 0mm !important;
+            margin: 0 !important;
           }
           @media print {
             html, body {
-              width: 76mm !important;
-              max-width: 76mm !important;
+              width: 72mm !important;
+              max-width: 72mm !important;
+              height: auto !important;
+              min-height: 0 !important;
+              max-height: max-content !important;
               margin: 0 auto !important;
-              padding: 2mm 2mm 6mm 2mm !important;
+              padding: 0 !important;
               background: #fff !important;
               color: #000 !important;
+              overflow: hidden !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
+            }
+            .ticket-wrap {
+              width: 72mm !important;
+              margin: 0 auto !important;
+              padding: 1.5mm 1mm 1.5mm 1mm !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
             }
           }
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body {
             font-family: 'Courier New', Courier, monospace, sans-serif;
-            width: 76mm;
-            max-width: 76mm;
+            width: 72mm;
+            max-width: 72mm;
             margin: 0 auto;
-            padding: 4mm 3mm;
+            padding: 1.5mm 1mm;
             color: #000;
-            font-size: 11px;
-            line-height: 1.3;
+            font-size: 10.5px;
+            line-height: 1.2;
           }
           .text-center { text-align: center; }
-          .header { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 6px; }
-          .clinic-name { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; }
-          .sub { font-size: 9.5px; margin: 1px 0 0 0; color: #000; }
+          .header { border-bottom: 1px dashed #000; padding-bottom: 3px; margin-bottom: 4px; }
+          .clinic-name { font-size: 14px; font-weight: 900; margin: 0; text-transform: uppercase; }
+          .sub { font-size: 9px; margin: 1px 0 0 0; color: #000; }
           .token-box {
-            border: 2px solid #000;
-            padding: 6px 4px;
-            margin: 7px 0;
+            border: 1.5px solid #000;
+            padding: 4px 2px;
+            margin: 5px 0;
             text-align: center;
           }
-          .token-lbl { font-size: 10px; font-weight: 900; text-transform: uppercase; }
-          .token-num { font-size: 28px; font-weight: 900; margin: 2px 0; font-family: Arial, sans-serif; letter-spacing: 1.5px; }
-          .doc-name { font-size: 12px; font-weight: bold; margin-top: 2px; }
-          .doc-spec { font-size: 9.5px; font-style: italic; }
-          .meta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 4px; }
-          .meta-table td { padding: 2px 0; vertical-align: top; }
+          .token-lbl { font-size: 9.5px; font-weight: 900; text-transform: uppercase; }
+          .token-num { font-size: 26px; font-weight: 900; margin: 2px 0; font-family: Arial, sans-serif; letter-spacing: 1.5px; }
+          .doc-name { font-size: 11px; font-weight: bold; margin-top: 2px; }
+          .doc-spec { font-size: 8.5px; font-style: italic; }
+          .meta-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 3px; }
+          .meta-table td { padding: 1.5px 0; vertical-align: top; }
           .meta-table td.lbl { width: 40%; font-weight: bold; }
           .footer {
             border-top: 1px dashed #000;
-            margin-top: 8px;
-            padding-top: 6px;
+            margin-top: 5px;
+            padding-top: 4px;
             text-align: center;
-            font-size: 9px;
+            font-size: 8.5px;
             font-weight: bold;
           }
         </style>
       </head>
       <body>
-        <div class="header text-center">
-          <h1 class="clinic-name">${clinic.clinicName}</h1>
-          <p class="sub">${clinic.clinicAddress}</p>
-          <p class="sub">Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</p>
-        </div>
+        <div class="ticket-wrap">
+          <div class="header text-center">
+            <h1 class="clinic-name">${clinic.clinicName}</h1>
+            <p class="sub">${clinic.clinicAddress}</p>
+            <p class="sub">Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</p>
+          </div>
 
-        <div class="token-box">
-          <div class="token-lbl">Doctor OPD Token Sequence</div>
-          <div class="token-num">${escapeHtml(tokenObj.tokenNumber || 'T-01')}</div>
-          <div class="doc-name">${escapeHtml(docTitle)}</div>
-          <div class="doc-spec">${escapeHtml(targetDoc?.specialization || 'Consultant Physician')}</div>
-        </div>
+          <div class="token-box">
+            <div class="token-lbl">Doctor OPD Token Sequence</div>
+            <div class="token-num">${escapeHtml(tokenObj.tokenNumber || 'T-01')}</div>
+            <div class="doc-name">${escapeHtml(docTitle)}</div>
+            <div class="doc-spec">${escapeHtml(targetDoc?.specialization || 'Consultant Physician')}</div>
+          </div>
 
-        <table class="meta-table">
-          <tr>
-            <td class="lbl">Patient Name:</td>
-            <td><strong>${escapeHtml(selectedPatient?.name || 'N/A')}</strong></td>
-          </tr>
-          <tr>
-            <td class="lbl">MR Number:</td>
-            <td>${escapeHtml(selectedPatient?.mrNumber || 'N/A')}</td>
-          </tr>
-          <tr>
-            <td class="lbl">Contact Phone:</td>
-            <td>${escapeHtml(selectedPatient?.phone || 'N/A')}</td>
-          </tr>
-          <tr>
-            <td class="lbl">Fee Charged:</td>
-            <td><strong>${chargedFee === 0 ? 'FREE (5-Day Re-visit)' : `Rs. ${chargedFee}`}</strong></td>
-          </tr>
-          <tr>
-            <td class="lbl">Issued Time:</td>
-            <td>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${new Date().toLocaleDateString()}</td>
-          </tr>
-        </table>
+          <table class="meta-table">
+            <tr>
+              <td class="lbl">Patient Name:</td>
+              <td><strong>${escapeHtml(selectedPatient?.name || 'N/A')}</strong></td>
+            </tr>
+            <tr>
+              <td class="lbl">MR Number:</td>
+              <td>${escapeHtml(selectedPatient?.mrNumber || 'N/A')}</td>
+            </tr>
+            <tr>
+              <td class="lbl">Contact Phone:</td>
+              <td>${escapeHtml(selectedPatient?.phone || 'N/A')}</td>
+            </tr>
+            <tr>
+              <td class="lbl">Fee Charged:</td>
+              <td><strong>${chargedFee === 0 ? 'FREE (5-Day Re-visit)' : `Rs. ${chargedFee}`}</strong></td>
+            </tr>
+            <tr>
+              <td class="lbl">Issued Time:</td>
+              <td>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • ${new Date().toLocaleDateString()}</td>
+            </tr>
+          </table>
 
-        <div class="footer">
-          <p>${clinic.receiptFooter ? clinic.receiptFooter.replace(/\n/g, '<br/>') : 'Please wait for your token number to be announced on the queue monitor.'}</p>
-        </div>
-        <div style="font-size: 7.5px; text-align: center; margin-top: 6px; color: #444; letter-spacing: 0.3px; font-weight: bold;">
-          Developed by Erha Technologies
+          <div class="footer">
+            <p>${clinic.receiptFooter ? clinic.receiptFooter.replace(/\n/g, '<br/>') : 'Please wait for your token number to be announced on the queue monitor.'}</p>
+          </div>
+          <div style="font-size: 7px; text-align: center; margin-top: 4px; color: #444; letter-spacing: 0.3px; font-weight: bold;">
+            Developed by Erha Technologies
+          </div>
         </div>
 
         <script>
           window.onload = function() {
             window.print();
+            setTimeout(function(){ window.close(); }, 500);
           };
         </script>
       </body>
