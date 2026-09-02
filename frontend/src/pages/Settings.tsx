@@ -170,30 +170,57 @@ export const Settings: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Navigation Categories */}
-        <Card className="md:col-span-1 p-4 space-y-1">
+        <Card className="md:col-span-1 p-3 space-y-1.5">
           <button
             onClick={() => setActiveTab('core')}
-            className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all \${activeTab === 'core' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'}`}
+            className={`flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'core'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-900/60'
+            }`}
           >
-            <SettingsIcon className="h-4.5 w-4.5" /> Core Parameters
+            <SettingsIcon className={`h-4.5 w-4.5 ${activeTab === 'core' ? 'text-white' : 'text-brand-500'}`} />
+            <span>Core Parameters</span>
           </button>
+
           <button
             onClick={() => setActiveTab('areas')}
-            className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all \${activeTab === 'areas' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'}`}
+            className={`flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'areas'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-900/60'
+            }`}
           >
-            <MapPin className="h-4.5 w-4.5 text-brand-500" /> Area / Colony Setup
+            <MapPin className={`h-4.5 w-4.5 ${activeTab === 'areas' ? 'text-white' : 'text-brand-500'}`} />
+            <span>Area / Colony Setup</span>
           </button>
+
           <button
             onClick={() => setActiveTab('payments')}
-            className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all \${activeTab === 'payments' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'}`}
+            className={`flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'payments'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-900/60'
+            }`}
           >
-            <CreditCard className="h-4.5 w-4.5 text-brand-500" /> Registration Payments
+            <CreditCard className={`h-4.5 w-4.5 ${activeTab === 'payments' ? 'text-white' : 'text-brand-500'}`} />
+            <span>Registration Payments</span>
           </button>
-          <Link to="/security" className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900">
-            <Shield className="h-4.5 w-4.5 text-brand-500" /> Security & Access Control
+
+          <Link
+            to="/security"
+            className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-900/60 transition-all"
+          >
+            <Shield className="h-4.5 w-4.5 text-brand-500" />
+            <span>Security & Access Control</span>
           </Link>
-          <button onClick={() => alert('Diagnostic metrics: System is running on Sequelize/Express stack.')} className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900">
-            <Server className="h-4.5 w-4.5" /> Node Host Diagnostics
+
+          <button
+            onClick={() => alert('Diagnostic metrics: System is running on Sequelize/Express stack.')}
+            className="flex w-full items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-900/60 transition-all"
+          >
+            <Server className="h-4.5 w-4.5 text-slate-500 dark:text-slate-400" />
+            <span>Node Host Diagnostics</span>
           </button>
         </Card>
 
