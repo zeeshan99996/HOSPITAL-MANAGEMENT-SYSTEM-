@@ -352,8 +352,10 @@ export const OldPatient: React.FC = () => {
         </table>
 
         <div class="footer">
-          <p>Please wait for your token number to be announced on the queue monitor.</p>
-          <p>Wishing you a quick and healthy recovery!</p>
+          <p>${clinic.receiptFooter ? clinic.receiptFooter.replace(/\n/g, '<br/>') : 'Please wait for your token number to be announced on the queue monitor.'}</p>
+        </div>
+        <div style="font-size: 7.5px; text-align: center; margin-top: 6px; color: #444; letter-spacing: 0.3px; font-weight: bold;">
+          Developed by Erha Technologies
         </div>
 
         <script>

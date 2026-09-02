@@ -392,6 +392,9 @@ export const PatientRegistration: React.FC = () => {
           <div class="footer-text">
             ${clinic.receiptFooter.replace(/\n/g, '<br/>')}
           </div>
+          <div style="font-size: 7.5px; text-align: center; margin-top: 6px; color: #444; letter-spacing: 0.3px; font-weight: bold;">
+            Developed by Erha Technologies
+          </div>
 
           <script>
             window.onload = function() {

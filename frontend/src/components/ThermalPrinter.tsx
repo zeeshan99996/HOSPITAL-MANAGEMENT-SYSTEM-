@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Button } from './UI';
 import { Printer, X } from 'lucide-react';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 
 interface ThermalPrinterProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface ThermalPrinterProps {
 }
 
 export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose, tokenData }) => {
+  const clinic = getCachedClinicSettings();
   if (!isOpen || !tokenData) return null;
 
   const handlePrint = () => {
@@ -69,8 +71,8 @@ export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose,
             </style>
           </head>
           <body onload="window.print(); window.close();">
-            <div class="center bold header">DR. TALHA CLINIC</div>
-            <div class="center subheader">123 Health Ave, EMR City<br>Tel: +91 98765 43210</div>
+            <div class="center bold header">${clinic.clinicName}</div>
+            <div class="center subheader">${clinic.clinicAddress}<br>Tel: ${clinic.clinicPhone} | Mobile: ${clinic.clinicMobile}</div>
             <div class="dashed-line"></div>
             <div class="center bold" style="font-size: 11px;">${typeLabel}</div>
             <div class="dashed-line"></div>
@@ -100,8 +102,10 @@ export const ThermalPrinter: React.FC<ThermalPrinterProps> = ({ isOpen, onClose,
             
             <div class="dashed-line"></div>
             <div class="center footer bold">
-              Thank you for choosing Dr. Talha Clinic.<br>
-              Please wait for your token to be called.
+              ${clinic.receiptFooter.replace(/\n/g, '<br>')}
+            </div>
+            <div style="font-size: 7.5px; text-align: center; margin-top: 6px; color: #555; font-weight: bold; letter-spacing: 0.3px;">
+              Developed by Erha Technologies
             </div>
           </body>
         </html>
