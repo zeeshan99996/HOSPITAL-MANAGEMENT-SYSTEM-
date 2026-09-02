@@ -319,18 +319,44 @@ export const PatientRegistration: React.FC = () => {
         <head>
           <title>Receipt Ticket - ${target.mrNumber || 'MRN'}</title>
           <style>
-            body { font-family: 'Courier New', Courier, monospace; font-size: 11px; padding: 12px; width: 280px; margin: 0 auto; color: #000; }
+            @page {
+              size: 80mm auto;
+              margin: 0mm !important;
+            }
+            @media print {
+              html, body {
+                width: 76mm !important;
+                max-width: 76mm !important;
+                margin: 0 auto !important;
+                padding: 2mm 2mm 6mm 2mm !important;
+                background: #fff !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: 'Courier New', Courier, monospace, sans-serif;
+              width: 76mm;
+              max-width: 76mm;
+              margin: 0 auto;
+              padding: 4mm 3mm;
+              color: #000;
+              font-size: 11px;
+              line-height: 1.3;
+            }
             .text-center { text-align: center; }
             .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 8px 0; }
-            .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; margin-bottom: 2px; }
-            .hospital-info { font-size: 10px; color: #222; line-height: 1.3; }
-            .token-box { border: 2px solid #000; padding: 8px; margin: 10px 0; text-align: center; background-color: #f8f9fa; }
-            .token-label { font-size: 10px; font-weight: bold; letter-spacing: 1px; }
-            .token-number { font-size: 26px; font-weight: 900; margin-top: 3px; font-family: Arial, sans-serif; letter-spacing: 1px; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; }
+            .divider { border-top: 1px dashed #000; margin: 6px 0; }
+            .hospital-name { font-size: 15px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+            .hospital-info { font-size: 9.5px; color: #000; line-height: 1.2; }
+            .token-box { border: 2px solid #000; padding: 6px 4px; margin: 7px 0; text-align: center; background-color: #fff; }
+            .token-label { font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+            .token-number { font-size: 28px; font-weight: 900; margin: 3px 0; font-family: Arial, sans-serif; letter-spacing: 1.5px; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10.5px; }
             .info-label { font-weight: bold; }
-            .footer-text { font-size: 9px; text-align: center; margin-top: 12px; font-weight: bold; line-height: 1.3; }
+            .footer-text { font-size: 9px; text-align: center; margin-top: 8px; font-weight: bold; line-height: 1.2; }
           </style>
         </head>
         <body>
@@ -343,11 +369,11 @@ export const PatientRegistration: React.FC = () => {
           <div class="token-box">
             <div class="token-label">TODAY'S DAILY TOKEN</div>
             <div class="token-number">TOKEN # ${target.tokenNumber || 'T-01'}</div>
-            <div style="font-size: 12px; margin-top: 5px; font-weight: 900; color: #000; letter-spacing: 0.3px;">
+            <div style="font-size: 12px; margin-top: 3px; font-weight: 900; color: #000;">
               👨‍⚕️ ${doctorName}
             </div>
-            ${cleanSpec ? `<div style="font-size: 9px; color: #444; font-weight: bold;">(${cleanSpec})</div>` : ''}
-            <div style="font-size: 10px; margin-top: 4px; font-weight: bold; color: #333;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
+            ${cleanSpec ? `<div style="font-size: 9px; font-weight: bold;">(${cleanSpec})</div>` : ''}
+            <div style="font-size: 10px; margin-top: 3px; font-weight: bold;">MRN: ${target.mrNumber || 'MR-N/A'}</div>
           </div>
 
           <div class="divider"></div>
@@ -356,7 +382,7 @@ export const PatientRegistration: React.FC = () => {
           <div class="info-row"><span class="info-label">Age / Gender:</span> <span>${target.age || 'N/A'} Yrs / ${(target.gender || 'male').toUpperCase()}</span></div>
           <div class="info-row"><span class="info-label">Phone:</span> <span>${target.phone}</span></div>
           <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. ${target.paymentAmount || '1500'}</span></div>
-          <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleString()}</span></div>
+          <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
 
           <div class="divider"></div>
 

@@ -257,40 +257,57 @@ export const OldPatient: React.FC = () => {
       <head>
         <title>OPD Token Ticket - ${tokenObj.tokenNumber || 'TOKEN'}</title>
         <style>
+          @page {
+            size: 80mm auto;
+            margin: 0mm !important;
+          }
+          @media print {
+            html, body {
+              width: 76mm !important;
+              max-width: 76mm !important;
+              margin: 0 auto !important;
+              padding: 2mm 2mm 6mm 2mm !important;
+              background: #fff !important;
+              color: #000 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
           body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 78mm;
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            width: 76mm;
+            max-width: 76mm;
             margin: 0 auto;
-            padding: 8px;
+            padding: 4mm 3mm;
             color: #000;
+            font-size: 11px;
+            line-height: 1.3;
           }
           .text-center { text-align: center; }
-          .header { border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 8px; }
-          .clinic-name { font-size: 16px; font-weight: 900; margin: 0; text-transform: uppercase; }
-          .sub { font-size: 10px; margin: 2px 0 0 0; }
+          .header { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 6px; }
+          .clinic-name { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; }
+          .sub { font-size: 9.5px; margin: 1px 0 0 0; color: #000; }
           .token-box {
             border: 2px solid #000;
-            padding: 8px 4px;
-            margin: 8px 0;
+            padding: 6px 4px;
+            margin: 7px 0;
             text-align: center;
           }
-          .token-lbl { font-size: 11px; font-weight: bold; text-transform: uppercase; }
-          .token-num { font-size: 32px; font-weight: 900; margin: 2px 0; }
+          .token-lbl { font-size: 10px; font-weight: 900; text-transform: uppercase; }
+          .token-num { font-size: 28px; font-weight: 900; margin: 2px 0; font-family: Arial, sans-serif; letter-spacing: 1.5px; }
           .doc-name { font-size: 12px; font-weight: bold; margin-top: 2px; }
-          .doc-spec { font-size: 10px; font-style: italic; }
-          .meta-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+          .doc-spec { font-size: 9.5px; font-style: italic; }
+          .meta-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 4px; }
           .meta-table td { padding: 2px 0; vertical-align: top; }
           .meta-table td.lbl { width: 40%; font-weight: bold; }
           .footer {
             border-top: 1px dashed #000;
-            margin-top: 10px;
+            margin-top: 8px;
             padding-top: 6px;
             text-align: center;
             font-size: 9px;
-          }
-          @media print {
-            body { margin: 0; padding: 0; }
-            @page { size: auto; margin: 0mm; }
+            font-weight: bold;
           }
         </style>
       </head>
