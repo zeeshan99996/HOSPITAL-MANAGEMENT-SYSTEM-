@@ -206,7 +206,7 @@ export const admitPatient = async (req: Request, res: Response) => {
     // Create an initial invoice for the baseline admission cost if greater than zero
     if (Number(baselineCost) > 0) {
       let invoice = await Invoice.findOne({
-        where: { patientId, status: 'unpaid' },
+        where: { patientId, isVoided: false },
         order: [['createdAt', 'DESC']],
         transaction
       });
@@ -717,7 +717,7 @@ export const createLabRequest = async (req: Request, res: Response) => {
 
     if (rate > 0) {
       let invoice = await Invoice.findOne({
-        where: { patientId, status: 'unpaid' },
+        where: { patientId, isVoided: false },
         order: [['createdAt', 'DESC']],
         transaction
       });

@@ -1101,30 +1101,6 @@ export const Billing: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Grouping Toggle */}
-              <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold">
-                <button
-                  onClick={() => setLedgerGrouping('by_patient')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
-                    ledgerGrouping === 'by_patient'
-                      ? 'bg-brand-500 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  Consolidated by Patient (MRN)
-                </button>
-                <button
-                  onClick={() => setLedgerGrouping('by_invoice')}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
-                    ledgerGrouping === 'by_invoice'
-                      ? 'bg-brand-500 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                  }`}
-                >
-                  Individual Invoices
-                </button>
-              </div>
-
               {/* Status Filter Pills */}
               <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold flex-wrap">
                 <button
@@ -1157,285 +1133,167 @@ export const Billing: React.FC = () => {
                 >
                   Unpaid / Partial
                 </button>
-                {ledgerGrouping === 'by_invoice' && (
-                  <button
-                    onClick={() => setInvoiceFilter('voided')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      invoiceFilter === 'voided'
-                        ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Voided
-                  </button>
-                )}
               </div>
             </div>
           </div>
 
-          {/* VIEW MODE 1: CONSOLIDATED BY PATIENT (MR NUMBER) */}
-          {ledgerGrouping === 'by_patient' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(() => {
-                const filteredAccounts = consolidatedPatientAccounts.filter(acc => {
-                  if (invoiceFilter === 'paid') return acc.status === 'paid';
-                  if (invoiceFilter === 'unpaid') return acc.status === 'unpaid' || acc.status === 'partially_paid';
-                  return true;
-                });
+          {/* SINGLE CONSOLIDATED MASTER ACCOUNT PER MR NUMBER */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(() => {
+              const filteredAccounts = consolidatedPatientAccounts.filter(acc => {
+                if (invoiceFilter === 'paid') return acc.status === 'paid';
+                if (invoiceFilter === 'unpaid') return acc.status === 'unpaid' || acc.status === 'partially_paid';
+                return true;
+              });
 
-                if (filteredAccounts.length === 0) {
-                  return (
-                    <div className="col-span-full p-8 text-center text-slate-400 text-xs">
-                      No consolidated patient accounts found matching filter.
-                    </div>
-                  );
-                }
+              if (filteredAccounts.length === 0) {
+                return (
+                  <div className="col-span-full p-8 text-center text-slate-400 text-xs">
+                    No patient billing records found matching filter.
+                  </div>
+                );
+              }
 
-                return filteredAccounts.map((acc) => {
-                  const pIdStr = String(acc.patientId);
-                  const cardDiscount = Number(cardDiscounts[pIdStr] || 0);
-                  const effectiveRemaining = Math.max(0, Math.round((acc.totalInvoiced - cardDiscount - acc.totalPaid) * 100) / 100);
-                  const isPaid = effectiveRemaining === 0 && acc.totalInvoiced > 0;
-                  const isPartial = effectiveRemaining > 0 && acc.totalPaid > 0;
+              return filteredAccounts.map((acc) => {
+                const pIdStr = String(acc.patientId);
+                const cardDiscount = Number(cardDiscounts[pIdStr] || 0);
+                const effectiveRemaining = Math.max(0, Math.round((acc.totalInvoiced - cardDiscount - acc.totalPaid) * 100) / 100);
+                const isPaid = effectiveRemaining === 0 && acc.totalInvoiced > 0;
+                const isPartial = effectiveRemaining > 0 && acc.totalPaid > 0;
+                const masterInvId = acc.invoiceIds[0] || '10';
 
-                  return (
-                    <Card key={acc.patientId} className="p-4 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/40 space-y-3 transition-all rounded-xl shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <div>
+                return (
+                  <Card key={acc.patientId} className="p-4 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/40 space-y-3 transition-all rounded-xl shadow-sm">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[9px] font-mono font-bold bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">
+                            INVOICE #{masterInvId}
+                          </span>
                           <span className="text-[9px] font-mono font-bold bg-brand-500/15 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded">
                             MRN: {acc.mrNumber}
                           </span>
-                          <h4 className="text-xs font-black text-slate-900 dark:text-white mt-1">
-                            Patient: {acc.patientName}
-                          </h4>
-                          <p className="text-[10px] text-slate-500 font-mono">
-                            Phone: {acc.phone} • {acc.invoiceCount} {acc.invoiceCount === 1 ? 'Record' : 'Records'} Consolidated
-                          </p>
                         </div>
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white mt-1.5">
+                          Patient: {acc.patientName}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          Phone: {acc.phone} • Single Unified Patient Bill
+                        </p>
+                      </div>
 
-                        <Badge 
-                          type={isPaid ? 'success' : isPartial ? 'warning' : 'danger'} 
-                          className="text-[10px] font-bold uppercase"
+                      <Badge 
+                        type={isPaid ? 'success' : isPartial ? 'warning' : 'danger'} 
+                        className="text-[10px] font-bold uppercase"
+                      >
+                        {isPaid ? 'PAID IN FULL' : isPartial ? 'PARTIAL' : 'UNPAID'}
+                      </Badge>
+                    </div>
+
+                    {/* Financial Summary: Total Amount, Discount, Paid Amount, Remaining Amount */}
+                    <div className="p-3 bg-white dark:bg-dark-900 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs space-y-2">
+                      <div className="flex justify-between items-center text-slate-900 dark:text-white font-extrabold text-xs">
+                        <span className="text-slate-500 font-sans text-xs">Total Amount:</span>
+                        <span>Rs. {acc.totalInvoiced.toLocaleString()}</span>
+                      </div>
+
+                      {/* Discount Option */}
+                      <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
+                        <span className="text-slate-500 font-sans text-xs">Discount:</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400 text-[11px] font-sans">Rs.</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={acc.totalInvoiced}
+                            placeholder="0"
+                            value={cardDiscounts[pIdStr] !== undefined && cardDiscounts[pIdStr] !== 0 ? cardDiscounts[pIdStr] : ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                              setCardDiscounts(prev => ({ ...prev, [pIdStr]: val }));
+                            }}
+                            className="w-24 px-2 py-0.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-dark-950 text-right font-mono font-bold text-xs text-rose-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-emerald-600 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
+                        <span className="text-slate-500 font-sans text-xs">Paid Amount:</span>
+                        <span>Rs. {acc.totalPaid.toLocaleString()}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center border-t-2 border-slate-200 dark:border-slate-800 pt-2 font-black">
+                        <span className="text-slate-900 dark:text-white font-sans text-xs uppercase tracking-wider">Remaining Amount:</span>
+                        <span className={effectiveRemaining > 0 ? "text-rose-600 text-sm font-black" : "text-emerald-600 text-sm font-black"}>
+                          Rs. {effectiveRemaining.toLocaleString()} {isPaid ? '(CLEARED)' : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Niche "Pay" Button & Actions */}
+                    <div className="space-y-2 pt-1">
+                      {effectiveRemaining > 0 ? (
+                        <Button
+                          onClick={() => {
+                            setSelectedPatientId(pIdStr);
+                            setReceptionistDiscount(cardDiscount);
+                            const openInv = invoices.find(inv => String(inv.patientId) === pIdStr);
+                            if (openInv) {
+                              setSelectedInvoice(openInv);
+                              setPayAmount(effectiveRemaining);
+                              setIsPayOpen(true);
+                            } else {
+                              setCustomPatientId(pIdStr);
+                              setCustomDiscount(cardDiscount);
+                              setInvoiceLines([{ itemName: 'Patient Bill Settlement', itemCategory: 'General', unitPrice: effectiveRemaining, quantity: 1 }]);
+                              setIsCreateOpen(true);
+                            }
+                          }}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all uppercase tracking-wide"
                         >
-                          {isPaid ? 'PAID IN FULL' : isPartial ? 'PARTIAL' : 'UNPAID'}
-                        </Badge>
-                      </div>
+                          <CreditCard className="h-4 w-4" /> Pay Rs. {effectiveRemaining.toLocaleString()}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            setSelectedPatientId(pIdStr);
+                            handlePrintThermalReceipt(acc);
+                          }}
+                          className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Printer className="h-3.5 w-3.5" /> Print Thermal Slip (Paid)
+                        </Button>
+                      )}
 
-                      {/* Total Amount, Discount Option, Paid Amount, Remaining Amount */}
-                      <div className="p-3 bg-white dark:bg-dark-900 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs space-y-2">
-                        <div className="flex justify-between items-center text-slate-900 dark:text-white font-extrabold text-xs">
-                          <span className="text-slate-500 font-sans text-xs">Total Amount:</span>
-                          <span>Rs. {acc.totalInvoiced.toLocaleString()}</span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedPatientId(pIdStr);
+                            window.scrollTo({ top: 400, behavior: 'smooth' });
+                          }}
+                          className="flex-1 py-1.5 px-3 bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-300 hover:bg-brand-600 hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> View Breakdown
+                        </button>
 
-                        {/* Discount Option */}
-                        <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
-                          <span className="text-slate-500 font-sans text-xs">Discount:</span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-slate-400 text-[11px] font-sans">Rs.</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max={acc.totalInvoiced}
-                              placeholder="0"
-                              value={cardDiscounts[pIdStr] !== undefined && cardDiscounts[pIdStr] !== 0 ? cardDiscounts[pIdStr] : ''}
-                              onChange={(e) => {
-                                const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
-                                setCardDiscounts(prev => ({ ...prev, [pIdStr]: val }));
-                              }}
-                              className="w-24 px-2 py-0.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-dark-950 text-right font-mono font-bold text-xs text-rose-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center text-emerald-600 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
-                          <span className="text-slate-500 font-sans text-xs">Paid Amount:</span>
-                          <span>Rs. {acc.totalPaid.toLocaleString()}</span>
-                        </div>
-
-                        <div className="flex justify-between items-center border-t-2 border-slate-200 dark:border-slate-800 pt-2 font-black">
-                          <span className="text-slate-900 dark:text-white font-sans text-xs uppercase tracking-wider">Remaining Amount:</span>
-                          <span className={effectiveRemaining > 0 ? "text-rose-600 text-sm font-black" : "text-emerald-600 text-sm font-black"}>
-                            Rs. {effectiveRemaining.toLocaleString()} {isPaid ? '(CLEARED)' : ''}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Niche "Pay" Button & Actions */}
-                      <div className="space-y-2 pt-1">
-                        {effectiveRemaining > 0 ? (
-                          <Button
-                            onClick={() => {
-                              setSelectedPatientId(pIdStr);
-                              setReceptionistDiscount(cardDiscount);
-                              const openInv = invoices.find(inv => String(inv.patientId) === pIdStr && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
-                              if (openInv) {
-                                setSelectedInvoice(openInv);
-                                setPayAmount(effectiveRemaining);
-                                setIsPayOpen(true);
-                              } else {
-                                setCustomPatientId(pIdStr);
-                                setCustomDiscount(cardDiscount);
-                                setInvoiceLines([{ itemName: 'Patient Bill Settlement', itemCategory: 'General', unitPrice: effectiveRemaining, quantity: 1 }]);
-                                setIsCreateOpen(true);
-                              }
-                            }}
-                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all uppercase tracking-wide"
-                          >
-                            <CreditCard className="h-4 w-4" /> Pay Rs. {effectiveRemaining.toLocaleString()}
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => {
-                              setSelectedPatientId(pIdStr);
-                              handlePrintThermalReceipt(acc);
-                            }}
-                            className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
-                          >
-                            <Printer className="h-3.5 w-3.5" /> Print Thermal Slip (Paid)
-                          </Button>
-                        )}
-
-                        <div className="flex items-center gap-2">
+                        {effectiveRemaining > 0 && (
                           <button
                             onClick={() => {
-                              setSelectedPatientId(pIdStr);
-                              window.scrollTo({ top: 400, behavior: 'smooth' });
+                              alert(`Remaining Amount is Rs. ${effectiveRemaining.toLocaleString()}.\n\nPehle 'Pay' karein, uske baad thermal print niklega!`);
                             }}
-                            className="flex-1 py-1.5 px-3 bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-300 hover:bg-brand-600 hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1"
+                            title="Payment required before receipt print"
+                            className="py-1.5 px-2.5 bg-slate-100 dark:bg-dark-800 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-not-allowed"
                           >
-                            <Eye className="h-3.5 w-3.5" /> View Breakdown
-                          </button>
-
-                          {effectiveRemaining > 0 && (
-                            <button
-                              onClick={() => {
-                                alert(`Remaining Amount is Rs. ${effectiveRemaining.toLocaleString()}.\n\nPehle 'Pay' karein, uske baad thermal print niklega!`);
-                              }}
-                              title="Payment required before receipt print"
-                              className="py-1.5 px-2.5 bg-slate-100 dark:bg-dark-800 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-not-allowed"
-                            >
-                              <Printer className="h-3 w-3" /> Slip (Pay First)
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                });
-              })()}
-            </div>
-          ) : (
-            /* VIEW MODE 2: INDIVIDUAL INVOICES LEDGER */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredInvoices.length === 0 ? (
-                <div className="col-span-full p-8 text-center text-slate-400 text-xs">
-                  No invoices found in ledger history matching filter.
-                </div>
-              ) : (
-                filteredInvoices.map((inv: any) => {
-                  const total = Number(inv.grandTotal || inv.totalAmount || 0);
-                  const paid = Number(inv.paidAmount || 0);
-                  const refunded = Number(inv.refundAmount || 0);
-                  const balance = Math.max(0, total - paid);
-                  const isVoided = inv.isVoided || inv.status === 'voided';
-                  const isPaidFull = balance === 0 && !isVoided;
-
-                  return (
-                    <Card key={inv.id} className={`p-4 border space-y-3 transition-all rounded-xl ${
-                      isVoided
-                        ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/20 opacity-85'
-                        : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/30'
-                    }`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-[9px] font-mono font-bold bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
-                            INVOICE ID: #{inv.id}
-                          </span>
-                          <h4 className="text-xs font-extrabold text-slate-900 dark:text-white mt-1">
-                            Patient: {inv.patient?.name || `ID #${inv.patientId}`}
-                          </h4>
-                          <p className="text-[10px] text-slate-500 font-mono">MRN: {inv.patient?.mrNumber || 'N/A'}</p>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1">
-                          {isVoided ? (
-                            <Badge type="error" className="text-[10px] font-bold uppercase">
-                              VOIDED
-                            </Badge>
-                          ) : (
-                            <Badge type={isPaidFull ? 'success' : 'danger'} className="text-[10px] font-bold uppercase">
-                              {isPaidFull ? 'PAID' : 'UNPAID'}
-                            </Badge>
-                          )}
-                          {refunded > 0 && (
-                            <span className="text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
-                              Refunded: Rs. {refunded.toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="p-2.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200/60 dark:border-slate-850 font-mono text-xs space-y-1">
-                        <div className="flex justify-between text-slate-500 text-[10px]">
-                          <span>Invoice Date:</span>
-                          <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex justify-between font-bold text-slate-900 dark:text-white">
-                          <span>Grand Total:</span>
-                          <span>Rs. {total.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-emerald-600 font-semibold text-[11px]">
-                          <span>Amount Paid:</span>
-                          <span>Rs. {paid.toLocaleString()}</span>
-                        </div>
-                        {!isVoided && balance > 0 && (
-                          <div className="flex justify-between text-rose-500 font-bold text-[11px] border-t border-slate-100 dark:border-slate-850 pt-1">
-                            <span>Balance Due:</span>
-                            <span>Rs. {balance.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {isVoided && inv.voidReason && (
-                          <p className="text-[10px] text-rose-600 font-sans italic border-t border-rose-200 dark:border-rose-900/40 pt-1">
-                            Reason: {inv.voidReason}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Action Toolbar */}
-                      <div className="flex justify-end items-center gap-1.5 pt-1 flex-wrap">
-                        {!isVoided && balance > 0 && (
-                          <Button onClick={() => handlePayClick(inv)} size="sm" className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1">
-                            <CreditCard className="h-3 w-3" /> Pay
-                          </Button>
-                        )}
-
-                        {!isVoided && paid > 0 && (
-                          <button
-                            onClick={() => handleOpenRefundModal(inv)}
-                            title="Process refund for this payment"
-                            className="p-1 px-2 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 hover:bg-purple-600 hover:text-white rounded-lg border border-purple-200 dark:border-purple-800 text-[10px] font-bold transition-all flex items-center gap-1"
-                          >
-                            <RotateCcw className="h-3 w-3" /> Refund
-                          </button>
-                        )}
-
-                        {!isVoided && (
-                          <button
-                            onClick={() => handleOpenVoidModal(inv)}
-                            title="Void / Cancel this invoice"
-                            className="p-1 px-2 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 dark:border-rose-800 text-[10px] font-bold transition-all flex items-center gap-1"
-                          >
-                            <Ban className="h-3 w-3" /> Void
+                            <Printer className="h-3 w-3" /> Slip (Pay First)
                           </button>
                         )}
                       </div>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          )}
+                    </div>
+                  </Card>
+                );
+              });
+            })()}
+          </div>
         </Card>
       </div>
 

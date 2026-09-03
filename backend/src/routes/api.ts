@@ -355,17 +355,28 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     const numericFee = Math.max(0, Number(fee) || 0);
     if (numericFee > 0) {
       try {
-        const invoice = await Invoice.create({
-          patientId: validPatientId,
-          totalAmount: numericFee,
-          discount: 0.00,
-          tax: 0.00,
-          grandTotal: numericFee,
-          paidAmount: numericFee,
-          status: 'paid',
-          insuranceClaimed: false,
-          paymentMethod: 'cash'
-        }, { transaction });
+        let invoice = await Invoice.findOne({
+          where: { patientId: validPatientId, isVoided: false },
+          order: [['id', 'DESC']],
+          transaction
+        });
+
+        if (!invoice) {
+          invoice = await Invoice.create({
+            patientId: validPatientId,
+            totalAmount: numericFee,
+            discount: 0.00,
+            tax: 0.00,
+            grandTotal: numericFee,
+            paidAmount: numericFee,
+            status: 'paid',
+            insuranceClaimed: false,
+            paymentMethod: 'cash'
+          }, { transaction });
+        } else {
+          const updatedPaid = Number(invoice.paidAmount || 0) + numericFee;
+          await invoice.update({ paidAmount: updatedPaid }, { transaction });
+        }
 
         await InvoiceItem.create({
           invoiceId: invoice.id,
@@ -375,6 +386,14 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
           quantity: 1,
           totalPrice: numericFee,
         }, { transaction });
+
+        const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
+        const computedTotal = Math.round(allItems.reduce((sum, it) => sum + Number(it.totalPrice || 0), 0) * 100) / 100;
+        const disc = Number(invoice.discount || 0);
+        const computedGrandTotal = Math.round(Math.max(0, computedTotal - disc) * 100) / 100;
+        const curPaid = Number(invoice.paidAmount || 0);
+        const curStatus = curPaid >= computedGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
+        await invoice.update({ totalAmount: computedTotal, grandTotal: computedGrandTotal, status: curStatus }, { transaction });
       } catch (invErr) {
         console.warn('Invoice generation warning:', invErr);
       }
