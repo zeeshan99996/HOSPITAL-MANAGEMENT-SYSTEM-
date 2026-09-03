@@ -442,18 +442,18 @@ router.put('/payroll/:id/pay', authenticateToken, requireRoles(['admin', 'accoun
 // PHARMACY & MEDICINE INVENTORY
 // ==========================================
 router.get('/medicines', authenticateToken, getMedicines);
-router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), validateMedicine, addMedicine);
-router.put('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant']), updateMedicineStock);
-router.delete('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist']), deleteMedicine);
+router.post('/medicines', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant', 'receptionist']), validateMedicine, addMedicine);
+router.put('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'accountant', 'receptionist']), updateMedicineStock);
+router.delete('/medicines/:id', authenticateToken, requireRoles(['admin', 'pharmacist', 'receptionist']), deleteMedicine);
 router.post('/medicines/sale', authenticateToken, requireRoles(['admin', 'pharmacist', 'receptionist', 'accountant', 'nurse']), recordMedicineSale);
 router.get('/medicines/stock-movements', authenticateToken, getStockMovements);
 
 // DIRECT MEDICINE/INJECTION CLINICAL ADMINISTRATION
-router.post('/medicines/administer', authenticateToken, requireRoles(['admin', 'nurse', 'doctor', 'pharmacist']), administerMedicine);
+router.post('/medicines/administer', authenticateToken, requireRoles(['admin', 'nurse', 'doctor', 'pharmacist', 'receptionist']), administerMedicine);
 
 // MEDICINE PRE-DEFINED RATE CONFIGS
 router.get('/medicines/rates', authenticateToken, getMedicineRates);
-router.post('/medicines/rates', authenticateToken, requireRoles(['admin', 'accountant']), saveMedicineRate);
+router.post('/medicines/rates', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), saveMedicineRate);
 
 // ==========================================
 // ADMIN DASHBOARD & STAFF / DOCTOR OPERATIONS

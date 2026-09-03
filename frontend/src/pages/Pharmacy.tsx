@@ -291,7 +291,7 @@ export const Pharmacy: React.FC = () => {
   );
 
   const activePatientList = patientSubTab === 'today' ? todayPatients : admitPatients;
-  const isSysAdmin = user?.role === 'admin';
+  const isSysAdmin = user?.role === 'admin' || user?.role === 'receptionist' || user?.role === 'pharmacist';
 
   const selectedPatientObj = activePatientList.find(p => String(p.id) === String(selectedPatientId));
   const grandTotal = dispenseItems.reduce((sum, r) => sum + ((r.unitPrice || 0) * (r.quantity || 1)), 0);
