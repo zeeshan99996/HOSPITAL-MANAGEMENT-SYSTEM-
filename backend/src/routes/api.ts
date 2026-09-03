@@ -116,11 +116,17 @@ import {
   triggerStrategyHandler,
   cronBackupHandler
 } from '../controllers/dashboardController';
+import { getRealtimeNotifications } from '../controllers/notificationController';
 
 const router = Router();
 
 // Apply general API rate limiter (150 requests per minute)
 router.use(rateLimiter(150, 60000));
+
+// ==========================================
+// REAL-TIME SYSTEM NOTIFICATIONS & ALERTS
+// ==========================================
+router.get('/notifications', authenticateToken, getRealtimeNotifications);
 
 // ==========================================
 // PUBLIC & AUTHENTICATION ROUTES
