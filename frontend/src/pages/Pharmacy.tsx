@@ -298,173 +298,239 @@ export const Pharmacy: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
-      {/* PROFESSIONAL EXECUTIVE HEADER BANNER */}
-      <div className="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 p-6 sm:p-7 shadow-2xl text-white">
-        {/* Subtle Ambient Background Glows */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+      {/* 1. EXECUTIVE CLINICAL HEADER */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 p-6 sm:p-8 shadow-2xl text-white">
+        {/* Ambient Glows */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          {/* Left Column: Title & Subtitle */}
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-semibold tracking-wide">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Title & Badge */}
+          <div className="space-y-2.5 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-300 text-xs font-semibold tracking-wide">
               <Sparkles className="h-3.5 w-3.5 text-brand-400" />
               <span>Clinical Pharmacy & Store Management Suite</span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 shrink-0">
-                <Pill className="h-6 w-6" />
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white flex items-center gap-3">
+              <div className="p-2.5 sm:p-3 rounded-2xl bg-gradient-to-br from-brand-500/20 to-brand-600/10 border border-brand-500/30 text-brand-400 shadow-lg shadow-brand-500/10 shrink-0">
+                <Pill className="h-7 w-7" />
               </div>
               <span>Pharmacy Dispensary & Inventory Desk</span>
             </h1>
 
             <p className="text-sm text-slate-400 leading-relaxed">
-              Real-time prescription dispensing console, automatic invoice charge posting, and live medicine inventory store stock control.
+              Automated prescription dispensing console, instant patient billing synchronization, and real-time inventory stock management.
             </p>
           </div>
 
-          {/* Right Column: Key Indicators & Action */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
-            {/* Metric Cards Grid */}
-            <div className="flex items-center gap-2 bg-slate-950/80 p-2 rounded-xl border border-slate-800 backdrop-blur-sm shrink-0">
-              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-slate-800 text-left min-w-[85px]">
-                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block">Stock Types</span>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-base font-bold text-white tracking-tight">{medicines.length}</span>
-                  <span className="text-[10px] text-slate-400 font-normal">items</span>
-                </div>
-              </div>
-
-              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-amber-500/30 text-left min-w-[85px]">
-                <span className="text-[10px] text-amber-400/90 font-medium uppercase tracking-wider block flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />
-                  Low Stock
-                </span>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-base font-bold text-amber-300 tracking-tight">{lowStockMeds.length}</span>
-                  <span className="text-[10px] text-amber-400/70 font-normal">alert</span>
-                </div>
-              </div>
-
-              <div className="px-3.5 py-2 rounded-lg bg-slate-900/90 border border-emerald-500/30 text-left min-w-[85px]">
-                <span className="text-[10px] text-emerald-400/90 font-medium uppercase tracking-wider block flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                  OPD/IPD
-                </span>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-base font-bold text-emerald-300 tracking-tight">{todayPatients.length + admitPatients.length}</span>
-                  <span className="text-[10px] text-emerald-400/70 font-normal">active</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Dedicated Action Buttons */}
-            {user?.role !== 'nurse' && (
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setMainTab('patient')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm border whitespace-nowrap ${
-                    mainTab === 'patient'
-                      ? 'bg-brand-600 text-white border-brand-500 shadow-brand-900/20'
-                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
-                  }`}
-                >
-                  <UserCheck className="h-4 w-4" />
-                  <span>Dispense Console</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMainTab('store')}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm border whitespace-nowrap ${
-                    mainTab === 'store'
-                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-900/20'
-                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
-                  }`}
-                >
-                  <Package className="h-4 w-4" />
-                  <span>Store Inventory ({medicines.length})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMainTab('ledger');
-                    fetchMovements();
-                  }}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm border whitespace-nowrap ${
-                    mainTab === 'ledger'
-                      ? 'bg-amber-600 text-white border-amber-500 shadow-amber-900/20'
-                      : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
-                  }`}
-                >
-                  <History className="h-4 w-4" />
-                  <span>Stock Ledger</span>
-                </button>
-
-                {isSysAdmin && mainTab === 'store' && (
-                  <Button onClick={() => setIsAddMedOpen(true)} className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-sm text-xs border border-brand-500">
-                    <Plus className="h-4 w-4" />
-                    <span>Add Stock</span>
-                  </Button>
-                )}
-              </div>
+          {/* Header Quick Actions */}
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            {isSysAdmin && (
+              <Button
+                onClick={() => setIsAddMedOpen(true)}
+                className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-brand-600/30 text-xs border border-brand-500 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add New Medicine</span>
+              </Button>
             )}
+
+            <button
+              onClick={() => {
+                fetchPharmacyData();
+                fetchMovements();
+              }}
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-2 transition-all"
+              title="Refresh Data"
+            >
+              <History className="h-4 w-4" />
+              <span className="hidden sm:inline">Refresh Sync</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* CLEAN FOCUSED DISPENSING CONSOLE TOOLBAR */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-dark-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center gap-2 px-3">
-          <UserCheck className="h-4 w-4 text-brand-500" />
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
-            {mainTab === 'patient'
-              ? (user?.role === 'nurse' ? 'Nurse Admitted Inpatient Medication Console' : user?.role === 'pharmacist' ? 'Pharmacist OPD Prescription Dispensing Console' : 'Patient Medication Dispensing Console')
-              : mainTab === 'store'
-              ? 'Store Inventory & Stock Register'
-              : 'Pharmacy Stock Movement & Inventory Ledger'}
-          </h2>
+      {/* 2. EXECUTIVE 4-COLUMN KPI METRIC CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Stock Item Types */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Stock Items</span>
+            <div className="p-2 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 border border-brand-200/50 dark:border-brand-800/50">
+              <Pill className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">{medicines.length}</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">active formulations</span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Available in hospital pharmacy store</p>
         </div>
 
-        {/* Sub-Tabs Pills (Only for Patient Tab) */}
+        {/* Card 2: Total Units In Stock */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Units in Store</span>
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50">
+              <Package className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">{totalStoreStock.toLocaleString()}</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">total units</span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Tablets, syrups, vials & injections</p>
+        </div>
+
+        {/* Card 3: Low Stock Alerts */}
+        <div className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-all ${
+          lowStockMeds.length > 0
+            ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/60'
+            : 'bg-white dark:bg-dark-900 border-slate-200/80 dark:border-slate-800'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              {lowStockMeds.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />}
+              Low Stock Alerts
+            </span>
+            <div className={`p-2 rounded-xl border ${
+              lowStockMeds.length > 0
+                ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-700'
+                : 'bg-slate-100 dark:bg-dark-800 text-slate-400 border-slate-200 dark:border-slate-700'
+            }`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className={`text-2xl sm:text-3xl font-black font-mono ${
+              lowStockMeds.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'
+            }`}>
+              {lowStockMeds.length}
+            </span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">items threshold</span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+            {lowStockMeds.length > 0 ? 'Action needed: Replenish depleted items' : 'All stock inventory levels healthy'}
+          </p>
+        </div>
+
+        {/* Card 4: Patients Queue */}
+        <div className="p-5 rounded-2xl bg-white dark:bg-dark-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Clinical Patients</span>
+            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-800/50">
+              <UserCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white font-mono">{todayPatients.length + admitPatients.length}</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">ready for dispense</span>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+            {todayPatients.length} Today OPD • {admitPatients.length} Admitted IPD
+          </p>
+        </div>
+      </div>
+
+      {/* 3. CLEAN SEGMENTED NAVIGATION TOOLBAR */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white dark:bg-dark-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        {/* Main Tab Pills */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200/60 dark:border-slate-800/80 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setMainTab('patient')}
+            className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              mainTab === 'patient'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-dark-900'
+            }`}
+          >
+            <UserCheck className="h-4 w-4" />
+            <span>Prescription Dispensing</span>
+          </button>
+
+          {user?.role !== 'nurse' && (
+            <>
+              <button
+                type="button"
+                onClick={() => setMainTab('store')}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                  mainTab === 'store'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-dark-900'
+                }`}
+              >
+                <Package className="h-4 w-4" />
+                <span>Store Inventory</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                  mainTab === 'store' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {medicines.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMainTab('ledger');
+                  fetchMovements();
+                }}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                  mainTab === 'ledger'
+                    ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-dark-900'
+                }`}
+              >
+                <History className="h-4 w-4" />
+                <span>Stock Movements Ledger</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                  mainTab === 'ledger' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {stockMovements.length}
+                </span>
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Sub-Tabs Pills (Only for Patient Dispensing Tab) */}
         {mainTab === 'patient' && (
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Patient Category:</span>
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hidden sm:inline">Target:</span>
             
-            {/* 1. NURSE ROLE: STRICTLY SHOW ADMITTED INPATIENTS */}
+            {/* NURSE ROLE */}
             {user?.role === 'nurse' && (
-              <div className="px-4 py-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-extrabold text-xs flex items-center gap-2 border border-purple-200/60 shadow-sm">
+              <div className="px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold text-xs flex items-center gap-2 border border-purple-200/60 shadow-sm">
                 <BedDouble className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 <span>Admitted IPD Inpatients ({admitPatients.length})</span>
               </div>
             )}
 
-            {/* 2. PHARMACIST ROLE: STRICTLY SHOW TODAY OPD PATIENTS */}
+            {/* PHARMACIST ROLE */}
             {user?.role === 'pharmacist' && (
-              <div className="px-4 py-2 rounded-lg bg-brand-50 dark:bg-brand-950/50 text-brand-700 dark:text-brand-300 font-extrabold text-xs flex items-center gap-2 border border-brand-200/60 shadow-sm">
+              <div className="px-3.5 py-2 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-700 dark:text-brand-300 font-bold text-xs flex items-center gap-2 border border-brand-200/60 shadow-sm">
                 <UserCheck className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 <span>Today OPD Patients ({todayPatients.length})</span>
               </div>
             )}
 
-            {/* 3. ADMIN / OTHER ROLES: SHOW BOTH SWITCHER BUTTONS */}
+            {/* ADMIN / OTHER ROLES */}
             {user?.role !== 'nurse' && user?.role !== 'pharmacist' && (
-              <>
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-dark-950 rounded-xl border border-slate-200/60 dark:border-slate-800/80">
                 <button
                   onClick={() => {
                     setPatientSubTab('today');
                     setSelectedPatientId('');
                   }}
-                  className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     patientSubTab === 'today'
-                      ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 border border-brand-200/50 shadow-sm'
+                      ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 shadow-sm border border-slate-200/60 dark:border-slate-800'
                       : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
-                  <UserCheck className="h-3.5 w-3.5" /> Today OPD Patients ({todayPatients.length})
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>OPD ({todayPatients.length})</span>
                 </button>
 
                 <button
@@ -472,15 +538,16 @@ export const Pharmacy: React.FC = () => {
                     setPatientSubTab('admit');
                     setSelectedPatientId('');
                   }}
-                  className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     patientSubTab === 'admit'
-                      ? 'bg-white dark:bg-dark-900 text-purple-600 dark:text-purple-400 border border-purple-200/50 shadow-sm'
+                      ? 'bg-white dark:bg-dark-900 text-purple-600 dark:text-purple-400 shadow-sm border border-slate-200/60 dark:border-slate-800'
                       : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
-                  <BedDouble className="h-3.5 w-3.5" /> Admitted IPD Patients ({admitPatients.length})
+                  <BedDouble className="h-3.5 w-3.5" />
+                  <span>IPD ({admitPatients.length})</span>
                 </button>
-              </>
+              </div>
             )}
           </div>
         )}
