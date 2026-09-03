@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
 import {
   Receipt, Plus, CreditCard, Eye, ShieldCheck, Printer, Trash,
@@ -184,35 +185,53 @@ export const Billing: React.FC = () => {
     }
   };
 
-  const selectedPatientObj = selectedPatientId ? currentTabPatients.find(p => String(p.id) === String(selectedPatientId)) : undefined;
+  const selectedPatientObj = selectedPatientId ? (currentTabPatients.find(p => String(p.id) === String(selectedPatientId)) || patients.find(p => String(p.id) === String(selectedPatientId))) : undefined;
   const selectedPatientAdmission = admissions.find(adm => String(adm.patientId) === String(selectedPatientId) && adm.status === 'admitted');
 
   // Compute Comprehensive Billing Breakdown
   const patientInvoices = invoices.filter(inv => String(inv.patientId) === String(selectedPatientId));
+  const activePatientInvoices = patientInvoices.filter(inv => !inv.isVoided && inv.status !== 'voided');
   const patientLabRequests = labRequests.filter(req => String(req.patientId) === String(selectedPatientId));
 
   const computedItems: Array<{ title: string; category: string; amount: number; qty: number; detail?: string }> = [];
 
   if (selectedPatientObj) {
-    // 1. Doctor Consultation Fee
-    const consultFee = 1500;
-    computedItems.push({
-      title: 'Doctor OPD Consultation & Registration Fee',
-      category: 'Consultation Fee',
-      amount: consultFee,
-      qty: 1,
-      detail: `Standard Consultation (Dr. Talha Clinic)`
-    });
+    // 1. Doctor Consultation Fee (Read from actual token if available)
+    const todayToken = tokens.find(t => String(t.patientId) === String(selectedPatientId));
+    if (todayToken) {
+      const consultFee = todayToken.fee !== undefined ? Number(todayToken.fee) : 1500;
+      computedItems.push({
+        title: consultFee === 0 
+          ? 'Doctor OPD Consultation (Followup Re-visit - FREE)' 
+          : 'Doctor OPD Consultation & Registration Fee',
+        category: 'Consultation Fee',
+        amount: consultFee,
+        qty: 1,
+        detail: todayToken.detail || `Token #${todayToken.tokenNumber || 'T-01'}`
+      });
+    } else if (activeTab === 'opd_patient') {
+      // Default standard fee for OPD patients without special token
+      computedItems.push({
+        title: 'Doctor OPD Consultation & Registration Fee',
+        category: 'Consultation Fee',
+        amount: 1500,
+        qty: 1,
+        detail: `Standard Consultation (Dr. Talha Clinic)`
+      });
+    }
 
-    // 2. Pharmacy Medicines & Prescriptions
-    patientInvoices.forEach(inv => {
+    // 2. Pharmacy Medicines & Prescriptions (Accurate unitPrice * quantity, no double multiplication)
+    activePatientInvoices.forEach(inv => {
       if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
         inv.items.forEach((item: any) => {
+          const qty = Math.max(1, Number(item.quantity) || 1);
+          const uPrice = Number(item.unitPrice) || 0;
+          const itemTotal = Number(item.totalPrice) > 0 ? Number(item.totalPrice) : (uPrice * qty);
           computedItems.push({
             title: item.itemName || item.description || 'Prescription Medicine',
             category: 'Pharmacy Medicine',
-            amount: Number(item.totalPrice || item.unitPrice || 0) * Number(item.quantity || 1),
-            qty: Number(item.quantity || 1),
+            amount: itemTotal,
+            qty: qty,
             detail: `Pharmacy Bill #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
           });
         });
@@ -262,15 +281,25 @@ export const Billing: React.FC = () => {
   const rawDisc = Number(receptionistDiscount);
   const discountVal = Math.max(0, isNaN(rawDisc) ? 0 : rawDisc);
   const netPayableTotal = Math.round(Math.max(0, grossSubtotal - discountVal) * 100) / 100;
-  const totalPaidSoFar = Math.round((patientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0) + (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0)) * 100) / 100;
+  const totalPaidSoFar = Math.round((
+    activePatientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0) - Number(inv.refundAmount || 0), 0) +
+    (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0)
+  ) * 100) / 100;
   const netDueBalance = Math.round(Math.max(0, netPayableTotal - totalPaidSoFar) * 100) / 100;
 
-  // Revenue KPI Stats
-  const totalRevenueCollected = invoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0), 0);
-  const totalOutstandingUnpaid = invoices.reduce((sum, inv) => sum + Math.max(0, Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0)), 0);
+  // Revenue KPI Stats (Strictly exclude voided invoices, deduct refunds)
+  const totalRevenueCollected = invoices
+    .filter(inv => !inv.isVoided && inv.status !== 'voided')
+    .reduce((sum, inv) => sum + Math.max(0, Number(inv.paidAmount || 0) - Number(inv.refundAmount || 0)), 0);
+
+  const totalOutstandingUnpaid = invoices
+    .filter(inv => !inv.isVoided && inv.status !== 'voided')
+    .reduce((sum, inv) => sum + Math.max(0, Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0)), 0);
 
   const handlePrintProfessionalBill = () => {
     if (!selectedPatientObj) return;
+
+    const clinic = getCachedClinicSettings();
 
     const printWindow = window.open('', '_blank', 'width=780,height=900');
     if (!printWindow) {
@@ -299,7 +328,7 @@ export const Billing: React.FC = () => {
           @page { size: auto; margin: 12mm; }
           body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; padding: 24px; max-width: 760px; margin: 0 auto; background: #ffffff; }
           .header-table { width: 100%; border-bottom: 3px solid #0284c7; padding-bottom: 16px; margin-bottom: 20px; }
-          .hospital-name { font-size: 24px; font-weight: 900; color: #0284c7; letter-spacing: -0.5px; }
+          .hospital-name { font-size: 24px; font-weight: 900; color: #0284c7; letter-spacing: -0.5px; text-transform: uppercase; }
           .hospital-sub { font-size: 11px; color: #475569; margin-top: 3px; font-weight: 600; line-height: 1.4; }
           .bill-title { text-align: right; font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
           .patient-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; gap: 20px; }
@@ -316,8 +345,8 @@ export const Billing: React.FC = () => {
         <table class="header-table">
           <tr>
             <td>
-              <div class="hospital-name">DR. TALHA CLINIC</div>
-              <div class="hospital-sub">Modern Hospital & Clinical Management EMR Suite</div>
+              <div class="hospital-name">${escapeHtml(clinic.clinicName)}</div>
+              <div class="hospital-sub">${escapeHtml(clinic.clinicAddress)} • Tel: ${escapeHtml(clinic.clinicPhone)} | Mobile: ${escapeHtml(clinic.clinicMobile)}</div>
             </td>
             <td style="text-align: right;">
               <div class="bill-title">OFFICIAL RECEIPT</div>
@@ -359,6 +388,13 @@ export const Billing: React.FC = () => {
           </div>
         </div>
 
+        <div style="text-align: center; margin-top: 30px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 9px; color: #64748b; font-weight: bold;">
+          ${clinic.receiptFooter.replace(/\n/g, '<br/>')}
+          <div style="font-size: 8px; color: #475569; margin-top: 6px; letter-spacing: 0.5px;">
+            Developed by Erha Technologies
+          </div>
+        </div>
+
         <script>window.print();</script>
       </body>
       </html>
@@ -385,8 +421,8 @@ export const Billing: React.FC = () => {
         discount: Number(customDiscount),
         tax: Number(customTaxRate),
         items: validLines.map(l => ({
-          description: l.itemName,
-          category: l.itemCategory,
+          itemName: l.itemName,
+          itemCategory: l.itemCategory,
           unitPrice: Number(l.unitPrice),
           quantity: Number(l.quantity)
         }))
@@ -418,6 +454,7 @@ export const Billing: React.FC = () => {
     setVoidLoading(true);
     try {
       await apiClient.post(`/invoices/${voidingInvoice.id}/void`, {
+        voidReason: voidReason.trim(),
         reason: voidReason.trim()
       });
       alert('✅ Invoice successfully marked as VOIDED.');
@@ -450,7 +487,9 @@ export const Billing: React.FC = () => {
     setRefundLoading(true);
     try {
       await apiClient.post(`/invoices/${refundingInvoice.id}/refund`, {
+        refundAmount: Number(refundAmount),
         amount: Number(refundAmount),
+        refundReason: refundReason.trim(),
         reason: refundReason.trim()
       });
       alert(`✅ Successfully processed customer refund of Rs. ${Number(refundAmount).toLocaleString()}.`);
@@ -739,6 +778,31 @@ export const Billing: React.FC = () => {
                       Rs. {netDueBalance.toLocaleString()} {netDueBalance <= 0 ? '(PAID IN FULL)' : ''}
                     </span>
                   </div>
+
+                  {netDueBalance > 0 && (
+                    <div className="pt-2 border-t border-brand-500/20">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const openInv = activePatientInvoices.find(inv => Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
+                          if (openInv) {
+                            handlePayClick(openInv);
+                          } else {
+                            setCustomPatientId(String(selectedPatientId));
+                            setCustomDiscount(discountVal);
+                            setCustomTaxRate(0);
+                            setInvoiceLines([
+                              { itemName: 'Medical & Clinical Services Settlement', itemCategory: 'General', unitPrice: netDueBalance, quantity: 1 }
+                            ]);
+                            setIsCreateOpen(true);
+                          }
+                        }}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-md shadow-emerald-600/20 font-sans transition-all"
+                      >
+                        <CreditCard className="h-4 w-4" /> Collect & Settle Payment (Rs. {netDueBalance.toLocaleString()})
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

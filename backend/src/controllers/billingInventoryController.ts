@@ -39,8 +39,8 @@ export const createInvoice = async (req: Request, res: Response) => {
       const itemTotal = Math.round((uPrice * qty) * 100) / 100;
       total += itemTotal;
       return {
-        itemName: item.itemName,
-        itemCategory: item.itemCategory || 'General',
+        itemName: item.itemName || item.description || 'Medical Service',
+        itemCategory: item.itemCategory || item.category || 'General',
         unitPrice: uPrice,
         quantity: qty,
         totalPrice: itemTotal,
@@ -69,6 +69,13 @@ export const createInvoice = async (req: Request, res: Response) => {
       invoiceId: invoice.id,
     }));
     await InvoiceItem.bulkCreate(itemsToSave, { transaction });
+
+    await ActivityLog.create({
+      userId: (req as any).user?.id || null,
+      action: 'INVOICE_CREATED',
+      details: `Generated Invoice #${invoice.id} for Patient #${patientId} with Total: Rs. ${grandTotal} (Discount: Rs. ${discAmt})`,
+      ipAddress: req.ip
+    }, { transaction });
 
     await transaction.commit();
     return res.status(201).json({ message: 'Invoice generated successfully.', invoice });
@@ -108,13 +115,18 @@ export const payInvoice = async (req: Request, res: Response) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const invoice = await Invoice.findByPk(id, { transaction });
+    const invoice = await Invoice.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!invoice) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Invoice not found.' });
     }
 
-    const currentPaid = Number(invoice.paidAmount);
+    if (invoice.isVoided || invoice.status === 'voided') {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Cannot record payment on a voided invoice.' });
+    }
+
+    const currentPaid = Number(invoice.paidAmount) || 0;
     const paying = Number(amount) || 0;
     if (paying <= 0) {
       await transaction.rollback();
@@ -891,15 +903,19 @@ export const getStockMovements = async (req: Request, res: Response) => {
 // ==========================================
 export const voidInvoice = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { voidReason } = req.body;
+  const vReason = req.body.voidReason || req.body.reason;
 
-  if (!voidReason || voidReason.trim() === '') {
+  if (!vReason || String(vReason).trim() === '') {
     return res.status(400).json({ message: 'Please provide a valid reason for voiding this invoice.' });
   }
 
   const transaction = await sequelize.transaction();
   try {
-    const invoice = await Invoice.findByPk(id, { transaction });
+    const invoice = await Invoice.findByPk(id, {
+      include: [{ model: InvoiceItem }],
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
     if (!invoice) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Invoice not found.' });
@@ -913,20 +929,49 @@ export const voidInvoice = async (req: Request, res: Response) => {
     await invoice.update({
       status: 'voided',
       isVoided: true,
-      voidReason: voidReason.trim(),
+      voidReason: String(vReason).trim(),
     }, { transaction });
+
+    // Auto-restock any dispensed medicines from this voided invoice
+    if ((invoice as any).items && Array.isArray((invoice as any).items)) {
+      for (const item of (invoice as any).items) {
+        if (item.itemCategory === 'Pharmacy' || (item.itemName && item.itemName.includes('(Pharmacy Dispense'))) {
+          const rawName = item.itemName.split('(')[0].trim();
+          const med = await Medicine.findOne({
+            where: { name: rawName },
+            transaction
+          });
+          if (med) {
+            const restockQty = Number(item.quantity) || 1;
+            await med.update({
+              stockLevel: med.stockLevel + restockQty
+            }, { transaction });
+
+            await MedicineStockMovement.create({
+              medicineId: med.id,
+              movementType: 'adjustment',
+              quantity: restockQty,
+              unitPrice: Number(item.unitPrice) || Number(med.price),
+              referenceNote: `Restocked (+${restockQty}) from Voided Invoice #${invoice.id}`,
+              patientId: invoice.patientId,
+              createdById: (req as any).user?.id || null,
+            }, { transaction });
+          }
+        }
+      }
+    }
 
     await ActivityLog.create({
       userId: (req as any).user?.id || null,
       action: 'INVOICE_VOIDED',
-      details: `Invoice #${invoice.id} (Patient ID: ${invoice.patientId}, Total: Rs. ${invoice.grandTotal}) was voided. Reason: ${voidReason.trim()}`,
+      details: `Invoice #${invoice.id} (Patient ID: ${invoice.patientId}, Total: Rs. ${invoice.grandTotal}) was voided. Reason: ${String(vReason).trim()}`,
       ipAddress: req.ip
     }, { transaction });
 
     await transaction.commit();
 
     return res.status(200).json({
-      message: `Invoice #${invoice.id} has been voided successfully.`,
+      message: `Invoice #${invoice.id} has been voided successfully and inventory restored.`,
       invoice
     });
   } catch (error: any) {
@@ -940,16 +985,18 @@ export const voidInvoice = async (req: Request, res: Response) => {
 // ==========================================
 export const refundInvoicePayment = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { refundAmount, refundReason, refundMethod = 'cash' } = req.body;
+  const refRaw = req.body.refundAmount !== undefined ? req.body.refundAmount : req.body.amount;
+  const refReason = req.body.refundReason || req.body.reason || 'Patient service refund';
+  const refundMethod = req.body.refundMethod || 'cash';
 
-  const refAmt = Number(refundAmount);
+  const refAmt = Number(refRaw);
   if (isNaN(refAmt) || refAmt <= 0) {
     return res.status(400).json({ message: 'Refund amount must be a positive number greater than zero.' });
   }
 
   const transaction = await sequelize.transaction();
   try {
-    const invoice = await Invoice.findByPk(id, { transaction });
+    const invoice = await Invoice.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!invoice) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Invoice not found.' });

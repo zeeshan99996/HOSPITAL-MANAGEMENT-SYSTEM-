@@ -423,7 +423,9 @@ router.delete('/lab/tests/:id', authenticateToken, requireRoles(['admin', 'recep
 // ==========================================
 router.post('/invoices', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), validateInvoice, createInvoice);
 router.get('/invoices', authenticateToken, getInvoices);
-router.put('/invoices/:id/pay', authenticateToken, requireRoles(['admin', 'accountant', 'patient']), payInvoice);
+router.put('/invoices/:id/pay', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist', 'patient']), payInvoice);
+router.post('/invoices/:id/payment', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist', 'patient']), payInvoice);
+router.post('/invoices/:id/pay', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist', 'patient']), payInvoice);
 router.post('/invoices/:id/void', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), voidInvoice);
 router.post('/invoices/:id/refund', authenticateToken, requireRoles(['admin', 'accountant', 'receptionist']), refundInvoicePayment);
 
