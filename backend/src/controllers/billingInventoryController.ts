@@ -1026,7 +1026,7 @@ export const refundInvoicePayment = async (req: Request, res: Response) => {
     await invoice.update({
       refundAmount: newRefundedTotal,
       paidAmount: newPaidNet,
-      refundReason: refundReason || 'Patient service refund',
+      refundReason: refReason,
       refundDate: new Date(),
       status: newStatus
     }, { transaction });
@@ -1042,7 +1042,7 @@ export const refundInvoicePayment = async (req: Request, res: Response) => {
     await ActivityLog.create({
       userId: (req as any).user?.id || null,
       action: 'PAYMENT_REFUNDED',
-      details: `Refunded Rs. ${refAmt} on Invoice #${invoice.id} via ${refundMethod}. Reason: ${refundReason || 'N/A'}`,
+      details: `Refunded Rs. ${refAmt} on Invoice #${invoice.id} via ${refundMethod}. Reason: ${refReason}`,
       ipAddress: req.ip
     }, { transaction });
 
