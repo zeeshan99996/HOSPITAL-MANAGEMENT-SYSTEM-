@@ -392,18 +392,43 @@ export const recordMedicineSale = async (req: Request, res: Response) => {
     const tax = 0;
     const grandTotal = Math.round(taxable * 100) / 100;
 
-    // Create Invoice
-    const invoice = await Invoice.create({
-      patientId,
-      totalAmount: subtotal,
-      discount: discAmt,
-      tax,
-      grandTotal,
-      paidAmount: 0.00,
-      status: 'unpaid',
-      insuranceClaimed: false,
-      paymentMethod: 'pending',
-    }, { transaction });
+    // Consolidate into existing open invoice for this patient if available
+    const existingOpenInvoice = await Invoice.findOne({
+      where: {
+        patientId,
+        status: { [Op.in]: ['unpaid', 'partially_paid'] },
+        isVoided: false
+      },
+      order: [['id', 'DESC']],
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    let invoice: any;
+    if (existingOpenInvoice) {
+      invoice = existingOpenInvoice;
+      const updatedTotal = Math.round((Number(invoice.totalAmount || 0) + subtotal) * 100) / 100;
+      const updatedDiscount = Math.round((Number(invoice.discount || 0) + discAmt) * 100) / 100;
+      const updatedGrandTotal = Math.round(Math.max(0, updatedTotal - updatedDiscount) * 100) / 100;
+
+      await invoice.update({
+        totalAmount: updatedTotal,
+        discount: updatedDiscount,
+        grandTotal: updatedGrandTotal,
+      }, { transaction });
+    } else {
+      invoice = await Invoice.create({
+        patientId,
+        totalAmount: subtotal,
+        discount: discAmt,
+        tax,
+        grandTotal,
+        paidAmount: 0.00,
+        status: 'unpaid',
+        insuranceClaimed: false,
+        paymentMethod: 'pending',
+      }, { transaction });
+    }
 
     const itemsToSave = invoiceItems.map(item => ({ ...item, invoiceId: invoice.id }));
     await InvoiceItem.bulkCreate(itemsToSave, { transaction });

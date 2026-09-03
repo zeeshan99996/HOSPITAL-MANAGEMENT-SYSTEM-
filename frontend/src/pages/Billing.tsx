@@ -38,6 +38,7 @@ export const Billing: React.FC = () => {
   const [mrSearch, setMrSearch] = useState('');
   const [receptionistDiscount, setReceptionistDiscount] = useState<number | ''>('');
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid' | 'voided'>('all');
+  const [ledgerGrouping, setLedgerGrouping] = useState<'by_patient' | 'by_invoice'>('by_patient');
 
   // Printable Bill Receipt Modal
   const [isPrintReceiptOpen, setIsPrintReceiptOpen] = useState(false);
@@ -193,7 +194,14 @@ export const Billing: React.FC = () => {
   const activePatientInvoices = patientInvoices.filter(inv => !inv.isVoided && inv.status !== 'voided');
   const patientLabRequests = labRequests.filter(req => String(req.patientId) === String(selectedPatientId));
 
-  const computedItems: Array<{ title: string; category: string; amount: number; qty: number; detail?: string }> = [];
+  const computedItems: Array<{ 
+    title: string; 
+    category: string; 
+    amount: number; 
+    qty: number; 
+    status: 'PAID' | 'UNPAID';
+    detail?: string 
+  }> = [];
 
   if (selectedPatientObj) {
     // 1. Doctor Consultation Fee (Read from actual token if available)
@@ -207,21 +215,23 @@ export const Billing: React.FC = () => {
         category: 'Consultation Fee',
         amount: consultFee,
         qty: 1,
+        status: 'PAID', // In clinical practice, registration token fee is paid at the token desk
         detail: todayToken.detail || `Token #${todayToken.tokenNumber || 'T-01'}`
       });
     } else if (activeTab === 'opd_patient') {
-      // Default standard fee for OPD patients without special token
       computedItems.push({
         title: 'Doctor OPD Consultation & Registration Fee',
         category: 'Consultation Fee',
         amount: 1500,
         qty: 1,
+        status: 'PAID',
         detail: `Standard Consultation (Dr. Talha Clinic)`
       });
     }
 
     // 2. Pharmacy Medicines & Prescriptions (Accurate unitPrice * quantity, no double multiplication)
     activePatientInvoices.forEach(inv => {
+      const invIsPaid = inv.status === 'paid' || Number(inv.paidAmount || 0) >= Number(inv.grandTotal || inv.totalAmount || 0);
       if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
         inv.items.forEach((item: any) => {
           const qty = Math.max(1, Number(item.quantity) || 1);
@@ -232,6 +242,7 @@ export const Billing: React.FC = () => {
             category: 'Pharmacy Medicine',
             amount: itemTotal,
             qty: qty,
+            status: invIsPaid ? 'PAID' : 'UNPAID',
             detail: `Pharmacy Bill #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
           });
         });
@@ -243,6 +254,7 @@ export const Billing: React.FC = () => {
             category: 'Pharmacy',
             amount: amt,
             qty: 1,
+            status: invIsPaid ? 'PAID' : 'UNPAID',
             detail: `Invoice #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
           });
         }
@@ -253,11 +265,13 @@ export const Billing: React.FC = () => {
     patientLabRequests.forEach(req => {
       const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === req.testName.toLowerCase());
       const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : 500;
+      const isLabPaid = req.status === 'completed';
       computedItems.push({
         title: `Laboratory Test: ${req.testName}`,
         category: 'Diagnostic Lab',
         amount: testRate,
         qty: 1,
+        status: isLabPaid ? 'PAID' : 'UNPAID',
         detail: `Ordered by Dr. ${req.doctor?.user?.name || 'Physician'}`
       });
     });
@@ -266,11 +280,13 @@ export const Billing: React.FC = () => {
     if (selectedPatientAdmission) {
       const bedRate = Number(selectedPatientAdmission.bed?.rate || 1500);
       const days = Math.max(1, Math.ceil((Date.now() - new Date(selectedPatientAdmission.admissionDate).getTime()) / (1000 * 60 * 60 * 24)));
+      const isBedPaid = Number(selectedPatientAdmission.advancePaid || 0) >= bedRate * days;
       computedItems.push({
         title: `Inpatient Bed Stay (${selectedPatientAdmission.bed?.bedNumber || 'IPD Ward'} - ${days} Days)`,
         category: 'Ward Bed Charge',
         amount: bedRate * days,
         qty: days,
+        status: isBedPaid ? 'PAID' : 'UNPAID',
         detail: `Admitted on ${new Date(selectedPatientAdmission.admissionDate).toLocaleDateString()}`
       });
     }
@@ -287,6 +303,80 @@ export const Billing: React.FC = () => {
   ) * 100) / 100;
   const netDueBalance = Math.round(Math.max(0, netPayableTotal - totalPaidSoFar) * 100) / 100;
 
+  // Consolidated Patient Accounts Calculation (Groups all scattered invoices by MR Number)
+  const consolidatedPatientAccounts = React.useMemo(() => {
+    const map = new Map<string, {
+      patientId: number;
+      patientName: string;
+      mrNumber: string;
+      phone: string;
+      totalInvoiced: number;
+      totalPaid: number;
+      totalRefunded: number;
+      netBalance: number;
+      invoiceCount: number;
+      invoiceIds: number[];
+      latestDate: string;
+      status: 'paid' | 'unpaid' | 'partially_paid' | 'voided';
+    }>();
+
+    invoices.forEach(inv => {
+      const pId = String(inv.patientId || inv.patient?.id || 'unknown');
+      const pName = inv.patient?.name || `Patient #${pId}`;
+      const mrn = inv.patient?.mrNumber || 'N/A';
+      const phone = inv.patient?.phone || 'N/A';
+      const isVoid = inv.isVoided || inv.status === 'voided';
+
+      if (!map.has(pId)) {
+        map.set(pId, {
+          patientId: Number(pId),
+          patientName: pName,
+          mrNumber: mrn,
+          phone: phone,
+          totalInvoiced: 0,
+          totalPaid: 0,
+          totalRefunded: 0,
+          netBalance: 0,
+          invoiceCount: 0,
+          invoiceIds: [],
+          latestDate: inv.createdAt,
+          status: 'unpaid'
+        });
+      }
+
+      const acc = map.get(pId)!;
+      acc.invoiceCount += 1;
+      acc.invoiceIds.push(inv.id);
+      if (!isVoid) {
+        const invTotal = Number(inv.grandTotal || inv.totalAmount || 0);
+        const invPaid = Number(inv.paidAmount || 0);
+        const invRef = Number(inv.refundAmount || 0);
+        acc.totalInvoiced += invTotal;
+        acc.totalPaid += invPaid;
+        acc.totalRefunded += invRef;
+      }
+      if (new Date(inv.createdAt) > new Date(acc.latestDate)) {
+        acc.latestDate = inv.createdAt;
+      }
+    });
+
+    return Array.from(map.values()).map(acc => {
+      acc.totalInvoiced = Math.round(acc.totalInvoiced * 100) / 100;
+      acc.totalPaid = Math.round(acc.totalPaid * 100) / 100;
+      acc.totalRefunded = Math.round(acc.totalRefunded * 100) / 100;
+      acc.netBalance = Math.round(Math.max(0, acc.totalInvoiced - acc.totalPaid) * 100) / 100;
+      
+      if (acc.netBalance === 0 && acc.totalInvoiced > 0) {
+        acc.status = 'paid';
+      } else if (acc.totalPaid > 0 && acc.netBalance > 0) {
+        acc.status = 'partially_paid';
+      } else {
+        acc.status = 'unpaid';
+      }
+      return acc;
+    }).sort((a, b) => new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime());
+  }, [invoices]);
+
   // Revenue KPI Stats (Strictly exclude voided invoices, deduct refunds)
   const totalRevenueCollected = invoices
     .filter(inv => !inv.isVoided && inv.status !== 'voided')
@@ -295,6 +385,141 @@ export const Billing: React.FC = () => {
   const totalOutstandingUnpaid = invoices
     .filter(inv => !inv.isVoided && inv.status !== 'voided')
     .reduce((sum, inv) => sum + Math.max(0, Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0)), 0);
+
+  // 80mm POS Thermal Receipt Print Engine
+  const handlePrintThermalReceipt = (patientOverride?: any) => {
+    const targetPatient = patientOverride || selectedPatientObj;
+    if (!targetPatient) return;
+
+    const clinic = getCachedClinicSettings();
+
+    const printWindow = window.open('', '_blank', 'width=420,height=700');
+    if (!printWindow) {
+      alert('Pop-up window was blocked. Please allow pop-ups for thermal receipt printing.');
+      return;
+    }
+
+    const receiptRows = computedItems.map((item) => `
+      <tr>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; vertical-align: top;">
+          <strong style="color: #000; font-size: 10px; display: block;">${escapeHtml(item.title)}</strong>
+          <span style="font-size: 8.5px; color: #4b5563;">${escapeHtml(item.category)}</span>
+        </td>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: center; font-size: 10px; vertical-align: top;">${escapeHtml(item.qty)}</td>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 10px; font-weight: 700; vertical-align: top;">Rs. ${item.amount.toLocaleString()}</td>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 9px; font-weight: 800; vertical-align: top; color: ${item.status === 'PAID' ? '#16a34a' : '#dc2626'};">[${item.status}]</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Receipt - ${targetPatient.mrNumber || 'MRN'}</title>
+        <style>
+          @page {
+            size: 80mm auto;
+            margin: 0 !important;
+          }
+          @media print {
+            html, body {
+              width: 80mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              font-size: 11px;
+              line-height: 1.25;
+              height: auto !important;
+              max-height: max-content !important;
+              overflow: hidden !important;
+            }
+            .no-print { display: none !important; }
+          }
+          body {
+            width: 76mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 8px 4px 14px 4px;
+            color: #111827;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 10.5px;
+            line-height: 1.3;
+          }
+          .header { text-align: center; border-bottom: 2px dashed #111827; padding-bottom: 6px; margin-bottom: 6px; }
+          .clinic-title { font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.3px; line-height: 1.2; }
+          .clinic-sub { font-size: 9.5px; color: #4b5563; margin-top: 2px; }
+          .clinic-contact { font-size: 9px; color: #111827; font-weight: 700; margin-top: 2px; }
+          .doc-type { font-size: 11px; font-weight: 900; text-transform: uppercase; margin-top: 5px; letter-spacing: 0.5px; background: #000; color: #fff; padding: 2px 0; border-radius: 4px; }
+          
+          .meta-box { border-bottom: 1px dashed #4b5563; padding-bottom: 5px; margin-bottom: 6px; font-size: 10px; }
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+          .meta-label { font-weight: 700; color: #4b5563; }
+          .meta-val { font-weight: 800; color: #111827; }
+
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 10px; }
+          .items-table th { border-bottom: 1.5px solid #111827; text-align: left; padding: 3px 0; font-size: 9px; text-transform: uppercase; font-weight: 900; }
+
+          .summary-section { border-top: 1.5px dashed #111827; padding-top: 5px; font-size: 10.5px; font-family: monospace; }
+          .sum-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+          .sum-row.total { font-weight: 900; font-size: 12px; border-top: 1px solid #111827; padding-top: 3px; margin-top: 3px; }
+          .sum-row.due { font-weight: 900; font-size: 12.5px; border-top: 1.5px dashed #111827; padding-top: 3px; margin-top: 3px; }
+
+          .footer { text-align: center; border-top: 1px dashed #4b5563; margin-top: 8px; padding-top: 6px; font-size: 8.5px; color: #4b5563; }
+          .erha-tag { font-size: 8px; font-weight: 800; color: #111827; margin-top: 4px; letter-spacing: 0.5px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="clinic-title">${escapeHtml(clinic.clinicName)}</div>
+          <div class="clinic-sub">${escapeHtml(clinic.clinicAddress)}</div>
+          <div class="clinic-contact">Tel: ${escapeHtml(clinic.clinicPhone)} | Mob: ${escapeHtml(clinic.clinicMobile)}</div>
+          <div class="doc-type">OFFICIAL BILLING RECEIPT</div>
+        </div>
+
+        <div class="meta-box">
+          <div class="meta-row"><span class="meta-label">Patient Name:</span> <span class="meta-val">${escapeHtml(targetPatient.name)}</span></div>
+          <div class="meta-row"><span class="meta-label">MR Number:</span> <span class="meta-val">${escapeHtml(targetPatient.mrNumber || 'N/A')}</span></div>
+          <div class="meta-row"><span class="meta-label">Phone:</span> <span class="meta-val">${escapeHtml(targetPatient.phone || 'N/A')}</span></div>
+          <div class="meta-row"><span class="meta-label">Date & Time:</span> <span class="meta-val">${new Date().toLocaleString()}</span></div>
+          <div class="meta-row"><span class="meta-label">Billing Type:</span> <span class="meta-val">${activeTab === 'opd_patient' ? 'OPD Visit' : 'IPD Bed Stay'}</span></div>
+        </div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th style="text-align: center;">Qty</th>
+              <th style="text-align: right;">Amount</th>
+              <th style="text-align: right;">Status</th>
+            </tr>
+          </thead>
+          <tbody>${receiptRows}</tbody>
+        </table>
+
+        <div class="summary-section">
+          <div class="sum-row"><span>Gross Total:</span> <span>Rs. ${grossSubtotal.toLocaleString()}</span></div>
+          ${discountVal > 0 ? `<div class="sum-row" style="color: #dc2626;"><span>Discount:</span> <span>- Rs. ${discountVal.toLocaleString()}</span></div>` : ''}
+          <div class="sum-row total"><span>Net Payable:</span> <span>Rs. ${netPayableTotal.toLocaleString()}</span></div>
+          <div class="sum-row" style="color: #16a34a; font-weight: 700;"><span>Total Paid:</span> <span>Rs. ${totalPaidSoFar.toLocaleString()}</span></div>
+          <div class="sum-row due" style="color: ${netDueBalance > 0 ? '#dc2626' : '#16a34a'};">
+            <span>Net Balance Due:</span>
+            <span>Rs. ${netDueBalance.toLocaleString()} ${netDueBalance <= 0 ? '(PAID)' : ''}</span>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div>${clinic.receiptFooter.replace(/\n/g, '<br/>')}</div>
+          <div class="erha-tag">Developed by Erha Technologies</div>
+        </div>
+
+        <script>window.print();</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const handlePrintProfessionalBill = () => {
     if (!selectedPatientObj) return;
@@ -524,6 +749,10 @@ export const Billing: React.FC = () => {
       setIsPayOpen(false);
       fetchBillingData();
       alert(`Payment of Rs. ${payAmount} recorded successfully!`);
+      // Automatically trigger 80mm thermal POS receipt
+      setTimeout(() => {
+        handlePrintThermalReceipt();
+      }, 350);
     } catch (err: any) {
       alert(`Payment recording failed: ${err.message}`);
     }
@@ -682,13 +911,21 @@ export const Billing: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button
                     type="button"
-                    onClick={() => setIsPrintReceiptOpen(true)}
-                    className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-brand-500/20"
+                    onClick={() => handlePrintThermalReceipt()}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-emerald-600/20"
                   >
-                    <Printer className="h-4 w-4" /> Print Complete Statement
+                    <Printer className="h-4 w-4" /> Print 80mm POS Thermal Slip
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setIsPrintReceiptOpen(true)}
+                    className="px-3.5 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5"
+                  >
+                    <FileText className="h-4 w-4" /> Full Statement (A4)
                   </Button>
                 </div>
               </div>
@@ -707,6 +944,7 @@ export const Billing: React.FC = () => {
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3 text-center">Qty</th>
                         <th className="px-4 py-3 text-right">Amount (Rs.)</th>
+                        <th className="px-4 py-3 text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
@@ -726,6 +964,15 @@ export const Billing: React.FC = () => {
                           </td>
                           <td className="px-4 py-3 text-right font-mono font-extrabold text-slate-900 dark:text-white">
                             Rs. {item.amount.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              item.status === 'PAID'
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {item.status}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -813,171 +1060,317 @@ export const Billing: React.FC = () => {
           )}
         </Card>
 
-        {/* SECTION 2: ISSUED INVOICES LEDGER */}
+        {/* SECTION 2: ISSUED INVOICES & CONSOLIDATED PATIENT LEDGER */}
         <Card className="p-6 border border-slate-200/80 dark:border-slate-800 space-y-5 bg-white dark:bg-dark-900 shadow-sm rounded-2xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
             <div>
               <h3 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-brand-500" /> Issued Invoices Ledger ({filteredInvoices.length} Records)
+                <Receipt className="h-4 w-4 text-brand-500" /> 
+                {ledgerGrouping === 'by_patient' 
+                  ? `Consolidated Patient Ledger (${consolidatedPatientAccounts.length} Patients)` 
+                  : `Issued Invoices Ledger (${filteredInvoices.length} Records)`}
               </h3>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                Complete billing ledger history and payment status tracking.
+                {ledgerGrouping === 'by_patient'
+                  ? 'All services, tests, and pharmacy dispenses unified into a single account per MR Number.'
+                  : 'Complete billing ledger history and payment status tracking.'}
               </p>
             </div>
 
-            {/* Invoice Filter Pills */}
-            <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold flex-wrap">
-              <button
-                onClick={() => setInvoiceFilter('all')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  invoiceFilter === 'all'
-                    ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                All Invoices
-              </button>
-              <button
-                onClick={() => setInvoiceFilter('paid')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  invoiceFilter === 'paid'
-                    ? 'bg-white dark:bg-dark-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Paid
-              </button>
-              <button
-                onClick={() => setInvoiceFilter('unpaid')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  invoiceFilter === 'unpaid'
-                    ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Unpaid / Partial
-              </button>
-              <button
-                onClick={() => setInvoiceFilter('voided')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  invoiceFilter === 'voided'
-                    ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Voided
-              </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Grouping Toggle */}
+              <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold">
+                <button
+                  onClick={() => setLedgerGrouping('by_patient')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    ledgerGrouping === 'by_patient'
+                      ? 'bg-brand-500 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  Consolidated by Patient (MRN)
+                </button>
+                <button
+                  onClick={() => setLedgerGrouping('by_invoice')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    ledgerGrouping === 'by_invoice'
+                      ? 'bg-brand-500 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  Individual Invoices
+                </button>
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-xl border border-slate-200/60 dark:border-slate-850 text-xs font-extrabold flex-wrap">
+                <button
+                  onClick={() => setInvoiceFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    invoiceFilter === 'all'
+                      ? 'bg-white dark:bg-dark-900 text-brand-600 dark:text-brand-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setInvoiceFilter('paid')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    invoiceFilter === 'paid'
+                      ? 'bg-white dark:bg-dark-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  onClick={() => setInvoiceFilter('unpaid')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    invoiceFilter === 'unpaid'
+                      ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Unpaid / Partial
+                </button>
+                {ledgerGrouping === 'by_invoice' && (
+                  <button
+                    onClick={() => setInvoiceFilter('voided')}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      invoiceFilter === 'voided'
+                        ? 'bg-white dark:bg-dark-900 text-rose-600 dark:text-rose-400 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Voided
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredInvoices.length === 0 ? (
-              <div className="col-span-full p-8 text-center text-slate-400 text-xs">
-                No invoices found in ledger history matching filter.
-              </div>
-            ) : (
-              filteredInvoices.map((inv: any) => {
-                const total = Number(inv.grandTotal || inv.totalAmount || 0);
-                const paid = Number(inv.paidAmount || 0);
-                const refunded = Number(inv.refundAmount || 0);
-                const balance = Math.max(0, total - paid);
-                const isVoided = inv.isVoided || inv.status === 'voided';
-                const isPaidFull = balance === 0 && !isVoided;
+          {/* VIEW MODE 1: CONSOLIDATED BY PATIENT (MR NUMBER) */}
+          {ledgerGrouping === 'by_patient' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(() => {
+                const filteredAccounts = consolidatedPatientAccounts.filter(acc => {
+                  if (invoiceFilter === 'paid') return acc.status === 'paid';
+                  if (invoiceFilter === 'unpaid') return acc.status === 'unpaid' || acc.status === 'partially_paid';
+                  return true;
+                });
 
-                return (
-                  <Card key={inv.id} className={`p-4 border space-y-3 transition-all rounded-xl ${
-                    isVoided
-                      ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/20 opacity-85'
-                      : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/30'
-                  }`}>
+                if (filteredAccounts.length === 0) {
+                  return (
+                    <div className="col-span-full p-8 text-center text-slate-400 text-xs">
+                      No consolidated patient accounts found matching filter.
+                    </div>
+                  );
+                }
+
+                return filteredAccounts.map((acc) => (
+                  <Card key={acc.patientId} className="p-4 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/40 space-y-3 transition-all rounded-xl shadow-sm">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[9px] font-mono font-bold bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
-                          INVOICE ID: #{inv.id}
+                        <span className="text-[9px] font-mono font-bold bg-brand-500/15 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded">
+                          MRN: {acc.mrNumber}
                         </span>
-                        <h4 className="text-xs font-extrabold text-slate-900 dark:text-white mt-1">
-                          Patient: {inv.patient?.name || `ID #${inv.patientId}`}
+                        <h4 className="text-xs font-black text-slate-900 dark:text-white mt-1">
+                          Patient: {acc.patientName}
                         </h4>
-                        <p className="text-[10px] text-slate-500 font-mono">MRN: {inv.patient?.mrNumber || 'N/A'}</p>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          Phone: {acc.phone} • {acc.invoiceCount} {acc.invoiceCount === 1 ? 'Record' : 'Records'} Consolidated
+                        </p>
                       </div>
 
-                      <div className="flex flex-col items-end gap-1">
-                        {isVoided ? (
-                          <Badge type="error" className="text-[10px] font-bold uppercase">
-                            VOIDED
-                          </Badge>
-                        ) : (
-                          <Badge type={isPaidFull ? 'success' : 'danger'} className="text-[10px] font-bold uppercase">
-                            {isPaidFull ? 'PAID' : 'UNPAID'}
-                          </Badge>
-                        )}
-                        {refunded > 0 && (
-                          <span className="text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
-                            Refunded: Rs. {refunded.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
+                      <Badge 
+                        type={acc.status === 'paid' ? 'success' : acc.status === 'partially_paid' ? 'warning' : 'danger'} 
+                        className="text-[10px] font-bold uppercase"
+                      >
+                        {acc.status === 'paid' ? 'PAID IN FULL' : acc.status === 'partially_paid' ? 'PARTIAL' : 'UNPAID'}
+                      </Badge>
                     </div>
 
                     <div className="p-2.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200/60 dark:border-slate-850 font-mono text-xs space-y-1">
                       <div className="flex justify-between text-slate-500 text-[10px]">
-                        <span>Invoice Date:</span>
-                        <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
+                        <span>Latest Activity:</span>
+                        <span>{new Date(acc.latestDate).toLocaleDateString()}</span>
                       </div>
                       <div className="flex justify-between font-bold text-slate-900 dark:text-white">
-                        <span>Grand Total:</span>
-                        <span>Rs. {total.toLocaleString()}</span>
+                        <span>Total Banta Hai:</span>
+                        <span>Rs. {acc.totalInvoiced.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-emerald-600 font-semibold text-[11px]">
-                        <span>Amount Paid:</span>
-                        <span>Rs. {paid.toLocaleString()}</span>
+                        <span>Kitne Pay Kiye:</span>
+                        <span>Rs. {acc.totalPaid.toLocaleString()}</span>
                       </div>
-                      {!isVoided && balance > 0 && (
+                      {acc.netBalance > 0 && (
                         <div className="flex justify-between text-rose-500 font-bold text-[11px] border-t border-slate-100 dark:border-slate-850 pt-1">
-                          <span>Balance Due:</span>
-                          <span>Rs. {balance.toLocaleString()}</span>
+                          <span>Kitne Rehte Hain:</span>
+                          <span>Rs. {acc.netBalance.toLocaleString()}</span>
                         </div>
-                      )}
-                      {isVoided && inv.voidReason && (
-                        <p className="text-[10px] text-rose-600 font-sans italic border-t border-rose-200 dark:border-rose-900/40 pt-1">
-                          Reason: {inv.voidReason}
-                        </p>
                       )}
                     </div>
 
-                    {/* Action Toolbar */}
+                    {/* Action Buttons */}
                     <div className="flex justify-end items-center gap-1.5 pt-1 flex-wrap">
-                      {!isVoided && balance > 0 && (
-                        <Button onClick={() => handlePayClick(inv)} size="sm" className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1">
-                          <CreditCard className="h-3 w-3" /> Pay
+                      {acc.netBalance > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPatientId(String(acc.patientId));
+                            const openInv = invoices.find(inv => String(inv.patientId) === String(acc.patientId) && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
+                            if (openInv) {
+                              handlePayClick(openInv);
+                            } else {
+                              setCustomPatientId(String(acc.patientId));
+                              setCustomDiscount(0);
+                              setInvoiceLines([{ itemName: 'Patient Account Settlement', itemCategory: 'General', unitPrice: acc.netBalance, quantity: 1 }]);
+                              setIsCreateOpen(true);
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] flex items-center gap-1"
+                        >
+                          <CreditCard className="h-3 w-3" /> Settle (Rs. {acc.netBalance.toLocaleString()})
                         </Button>
                       )}
 
-                      {!isVoided && paid > 0 && (
-                        <button
-                          onClick={() => handleOpenRefundModal(inv)}
-                          title="Process refund for this payment"
-                          className="p-1 px-2 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 hover:bg-purple-600 hover:text-white rounded-lg border border-purple-200 dark:border-purple-800 text-[10px] font-bold transition-all flex items-center gap-1"
-                        >
-                          <RotateCcw className="h-3 w-3" /> Refund
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedPatientId(String(acc.patientId));
+                          window.scrollTo({ top: 400, behavior: 'smooth' });
+                        }}
+                        className="p-1 px-2 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300 hover:bg-brand-600 hover:text-white rounded-lg border border-brand-200 dark:border-brand-800 text-[10px] font-bold transition-all flex items-center gap-1"
+                      >
+                        <Eye className="h-3 w-3" /> View Breakdown
+                      </button>
 
-                      {!isVoided && (
-                        <button
-                          onClick={() => handleOpenVoidModal(inv)}
-                          title="Void / Cancel this invoice"
-                          className="p-1 px-2 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 dark:border-rose-800 text-[10px] font-bold transition-all flex items-center gap-1"
-                        >
-                          <Ban className="h-3 w-3" /> Void
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedPatientId(String(acc.patientId));
+                          handlePrintThermalReceipt(acc);
+                        }}
+                        title="Print 80mm POS Thermal Slip"
+                        className="p-1 px-2 bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-bold transition-all flex items-center gap-1"
+                      >
+                        <Printer className="h-3 w-3" /> Thermal Slip
+                      </button>
                     </div>
                   </Card>
-                );
-              })
-            )}
-          </div>
+                ));
+              })()}
+            </div>
+          ) : (
+            /* VIEW MODE 2: INDIVIDUAL INVOICES LEDGER */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredInvoices.length === 0 ? (
+                <div className="col-span-full p-8 text-center text-slate-400 text-xs">
+                  No invoices found in ledger history matching filter.
+                </div>
+              ) : (
+                filteredInvoices.map((inv: any) => {
+                  const total = Number(inv.grandTotal || inv.totalAmount || 0);
+                  const paid = Number(inv.paidAmount || 0);
+                  const refunded = Number(inv.refundAmount || 0);
+                  const balance = Math.max(0, total - paid);
+                  const isVoided = inv.isVoided || inv.status === 'voided';
+                  const isPaidFull = balance === 0 && !isVoided;
+
+                  return (
+                    <Card key={inv.id} className={`p-4 border space-y-3 transition-all rounded-xl ${
+                      isVoided
+                        ? 'border-rose-300 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/20 opacity-85'
+                        : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/30'
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[9px] font-mono font-bold bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">
+                            INVOICE ID: #{inv.id}
+                          </span>
+                          <h4 className="text-xs font-extrabold text-slate-900 dark:text-white mt-1">
+                            Patient: {inv.patient?.name || `ID #${inv.patientId}`}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-mono">MRN: {inv.patient?.mrNumber || 'N/A'}</p>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                          {isVoided ? (
+                            <Badge type="error" className="text-[10px] font-bold uppercase">
+                              VOIDED
+                            </Badge>
+                          ) : (
+                            <Badge type={isPaidFull ? 'success' : 'danger'} className="text-[10px] font-bold uppercase">
+                              {isPaidFull ? 'PAID' : 'UNPAID'}
+                            </Badge>
+                          )}
+                          {refunded > 0 && (
+                            <span className="text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
+                              Refunded: Rs. {refunded.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200/60 dark:border-slate-850 font-mono text-xs space-y-1">
+                        <div className="flex justify-between text-slate-500 text-[10px]">
+                          <span>Invoice Date:</span>
+                          <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-slate-900 dark:text-white">
+                          <span>Grand Total:</span>
+                          <span>Rs. {total.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-emerald-600 font-semibold text-[11px]">
+                          <span>Amount Paid:</span>
+                          <span>Rs. {paid.toLocaleString()}</span>
+                        </div>
+                        {!isVoided && balance > 0 && (
+                          <div className="flex justify-between text-rose-500 font-bold text-[11px] border-t border-slate-100 dark:border-slate-850 pt-1">
+                            <span>Balance Due:</span>
+                            <span>Rs. {balance.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {isVoided && inv.voidReason && (
+                          <p className="text-[10px] text-rose-600 font-sans italic border-t border-rose-200 dark:border-rose-900/40 pt-1">
+                            Reason: {inv.voidReason}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Action Toolbar */}
+                      <div className="flex justify-end items-center gap-1.5 pt-1 flex-wrap">
+                        {!isVoided && balance > 0 && (
+                          <Button onClick={() => handlePayClick(inv)} size="sm" className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-lg text-[11px] flex items-center gap-1">
+                            <CreditCard className="h-3 w-3" /> Pay
+                          </Button>
+                        )}
+
+                        {!isVoided && paid > 0 && (
+                          <button
+                            onClick={() => handleOpenRefundModal(inv)}
+                            title="Process refund for this payment"
+                            className="p-1 px-2 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 hover:bg-purple-600 hover:text-white rounded-lg border border-purple-200 dark:border-purple-800 text-[10px] font-bold transition-all flex items-center gap-1"
+                          >
+                            <RotateCcw className="h-3 w-3" /> Refund
+                          </button>
+                        )}
+
+                        {!isVoided && (
+                          <button
+                            onClick={() => handleOpenVoidModal(inv)}
+                            title="Void / Cancel this invoice"
+                            className="p-1 px-2 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg border border-rose-200 dark:border-rose-800 text-[10px] font-bold transition-all flex items-center gap-1"
+                          >
+                            <Ban className="h-3 w-3" /> Void
+                          </button>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          )}
         </Card>
       </div>
 
