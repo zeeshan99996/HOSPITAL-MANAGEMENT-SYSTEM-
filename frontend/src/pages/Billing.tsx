@@ -39,6 +39,7 @@ export const Billing: React.FC = () => {
   const [receptionistDiscount, setReceptionistDiscount] = useState<number | ''>('');
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid' | 'voided'>('all');
   const [ledgerGrouping, setLedgerGrouping] = useState<'by_patient' | 'by_invoice'>('by_patient');
+  const [cardDiscounts, setCardDiscounts] = useState<Record<string, number>>({});
 
   // Printable Bill Receipt Modal
   const [isPrintReceiptOpen, setIsPrintReceiptOpen] = useState(false);
@@ -349,7 +350,7 @@ export const Billing: React.FC = () => {
       acc.invoiceIds.push(inv.id);
       if (!isVoid) {
         const invTotal = Number(inv.grandTotal || inv.totalAmount || 0);
-        const invPaid = Number(inv.paidAmount || 0);
+        const invPaid = Math.min(invTotal, Math.max(0, Number(inv.paidAmount || 0)));
         const invRef = Number(inv.refundAmount || 0);
         acc.totalInvoiced += invTotal;
         acc.totalPaid += invPaid;
@@ -912,13 +913,35 @@ export const Billing: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    type="button"
-                    onClick={() => handlePrintThermalReceipt()}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-emerald-600/20"
-                  >
-                    <Printer className="h-4 w-4" /> Print 80mm POS Thermal Slip
-                  </Button>
+                  {netDueBalance > 0 ? (
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        const openInv = activePatientInvoices.find(inv => Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
+                        if (openInv) {
+                          handlePayClick(openInv);
+                        } else {
+                          setCustomPatientId(String(selectedPatientId));
+                          setCustomDiscount(discountVal);
+                          setInvoiceLines([
+                            { itemName: 'Medical & Clinical Services Settlement', itemCategory: 'General', unitPrice: netDueBalance, quantity: 1 }
+                          ]);
+                          setIsCreateOpen(true);
+                        }
+                      }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-emerald-600/20"
+                    >
+                      <CreditCard className="h-4 w-4" /> Pay & Print Slip (Rs. {netDueBalance.toLocaleString()})
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={() => handlePrintThermalReceipt()}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-emerald-600/20"
+                    >
+                      <Printer className="h-4 w-4" /> Print 80mm POS Thermal Slip (Paid)
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="secondary"
@@ -1168,96 +1191,138 @@ export const Billing: React.FC = () => {
                   );
                 }
 
-                return filteredAccounts.map((acc) => (
-                  <Card key={acc.patientId} className="p-4 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/40 space-y-3 transition-all rounded-xl shadow-sm">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[9px] font-mono font-bold bg-brand-500/15 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded">
-                          MRN: {acc.mrNumber}
-                        </span>
-                        <h4 className="text-xs font-black text-slate-900 dark:text-white mt-1">
-                          Patient: {acc.patientName}
-                        </h4>
-                        <p className="text-[10px] text-slate-500 font-mono">
-                          Phone: {acc.phone} • {acc.invoiceCount} {acc.invoiceCount === 1 ? 'Record' : 'Records'} Consolidated
-                        </p>
-                      </div>
+                return filteredAccounts.map((acc) => {
+                  const pIdStr = String(acc.patientId);
+                  const cardDiscount = Number(cardDiscounts[pIdStr] || 0);
+                  const effectiveRemaining = Math.max(0, Math.round((acc.totalInvoiced - cardDiscount - acc.totalPaid) * 100) / 100);
+                  const isPaid = effectiveRemaining === 0 && acc.totalInvoiced > 0;
+                  const isPartial = effectiveRemaining > 0 && acc.totalPaid > 0;
 
-                      <Badge 
-                        type={acc.status === 'paid' ? 'success' : acc.status === 'partially_paid' ? 'warning' : 'danger'} 
-                        className="text-[10px] font-bold uppercase"
-                      >
-                        {acc.status === 'paid' ? 'PAID IN FULL' : acc.status === 'partially_paid' ? 'PARTIAL' : 'UNPAID'}
-                      </Badge>
-                    </div>
-
-                    <div className="p-2.5 bg-white dark:bg-dark-900 rounded-lg border border-slate-200/60 dark:border-slate-850 font-mono text-xs space-y-1">
-                      <div className="flex justify-between text-slate-500 text-[10px]">
-                        <span>Latest Activity:</span>
-                        <span>{new Date(acc.latestDate).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-slate-900 dark:text-white">
-                        <span>Total Banta Hai:</span>
-                        <span>Rs. {acc.totalInvoiced.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-emerald-600 font-semibold text-[11px]">
-                        <span>Kitne Pay Kiye:</span>
-                        <span>Rs. {acc.totalPaid.toLocaleString()}</span>
-                      </div>
-                      {acc.netBalance > 0 && (
-                        <div className="flex justify-between text-rose-500 font-bold text-[11px] border-t border-slate-100 dark:border-slate-850 pt-1">
-                          <span>Kitne Rehte Hain:</span>
-                          <span>Rs. {acc.netBalance.toLocaleString()}</span>
+                  return (
+                    <Card key={acc.patientId} className="p-4 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/40 space-y-3 transition-all rounded-xl shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[9px] font-mono font-bold bg-brand-500/15 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded">
+                            MRN: {acc.mrNumber}
+                          </span>
+                          <h4 className="text-xs font-black text-slate-900 dark:text-white mt-1">
+                            Patient: {acc.patientName}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            Phone: {acc.phone} • {acc.invoiceCount} {acc.invoiceCount === 1 ? 'Record' : 'Records'} Consolidated
+                          </p>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex justify-end items-center gap-1.5 pt-1 flex-wrap">
-                      {acc.netBalance > 0 && (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setSelectedPatientId(String(acc.patientId));
-                            const openInv = invoices.find(inv => String(inv.patientId) === String(acc.patientId) && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
-                            if (openInv) {
-                              handlePayClick(openInv);
-                            } else {
-                              setCustomPatientId(String(acc.patientId));
-                              setCustomDiscount(0);
-                              setInvoiceLines([{ itemName: 'Patient Account Settlement', itemCategory: 'General', unitPrice: acc.netBalance, quantity: 1 }]);
-                              setIsCreateOpen(true);
-                            }
-                          }}
-                          className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] flex items-center gap-1"
+                        <Badge 
+                          type={isPaid ? 'success' : isPartial ? 'warning' : 'danger'} 
+                          className="text-[10px] font-bold uppercase"
                         >
-                          <CreditCard className="h-3 w-3" /> Settle (Rs. {acc.netBalance.toLocaleString()})
-                        </Button>
-                      )}
+                          {isPaid ? 'PAID IN FULL' : isPartial ? 'PARTIAL' : 'UNPAID'}
+                        </Badge>
+                      </div>
 
-                      <button
-                        onClick={() => {
-                          setSelectedPatientId(String(acc.patientId));
-                          window.scrollTo({ top: 400, behavior: 'smooth' });
-                        }}
-                        className="p-1 px-2 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300 hover:bg-brand-600 hover:text-white rounded-lg border border-brand-200 dark:border-brand-800 text-[10px] font-bold transition-all flex items-center gap-1"
-                      >
-                        <Eye className="h-3 w-3" /> View Breakdown
-                      </button>
+                      {/* Total Amount, Discount Option, Paid Amount, Remaining Amount */}
+                      <div className="p-3 bg-white dark:bg-dark-900 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs space-y-2">
+                        <div className="flex justify-between items-center text-slate-900 dark:text-white font-extrabold text-xs">
+                          <span className="text-slate-500 font-sans text-xs">Total Amount:</span>
+                          <span>Rs. {acc.totalInvoiced.toLocaleString()}</span>
+                        </div>
 
-                      <button
-                        onClick={() => {
-                          setSelectedPatientId(String(acc.patientId));
-                          handlePrintThermalReceipt(acc);
-                        }}
-                        title="Print 80mm POS Thermal Slip"
-                        className="p-1 px-2 bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-bold transition-all flex items-center gap-1"
-                      >
-                        <Printer className="h-3 w-3" /> Thermal Slip
-                      </button>
-                    </div>
-                  </Card>
-                ));
+                        {/* Discount Option */}
+                        <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
+                          <span className="text-slate-500 font-sans text-xs">Discount:</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 text-[11px] font-sans">Rs.</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={acc.totalInvoiced}
+                              placeholder="0"
+                              value={cardDiscounts[pIdStr] !== undefined && cardDiscounts[pIdStr] !== 0 ? cardDiscounts[pIdStr] : ''}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                                setCardDiscounts(prev => ({ ...prev, [pIdStr]: val }));
+                              }}
+                              className="w-24 px-2 py-0.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-dark-950 text-right font-mono font-bold text-xs text-rose-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-emerald-600 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
+                          <span className="text-slate-500 font-sans text-xs">Paid Amount:</span>
+                          <span>Rs. {acc.totalPaid.toLocaleString()}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center border-t-2 border-slate-200 dark:border-slate-800 pt-2 font-black">
+                          <span className="text-slate-900 dark:text-white font-sans text-xs uppercase tracking-wider">Remaining Amount:</span>
+                          <span className={effectiveRemaining > 0 ? "text-rose-600 text-sm font-black" : "text-emerald-600 text-sm font-black"}>
+                            Rs. {effectiveRemaining.toLocaleString()} {isPaid ? '(CLEARED)' : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Niche "Pay" Button & Actions */}
+                      <div className="space-y-2 pt-1">
+                        {effectiveRemaining > 0 ? (
+                          <Button
+                            onClick={() => {
+                              setSelectedPatientId(pIdStr);
+                              setReceptionistDiscount(cardDiscount);
+                              const openInv = invoices.find(inv => String(inv.patientId) === pIdStr && Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
+                              if (openInv) {
+                                setSelectedInvoice(openInv);
+                                setPayAmount(effectiveRemaining);
+                                setIsPayOpen(true);
+                              } else {
+                                setCustomPatientId(pIdStr);
+                                setCustomDiscount(cardDiscount);
+                                setInvoiceLines([{ itemName: 'Patient Bill Settlement', itemCategory: 'General', unitPrice: effectiveRemaining, quantity: 1 }]);
+                                setIsCreateOpen(true);
+                              }
+                            }}
+                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all uppercase tracking-wide"
+                          >
+                            <CreditCard className="h-4 w-4" /> Pay Rs. {effectiveRemaining.toLocaleString()}
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => {
+                              setSelectedPatientId(pIdStr);
+                              handlePrintThermalReceipt(acc);
+                            }}
+                            className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
+                          >
+                            <Printer className="h-3.5 w-3.5" /> Print Thermal Slip (Paid)
+                          </Button>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedPatientId(pIdStr);
+                              window.scrollTo({ top: 400, behavior: 'smooth' });
+                            }}
+                            className="flex-1 py-1.5 px-3 bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-300 hover:bg-brand-600 hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> View Breakdown
+                          </button>
+
+                          {effectiveRemaining > 0 && (
+                            <button
+                              onClick={() => {
+                                alert(`Remaining Amount is Rs. ${effectiveRemaining.toLocaleString()}.\n\nPehle 'Pay' karein, uske baad thermal print niklega!`);
+                              }}
+                              title="Payment required before receipt print"
+                              className="py-1.5 px-2.5 bg-slate-100 dark:bg-dark-800 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-not-allowed"
+                            >
+                              <Printer className="h-3 w-3" /> Slip (Pay First)
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                });
               })()}
             </div>
           ) : (
