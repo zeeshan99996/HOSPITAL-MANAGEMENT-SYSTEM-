@@ -32,7 +32,7 @@ export const getRealtimeNotifications = async (req: Request, res: Response) => {
       alerts.push({
         id: `med_${med.id}`,
         title: 'Low Inventory Alert',
-        desc: `${med.name}${med.power ? ' ' + med.power : ''} is critically low (${med.stockLevel} units remaining).`,
+        desc: `${med.name} is critically low (${med.stockLevel} ${med.unit || 'units'} remaining).`,
         type: 'warning',
         link: '/pharmacy',
         createdAt: (med as any).updatedAt ? (med as any).updatedAt.toISOString() : new Date().toISOString()
