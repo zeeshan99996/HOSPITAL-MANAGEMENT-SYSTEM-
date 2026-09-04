@@ -476,7 +476,7 @@ export const Billing: React.FC = () => {
         </td>
         <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: center; font-size: 10px; vertical-align: top;">${escapeHtml(item.qty || 1)}</td>
         <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 10px; font-weight: 700; vertical-align: top;">Rs. ${Number(item.amount || 0).toLocaleString()}</td>
-        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 9px; font-weight: 800; vertical-align: top; color: ${item.status === 'PAID' ? '#16a34a' : '#dc2626'};">[${item.status}]</td>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 9px; font-weight: 800; vertical-align: top; color: #111827;">[${item.status}]</td>
       </tr>
     `).join('');
 
@@ -558,10 +558,10 @@ export const Billing: React.FC = () => {
         <table class="items-table">
           <thead>
             <tr>
-              <th>Description</th>
-              <th style="text-align: center;">Qty</th>
-              <th style="text-align: right;">Amount</th>
-              <th style="text-align: right;">Status</th>
+              <th style="width: 48%;">Description</th>
+              <th style="width: 14%; text-align: center;">Qty</th>
+              <th style="width: 22%; text-align: right;">Amount</th>
+              <th style="width: 16%; text-align: right;">Status</th>
             </tr>
           </thead>
           <tbody>${receiptRows}</tbody>
@@ -569,11 +569,10 @@ export const Billing: React.FC = () => {
 
         <div class="summary-section">
           <div class="sum-row"><span>Gross Total:</span> <span>Rs. ${mathToPrint.grossSubtotal.toLocaleString()}</span></div>
-          ${mathToPrint.initialFee > 0 ? `<div class="sum-row" style="color: #16a34a;"><span>Initial Fee (Token Desk):</span> <span>- Rs. ${mathToPrint.initialFee.toLocaleString()} [PAID]</span></div>` : ''}
-          ${mathToPrint.discountVal > 0 ? `<div class="sum-row" style="color: #dc2626;"><span>Special Discount:</span> <span>- Rs. ${mathToPrint.discountVal.toLocaleString()}</span></div>` : ''}
+          ${mathToPrint.discountVal > 0 ? `<div class="sum-row"><span>Special Discount:</span> <span>- Rs. ${mathToPrint.discountVal.toLocaleString()}</span></div>` : ''}
           <div class="sum-row total"><span>Net Payable:</span> <span>Rs. ${mathToPrint.netPayableTotal.toLocaleString()}</span></div>
-          <div class="sum-row" style="color: #16a34a; font-weight: 700;"><span>Total Paid:</span> <span>Rs. ${mathToPrint.totalPaidSoFar.toLocaleString()}</span></div>
-          <div class="sum-row due" style="color: ${mathToPrint.netDueBalance > 0 ? '#dc2626' : '#16a34a'};">
+          <div class="sum-row" style="color: #111827; font-weight: 700;"><span>Total Paid:</span> <span>Rs. ${mathToPrint.totalPaidSoFar.toLocaleString()}</span></div>
+          <div class="sum-row due" style="color: #111827;">
             <span>Net Balance Due:</span>
             <span>Rs. ${mathToPrint.netDueBalance.toLocaleString()} ${mathToPrint.netDueBalance <= 0 ? '(PAID IN FULL)' : ''}</span>
           </div>
