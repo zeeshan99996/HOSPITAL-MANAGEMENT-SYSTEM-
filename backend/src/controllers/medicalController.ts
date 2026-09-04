@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Bed, Admission, Patient, Doctor, User, StaffMember, Department, LabRequest, LaboratoryTest, Invoice, InvoiceItem, TokenQueue, Appointment } from '../models';
 import sequelize from '../config/db';
+import { getOrCreateMasterPatientInvoice } from './billingInventoryController';
 
 // ==========================================
 // BED MANAGEMENT
@@ -711,51 +712,38 @@ export const createLabRequest = async (req: Request, res: Response) => {
       sampleStatus: 'collected', // default state when ordered
     }, { transaction });
 
-    // Try to auto-bill the test rate if catalog entry exists
+    // Auto-bill test to patient's single Master Invoice
     const testCatalog = await LaboratoryTest.findOne({ where: { name: testName }, transaction });
-    const rate = testCatalog ? Number(testCatalog.rate) : 0.00;
+    let rate = testCatalog ? Number(testCatalog.rate) : 0.00;
+    const isUltrasound = testName.toLowerCase().includes('ultrasound') || (category && category.toLowerCase().includes('ultrasound'));
+    if (rate <= 0) {
+      rate = isUltrasound ? 1500.00 : 500.00;
+    }
 
     if (rate > 0) {
-      let invoice = await Invoice.findOne({
-        where: { patientId, isVoided: false },
-        order: [['createdAt', 'DESC']],
-        transaction
-      });
-
-      if (!invoice) {
-        invoice = await Invoice.create({
-          patientId,
-          totalAmount: 0.00,
-          discount: 0.00,
-          tax: 0.00,
-          grandTotal: 0.00,
-          paidAmount: 0.00,
-          status: 'unpaid',
-          paymentMethod: 'pending'
-        }, { transaction });
-      }
+      const invoice = await getOrCreateMasterPatientInvoice(patientId, transaction);
 
       await InvoiceItem.create({
         invoiceId: invoice.id,
-        itemName: `${testName} (Lab Diagnostic)`,
-        itemCategory: 'Diagnostics',
+        itemName: `${testName} (${isUltrasound ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
+        itemCategory: isUltrasound ? 'Ultrasound' : 'Diagnostics',
         unitPrice: rate,
         quantity: 1,
         totalPrice: rate,
       }, { transaction });
 
-      // Recalculate invoice totals
+      // Recalculate invoice totals cleanly without arbitrary tax
       const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
       const newTotal = Math.round(allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0) * 100) / 100;
-      const disc = Number(invoice.discount);
-      const taxable = Math.max(0, newTotal - disc);
-      const newTax = Math.round(taxable * 0.08 * 100) / 100;
-      const newGrandTotal = Math.round((taxable + newTax) * 100) / 100;
+      const disc = Number(invoice.discount || 0);
+      const newGrandTotal = Math.round(Math.max(0, newTotal - disc) * 100) / 100;
+      const curPaid = Number(invoice.paidAmount || 0);
+      const curStatus = curPaid >= newGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
 
       await invoice.update({
         totalAmount: newTotal,
-        tax: newTax,
-        grandTotal: newGrandTotal
+        grandTotal: newGrandTotal,
+        status: curStatus
       }, { transaction });
     }
 

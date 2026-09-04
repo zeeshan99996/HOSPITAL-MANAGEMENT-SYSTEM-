@@ -143,44 +143,55 @@ export const getInvoices = async (req: Request, res: Response) => {
 
 export const payInvoice = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { amount, paymentMethod, insuranceClaimed, insuranceProvider, policyNumber } = req.body;
-  const transaction = await sequelize.transaction();
+    const { amount, paymentMethod, discount, insuranceClaimed, insuranceProvider, policyNumber } = req.body;
+    const transaction = await sequelize.transaction();
 
-  try {
-    const invoice = await Invoice.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
-    if (!invoice) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Invoice not found.' });
-    }
+    try {
+      const invoice = await Invoice.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+      if (!invoice) {
+        await transaction.rollback();
+        return res.status(404).json({ message: 'Invoice not found.' });
+      }
 
-    if (invoice.isVoided || invoice.status === 'voided') {
-      await transaction.rollback();
-      return res.status(400).json({ message: 'Cannot record payment on a voided invoice.' });
-    }
+      if (invoice.isVoided || invoice.status === 'voided') {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Cannot record payment on a voided invoice.' });
+      }
 
-    const currentPaid = Number(invoice.paidAmount) || 0;
-    const paying = Number(amount) || 0;
-    if (paying <= 0) {
-      await transaction.rollback();
-      return res.status(400).json({ message: 'Payment amount must be a positive number greater than zero.' });
-    }
+      // If discount is specified, update discount and recalculate grandTotal
+      if (discount !== undefined && !isNaN(Number(discount))) {
+        const discVal = Math.max(0, Number(discount));
+        const totalAmt = Number(invoice.totalAmount) || 0;
+        const newGrandTotal = Math.round(Math.max(0, totalAmt - discVal) * 100) / 100;
+        await invoice.update({
+          discount: discVal,
+          grandTotal: newGrandTotal
+        }, { transaction });
+      }
 
-    const newPaid = Math.round((currentPaid + paying) * 100) / 100;
-    const targetTotal = Number(invoice.grandTotal);
+      const currentPaid = Number(invoice.paidAmount) || 0;
+      const paying = Number(amount) || 0;
+      if (paying <= 0) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Payment amount must be a positive number greater than zero.' });
+      }
 
-    let status: 'unpaid' | 'partially_paid' | 'paid' = 'unpaid';
-    if (newPaid >= targetTotal) {
-      status = 'paid';
-    } else if (newPaid > 0) {
-      status = 'partially_paid';
-    }
+      const newPaid = Math.round((currentPaid + paying) * 100) / 100;
+      const targetTotal = Number(invoice.grandTotal);
 
-    await invoice.update({
-      paidAmount: Math.min(newPaid, targetTotal),
-      status,
-      paymentMethod: paymentMethod || 'cash',
-      insuranceClaimed: insuranceClaimed !== undefined ? insuranceClaimed : invoice.insuranceClaimed,
-    }, { transaction });
+      let status: 'unpaid' | 'partially_paid' | 'paid' = 'unpaid';
+      if (newPaid >= targetTotal) {
+        status = 'paid';
+      } else if (newPaid > 0) {
+        status = 'partially_paid';
+      }
+
+      await invoice.update({
+        paidAmount: Math.min(newPaid, targetTotal),
+        status,
+        paymentMethod: paymentMethod || 'cash',
+        insuranceClaimed: insuranceClaimed !== undefined ? insuranceClaimed : invoice.insuranceClaimed,
+      }, { transaction });
 
     // Record Payment transaction
     await Payment.create({

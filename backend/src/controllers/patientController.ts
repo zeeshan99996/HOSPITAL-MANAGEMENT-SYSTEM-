@@ -5,6 +5,8 @@ import {
   Prescription,
   PrescriptionItem,
   LabRequest,
+  LaboratoryTest,
+  InvoiceItem,
   Admission,
   Bed,
   Doctor,
@@ -19,6 +21,7 @@ import {
 import { Op } from 'sequelize';
 import sequelize from '../config/db';
 import { getPktDayBounds } from '../utils/timezone';
+import { getOrCreateMasterPatientInvoice } from './billingInventoryController';
 
 export const createPatient = async (req: Request, res: Response) => {
   const transaction = await sequelize.transaction();
@@ -574,22 +577,59 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
       }
     }
 
-    // 6. Create Lab Requests if lab tests advised
+    // 6. Create Lab Requests if lab tests advised & auto-bill into single master invoice
     let createdLabRequests = 0;
     if (advisedLabTests && Array.isArray(advisedLabTests) && advisedLabTests.length > 0) {
       for (const t of advisedLabTests) {
         const testTitle = typeof t === 'string' ? t : (t.testName || t.name || 'Lab Investigation');
         try {
+          const isUltrasound = testTitle.toLowerCase().includes('ultrasound');
+          const testCatalog = await LaboratoryTest.findOne({ where: { name: testTitle } });
+          let testRate = testCatalog ? Number(testCatalog.rate) : 0;
+          if (testRate <= 0) {
+            testRate = isUltrasound ? 1500.00 : 500.00;
+          }
+
           await LabRequest.create({
             patientId: Number(patientId),
             doctorId: doctorId || null,
             testName: testTitle,
-            category: 'Pathology',
+            category: isUltrasound ? 'Ultrasound' : 'Pathology',
             status: 'pending',
             sampleStatus: 'collected',
             specimenCollected: false
           } as any);
           createdLabRequests++;
+
+          // Auto-bill test to patient's master invoice
+          if (testRate > 0) {
+            try {
+              const invoice = await getOrCreateMasterPatientInvoice(Number(patientId));
+              await InvoiceItem.create({
+                invoiceId: invoice.id,
+                itemName: `${testTitle} (${isUltrasound ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
+                itemCategory: isUltrasound ? 'Ultrasound' : 'Diagnostics',
+                unitPrice: testRate,
+                quantity: 1,
+                totalPrice: testRate,
+              });
+
+              const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id } });
+              const newTotal = Math.round(allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0) * 100) / 100;
+              const disc = Number(invoice.discount || 0);
+              const newGrandTotal = Math.round(Math.max(0, newTotal - disc) * 100) / 100;
+              const curPaid = Number(invoice.paidAmount || 0);
+              const curStatus = curPaid >= newGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
+
+              await invoice.update({
+                totalAmount: newTotal,
+                grandTotal: newGrandTotal,
+                status: curStatus
+              });
+            } catch (billErr) {
+              console.warn('[recordDoctorConsultation] Error auto-billing lab test:', billErr);
+            }
+          }
         } catch (labErr) {
           console.warn('[recordDoctorConsultation] Error creating lab request:', labErr);
         }

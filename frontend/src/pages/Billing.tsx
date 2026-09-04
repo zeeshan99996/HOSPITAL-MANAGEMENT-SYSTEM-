@@ -190,119 +190,167 @@ export const Billing: React.FC = () => {
   const selectedPatientObj = selectedPatientId ? (currentTabPatients.find(p => String(p.id) === String(selectedPatientId)) || patients.find(p => String(p.id) === String(selectedPatientId))) : undefined;
   const selectedPatientAdmission = admissions.find(adm => String(adm.patientId) === String(selectedPatientId) && adm.status === 'admitted');
 
-  // Compute Comprehensive Billing Breakdown
-  const patientInvoices = invoices.filter(inv => String(inv.patientId) === String(selectedPatientId));
-  const activePatientInvoices = patientInvoices.filter(inv => !inv.isVoided && inv.status !== 'voided');
-  const patientLabRequests = labRequests.filter(req => String(req.patientId) === String(selectedPatientId));
+  // ==========================================
+  // COMPREHENSIVE PATIENT BREAKDOWN ENGINE
+  // ==========================================
+  const getPatientBillingBreakdown = (pId: number | string, customDisc?: number) => {
+    const pIdStr = String(pId);
+    const patientObj = patients.find(p => String(p.id) === pIdStr);
+    const activeInvs = invoices.filter(inv => String(inv.patientId) === pIdStr && !inv.isVoided && inv.status !== 'voided');
+    const pLabs = labRequests.filter(req => String(req.patientId) === pIdStr);
+    const pAdmission = admissions.find(adm => String(adm.patientId) === pIdStr && adm.status === 'admitted');
+    const pToken = tokens.find(t => String(t.patientId) === pIdStr);
 
-  const computedItems: Array<{ 
-    title: string; 
-    category: string; 
-    amount: number; 
-    qty: number; 
-    status: 'PAID' | 'UNPAID';
-    detail?: string 
-  }> = [];
+    const items: Array<{ 
+      title: string; 
+      category: 'Initial Consultation Fee' | 'Pharmacy Medicine' | 'Ultrasound' | 'Diagnostic Lab' | 'Ward Bed Charge' | 'General'; 
+      amount: number; 
+      qty: number; 
+      status: 'PAID' | 'UNPAID';
+      detail?: string 
+    }> = [];
 
-  if (selectedPatientObj) {
-    // 1. Doctor Consultation Fee (Read from actual token if available)
-    const todayToken = tokens.find(t => String(t.patientId) === String(selectedPatientId));
-    if (todayToken) {
-      const consultFee = todayToken.fee !== undefined ? Number(todayToken.fee) : 1500;
-      computedItems.push({
-        title: consultFee === 0 
-          ? 'Doctor OPD Consultation (Followup Re-visit - FREE)' 
-          : 'Doctor OPD Consultation & Registration Fee',
-        category: 'Consultation Fee',
-        amount: consultFee,
-        qty: 1,
-        status: 'PAID', // In clinical practice, registration token fee is paid at the token desk
-        detail: todayToken.detail || `Token #${todayToken.tokenNumber || 'T-01'}`
-      });
-    } else if (activeTab === 'opd_patient') {
-      computedItems.push({
-        title: 'Doctor OPD Consultation & Registration Fee',
-        category: 'Consultation Fee',
-        amount: 1500,
-        qty: 1,
-        status: 'PAID',
-        detail: `Standard Consultation (Dr. Talha Clinic)`
-      });
-    }
+    let hasConsultationItem = false;
+    let initialConsultFee = 0;
+    const handledLabTitles = new Set<string>();
 
-    // 2. Pharmacy Medicines & Prescriptions (Accurate unitPrice * quantity, no double multiplication)
-    activePatientInvoices.forEach(inv => {
+    activeInvs.forEach(inv => {
       const invIsPaid = inv.status === 'paid' || Number(inv.paidAmount || 0) >= Number(inv.grandTotal || inv.totalAmount || 0);
       if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
         inv.items.forEach((item: any) => {
           const qty = Math.max(1, Number(item.quantity) || 1);
           const uPrice = Number(item.unitPrice) || 0;
           const itemTotal = Number(item.totalPrice) > 0 ? Number(item.totalPrice) : (uPrice * qty);
-          computedItems.push({
-            title: item.itemName || item.description || 'Prescription Medicine',
-            category: 'Pharmacy Medicine',
+          const nameLower = (item.itemName || '').toLowerCase();
+          const catLower = (item.itemCategory || '').toLowerCase();
+
+          let cat: 'Initial Consultation Fee' | 'Pharmacy Medicine' | 'Ultrasound' | 'Diagnostic Lab' | 'Ward Bed Charge' | 'General' = 'General';
+          let itemStatus: 'PAID' | 'UNPAID' = invIsPaid ? 'PAID' : 'UNPAID';
+
+          if (catLower.includes('consult') || nameLower.includes('consultation')) {
+            cat = 'Initial Consultation Fee';
+            hasConsultationItem = true;
+            initialConsultFee += itemTotal;
+            itemStatus = 'PAID';
+          } else if (catLower.includes('ultrasound') || nameLower.includes('ultrasound')) {
+            cat = 'Ultrasound';
+            handledLabTitles.add(nameLower);
+          } else if (catLower.includes('diagnostic') || catLower.includes('lab') || catLower.includes('pathology')) {
+            cat = 'Diagnostic Lab';
+            handledLabTitles.add(nameLower);
+          } else if (catLower.includes('pharmacy') || nameLower.includes('dispense')) {
+            cat = 'Pharmacy Medicine';
+          } else if (catLower.includes('bed') || catLower.includes('ward')) {
+            cat = 'Ward Bed Charge';
+          }
+
+          items.push({
+            title: item.itemName || 'Medical Charge',
+            category: cat,
             amount: itemTotal,
             qty: qty,
-            status: invIsPaid ? 'PAID' : 'UNPAID',
-            detail: `Pharmacy Bill #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
+            status: itemStatus,
+            detail: `Invoice #${inv.id}`
           });
         });
       } else {
         const amt = Number(inv.grandTotal || inv.totalAmount || 0);
         if (amt > 0) {
-          computedItems.push({
-            title: `Pharmacy Medicine & Prescription Charges`,
-            category: 'Pharmacy',
+          items.push({
+            title: `Pharmacy & Medical Charges`,
+            category: 'Pharmacy Medicine',
             amount: amt,
             qty: 1,
             status: invIsPaid ? 'PAID' : 'UNPAID',
-            detail: `Invoice #${inv.id} (${new Date(inv.createdAt).toLocaleDateString()})`
+            detail: `Invoice #${inv.id}`
           });
         }
       }
     });
 
-    // 3. Laboratory Tests
-    patientLabRequests.forEach(req => {
-      const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === req.testName.toLowerCase());
-      const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : 500;
-      const isLabPaid = req.status === 'completed';
-      computedItems.push({
-        title: `Laboratory Test: ${req.testName}`,
-        category: 'Diagnostic Lab',
-        amount: testRate,
+    // 1. Initial Doctor OPD Consultation Fee (Ensure listed if not in invoice items)
+    if (!hasConsultationItem) {
+      const consultFee = pToken?.fee !== undefined ? Number(pToken.fee) : 1500;
+      initialConsultFee = consultFee;
+      items.unshift({
+        title: consultFee === 0 
+          ? 'Doctor OPD Consultation (Followup Re-visit - FREE)' 
+          : 'Doctor OPD Consultation & Registration Fee',
+        category: 'Initial Consultation Fee',
+        amount: consultFee,
         qty: 1,
-        status: isLabPaid ? 'PAID' : 'UNPAID',
-        detail: `Ordered by Dr. ${req.doctor?.user?.name || 'Physician'}`
+        status: 'PAID',
+        detail: pToken?.detail || (pToken?.tokenNumber ? `Token #${pToken.tokenNumber}` : 'OPD Token Desk')
       });
+    }
+
+    // 2. Diagnostics / Ultrasound tests not yet in invoice items
+    pLabs.forEach(req => {
+      const reqName = (req.testName || '').toLowerCase();
+      const alreadyIn = Array.from(handledLabTitles).some(t => t.includes(reqName) || reqName.includes(t));
+      if (!alreadyIn) {
+        const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === req.testName.toLowerCase());
+        const isUS = req.testName.toLowerCase().includes('ultrasound') || (req.category && req.category.toLowerCase().includes('ultrasound'));
+        const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : (isUS ? 1500 : 500);
+        items.push({
+          title: `${req.testName} (${isUS ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
+          category: isUS ? 'Ultrasound' : 'Diagnostic Lab',
+          amount: testRate,
+          qty: 1,
+          status: req.status === 'completed' ? 'PAID' : 'UNPAID',
+          detail: `Ordered by Dr. ${req.doctor?.user?.name || 'Physician'}`
+        });
+      }
     });
 
-    // 4. IPD Admission / Bed Stay Charge
-    if (selectedPatientAdmission) {
-      const bedRate = Number(selectedPatientAdmission.bed?.rate || 1500);
-      const days = Math.max(1, Math.ceil((Date.now() - new Date(selectedPatientAdmission.admissionDate).getTime()) / (1000 * 60 * 60 * 24)));
-      const isBedPaid = Number(selectedPatientAdmission.advancePaid || 0) >= bedRate * days;
-      computedItems.push({
-        title: `Inpatient Bed Stay (${selectedPatientAdmission.bed?.bedNumber || 'IPD Ward'} - ${days} Days)`,
+    // 3. Inpatient Bed Stay (if admitted)
+    if (pAdmission) {
+      const bedRate = Number(pAdmission.bed?.rate || 1500);
+      const days = Math.max(1, Math.ceil((Date.now() - new Date(pAdmission.admissionDate).getTime()) / (1000 * 60 * 60 * 24)));
+      const isBedPaid = Number(pAdmission.advancePaid || 0) >= bedRate * days;
+      items.push({
+        title: `Inpatient Bed Stay (${pAdmission.bed?.bedNumber || 'IPD Ward'} - ${days} Days)`,
         category: 'Ward Bed Charge',
         amount: bedRate * days,
         qty: days,
         status: isBedPaid ? 'PAID' : 'UNPAID',
-        detail: `Admitted on ${new Date(selectedPatientAdmission.admissionDate).toLocaleDateString()}`
+        detail: `Admitted on ${new Date(pAdmission.admissionDate).toLocaleDateString()}`
       });
     }
-  }
 
-  // Subtotal & Net Total Math
-  const grossSubtotal = Math.round(computedItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) * 100) / 100;
+    const grossTotal = Math.round(items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) * 100) / 100;
+    const rawDisc = customDisc !== undefined 
+      ? Number(customDisc) 
+      : (cardDiscounts[pIdStr] !== undefined ? Number(cardDiscounts[pIdStr]) : (Number(receptionistDiscount) || 0));
+    const discountVal = Math.max(0, isNaN(rawDisc) ? 0 : rawDisc);
+    const netPayableTotal = Math.round(Math.max(0, grossTotal - discountVal) * 100) / 100;
+    const totalPaidInvoices = activeInvs.reduce((sum, inv) => sum + Number(inv.paidAmount || 0) - Number(inv.refundAmount || 0), 0);
+    const admissionPaid = pAdmission ? Number(pAdmission.advancePaid || 0) : 0;
+    const effectiveTotalPaid = Math.round((totalPaidInvoices + admissionPaid + (hasConsultationItem ? 0 : initialConsultFee)) * 100) / 100;
+    const remainingBalance = Math.round(Math.max(0, netPayableTotal - effectiveTotalPaid) * 100) / 100;
+
+    return {
+      patient: patientObj,
+      items,
+      grossTotal,
+      initialConsultFee,
+      discountVal,
+      netPayableTotal,
+      totalPaid: effectiveTotalPaid,
+      remainingBalance,
+      masterInvoice: activeInvs[0] || null
+    };
+  };
+
+  const selectedPatientBreakdown = selectedPatientId ? getPatientBillingBreakdown(selectedPatientId, receptionistDiscount === '' ? 0 : Number(receptionistDiscount)) : null;
+  const computedItems = selectedPatientBreakdown ? selectedPatientBreakdown.items : [];
+  const grossSubtotal = selectedPatientBreakdown ? selectedPatientBreakdown.grossTotal : 0;
   const rawDisc = Number(receptionistDiscount);
   const discountVal = Math.max(0, isNaN(rawDisc) ? 0 : rawDisc);
-  const netPayableTotal = Math.round(Math.max(0, grossSubtotal - discountVal) * 100) / 100;
-  const totalPaidSoFar = Math.round((
-    activePatientInvoices.reduce((sum, inv) => sum + Number(inv.paidAmount || 0) - Number(inv.refundAmount || 0), 0) +
-    (selectedPatientAdmission ? Number(selectedPatientAdmission.advancePaid || 0) : 0)
-  ) * 100) / 100;
-  const netDueBalance = Math.round(Math.max(0, netPayableTotal - totalPaidSoFar) * 100) / 100;
+  const netPayableTotal = selectedPatientBreakdown ? selectedPatientBreakdown.netPayableTotal : 0;
+  const totalPaidSoFar = selectedPatientBreakdown ? selectedPatientBreakdown.totalPaid : 0;
+  const netDueBalance = selectedPatientBreakdown ? selectedPatientBreakdown.remainingBalance : 0;
+  const initialConsultFeePaid = selectedPatientBreakdown ? selectedPatientBreakdown.initialConsultFee : 0;
 
   // Consolidated Patient Accounts Calculation (Groups all scattered invoices by MR Number)
   const consolidatedPatientAccounts = React.useMemo(() => {
@@ -388,9 +436,29 @@ export const Billing: React.FC = () => {
     .reduce((sum, inv) => sum + Math.max(0, Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0)), 0);
 
   // 80mm POS Thermal Receipt Print Engine
-  const handlePrintThermalReceipt = (patientOverride?: any) => {
+  const handlePrintThermalReceipt = (patientOverride?: any, itemsOverride?: any[], mathOverride?: any) => {
     const targetPatient = patientOverride || selectedPatientObj;
-    if (!targetPatient) return;
+    if (!targetPatient) {
+      alert('Please select a patient first to print thermal slip.');
+      return;
+    }
+
+    const pId = targetPatient.id || targetPatient.patientId;
+    let itemsToPrint = itemsOverride;
+    let mathToPrint = mathOverride;
+
+    if (!itemsToPrint || !mathToPrint) {
+      const b = getPatientBillingBreakdown(pId, cardDiscounts[String(pId)] || 0);
+      itemsToPrint = b.items;
+      mathToPrint = {
+        grossSubtotal: b.grossTotal,
+        discountVal: b.discountVal,
+        initialFee: b.initialConsultFee,
+        netPayableTotal: b.netPayableTotal,
+        totalPaidSoFar: b.totalPaid,
+        netDueBalance: b.remainingBalance
+      };
+    }
 
     const clinic = getCachedClinicSettings();
 
@@ -400,14 +468,14 @@ export const Billing: React.FC = () => {
       return;
     }
 
-    const receiptRows = computedItems.map((item) => `
+    const receiptRows = itemsToPrint.map((item: any) => `
       <tr>
         <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; vertical-align: top;">
           <strong style="color: #000; font-size: 10px; display: block;">${escapeHtml(item.title)}</strong>
           <span style="font-size: 8.5px; color: #4b5563;">${escapeHtml(item.category)}</span>
         </td>
-        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: center; font-size: 10px; vertical-align: top;">${escapeHtml(item.qty)}</td>
-        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 10px; font-weight: 700; vertical-align: top;">Rs. ${item.amount.toLocaleString()}</td>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: center; font-size: 10px; vertical-align: top;">${escapeHtml(item.qty || 1)}</td>
+        <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 10px; font-weight: 700; vertical-align: top;">Rs. ${Number(item.amount || 0).toLocaleString()}</td>
         <td style="padding: 3px 0; border-bottom: 0.5px dotted #9ca3af; text-align: right; font-size: 9px; font-weight: 800; vertical-align: top; color: ${item.status === 'PAID' ? '#16a34a' : '#dc2626'};">[${item.status}]</td>
       </tr>
     `).join('');
@@ -480,7 +548,7 @@ export const Billing: React.FC = () => {
         </div>
 
         <div class="meta-box">
-          <div class="meta-row"><span class="meta-label">Patient Name:</span> <span class="meta-val">${escapeHtml(targetPatient.name)}</span></div>
+          <div class="meta-row"><span class="meta-label">Patient Name:</span> <span class="meta-val">${escapeHtml(targetPatient.name || targetPatient.patientName)}</span></div>
           <div class="meta-row"><span class="meta-label">MR Number:</span> <span class="meta-val">${escapeHtml(targetPatient.mrNumber || 'N/A')}</span></div>
           <div class="meta-row"><span class="meta-label">Phone:</span> <span class="meta-val">${escapeHtml(targetPatient.phone || 'N/A')}</span></div>
           <div class="meta-row"><span class="meta-label">Date & Time:</span> <span class="meta-val">${new Date().toLocaleString()}</span></div>
@@ -500,13 +568,14 @@ export const Billing: React.FC = () => {
         </table>
 
         <div class="summary-section">
-          <div class="sum-row"><span>Gross Total:</span> <span>Rs. ${grossSubtotal.toLocaleString()}</span></div>
-          ${discountVal > 0 ? `<div class="sum-row" style="color: #dc2626;"><span>Discount:</span> <span>- Rs. ${discountVal.toLocaleString()}</span></div>` : ''}
-          <div class="sum-row total"><span>Net Payable:</span> <span>Rs. ${netPayableTotal.toLocaleString()}</span></div>
-          <div class="sum-row" style="color: #16a34a; font-weight: 700;"><span>Total Paid:</span> <span>Rs. ${totalPaidSoFar.toLocaleString()}</span></div>
-          <div class="sum-row due" style="color: ${netDueBalance > 0 ? '#dc2626' : '#16a34a'};">
+          <div class="sum-row"><span>Gross Total:</span> <span>Rs. ${mathToPrint.grossSubtotal.toLocaleString()}</span></div>
+          ${mathToPrint.initialFee > 0 ? `<div class="sum-row" style="color: #16a34a;"><span>Initial Fee (Token Desk):</span> <span>- Rs. ${mathToPrint.initialFee.toLocaleString()} [PAID]</span></div>` : ''}
+          ${mathToPrint.discountVal > 0 ? `<div class="sum-row" style="color: #dc2626;"><span>Special Discount:</span> <span>- Rs. ${mathToPrint.discountVal.toLocaleString()}</span></div>` : ''}
+          <div class="sum-row total"><span>Net Payable:</span> <span>Rs. ${mathToPrint.netPayableTotal.toLocaleString()}</span></div>
+          <div class="sum-row" style="color: #16a34a; font-weight: 700;"><span>Total Paid:</span> <span>Rs. ${mathToPrint.totalPaidSoFar.toLocaleString()}</span></div>
+          <div class="sum-row due" style="color: ${mathToPrint.netDueBalance > 0 ? '#dc2626' : '#16a34a'};">
             <span>Net Balance Due:</span>
-            <span>Rs. ${netDueBalance.toLocaleString()} ${netDueBalance <= 0 ? '(PAID)' : ''}</span>
+            <span>Rs. ${mathToPrint.netDueBalance.toLocaleString()} ${mathToPrint.netDueBalance <= 0 ? '(PAID IN FULL)' : ''}</span>
           </div>
         </div>
 
@@ -520,6 +589,73 @@ export const Billing: React.FC = () => {
       </html>
     `);
     printWindow.document.close();
+  };
+
+  // ONE-CLICK "PAY & PRINT THERMAL SLIP" ACTION
+  const handlePayAndPrint = async (patientIdToPay: number | string, customDisc?: number) => {
+    const pIdStr = String(patientIdToPay);
+    const disc = customDisc !== undefined 
+      ? Number(customDisc) 
+      : (cardDiscounts[pIdStr] !== undefined ? Number(cardDiscounts[pIdStr]) : (Number(receptionistDiscount) || 0));
+    
+    const breakdown = getPatientBillingBreakdown(patientIdToPay, disc);
+    const targetPatient = breakdown.patient || patients.find(p => String(p.id) === pIdStr) || selectedPatientObj;
+    if (!targetPatient) return;
+
+    const remaining = breakdown.remainingBalance;
+
+    if (remaining > 0) {
+      try {
+        let masterInv = breakdown.masterInvoice;
+        if (masterInv) {
+          await apiClient.post(`/invoices/${masterInv.id}/payment`, {
+            amount: remaining,
+            discount: disc,
+            paymentMethod: 'cash'
+          });
+        } else {
+          // Create master invoice with valid line items and pay
+          const validItems = breakdown.items.map(it => ({
+            itemName: it.title,
+            itemCategory: it.category,
+            unitPrice: it.amount,
+            quantity: it.qty || 1
+          }));
+          const createRes: any = await apiClient.post('/invoices', {
+            patientId: Number(patientIdToPay),
+            discount: disc,
+            tax: 0,
+            items: validItems.length > 0 ? validItems : [{ itemName: 'Medical & Clinical Services Settlement', itemCategory: 'General', unitPrice: remaining, quantity: 1 }]
+          });
+          const invId = createRes?.invoice?.id || createRes?.id;
+          if (invId) {
+            await apiClient.post(`/invoices/${invId}/payment`, {
+              amount: remaining,
+              paymentMethod: 'cash'
+            });
+          }
+        }
+        await fetchBillingData();
+      } catch (err: any) {
+        alert(`Payment collection failed: ${err.message}`);
+        return;
+      }
+    }
+
+    // Immediately trigger 80mm thermal receipt printed as PAID
+    const clearedItems = breakdown.items.map(it => ({ ...it, status: 'PAID' as const }));
+    const clearedMath = {
+      grossSubtotal: breakdown.grossTotal,
+      discountVal: disc,
+      initialFee: breakdown.initialConsultFee,
+      netPayableTotal: Math.max(0, breakdown.grossTotal - disc),
+      totalPaidSoFar: Math.max(0, breakdown.grossTotal - disc),
+      netDueBalance: 0
+    };
+
+    setTimeout(() => {
+      handlePrintThermalReceipt(targetPatient, clearedItems, clearedMath);
+    }, 150);
   };
 
   const handlePrintProfessionalBill = () => {
@@ -916,19 +1052,7 @@ export const Billing: React.FC = () => {
                   {netDueBalance > 0 ? (
                     <Button
                       type="button"
-                      onClick={() => {
-                        const openInv = activePatientInvoices.find(inv => Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
-                        if (openInv) {
-                          handlePayClick(openInv);
-                        } else {
-                          setCustomPatientId(String(selectedPatientId));
-                          setCustomDiscount(discountVal);
-                          setInvoiceLines([
-                            { itemName: 'Medical & Clinical Services Settlement', itemCategory: 'General', unitPrice: netDueBalance, quantity: 1 }
-                          ]);
-                          setIsCreateOpen(true);
-                        }
-                      }}
+                      onClick={() => handlePayAndPrint(selectedPatientId, discountVal)}
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl flex items-center gap-1.5 text-xs shadow-md shadow-emerald-600/20"
                     >
                       <CreditCard className="h-4 w-4" /> Pay & Print Slip (Rs. {netDueBalance.toLocaleString()})
@@ -978,9 +1102,19 @@ export const Billing: React.FC = () => {
                             {item.detail && <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{item.detail}</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <Badge type="info" className="text-[10px] uppercase font-bold">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] uppercase font-black border ${
+                              item.category === 'Initial Consultation Fee'
+                                ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                                : item.category === 'Pharmacy Medicine'
+                                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                                : item.category === 'Ultrasound'
+                                ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30'
+                                : item.category === 'Diagnostic Lab'
+                                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                            }`}>
                               {item.category}
-                            </Badge>
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-center font-mono font-bold">
                             {item.qty}
@@ -1028,13 +1162,19 @@ export const Billing: React.FC = () => {
                 </div>
 
                 <div className="md:col-span-5 p-4 bg-brand-500/10 border border-brand-500/20 rounded-xl space-y-2 font-mono text-xs">
-                  <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 font-semibold">
-                    <span>Gross Subtotal:</span>
+                  <div className="flex justify-between items-center text-slate-700 dark:text-slate-300 font-bold">
+                    <span>Total Gross Amount:</span>
                     <span>Rs. {grossSubtotal.toLocaleString()}</span>
                   </div>
+                  {initialConsultFeePaid > 0 && (
+                    <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span>Initial Fee (Paid at Token Desk):</span>
+                      <span>- Rs. {initialConsultFeePaid.toLocaleString()}</span>
+                    </div>
+                  )}
                   {discountVal > 0 && (
                     <div className="flex justify-between items-center text-rose-500 font-bold">
-                      <span>Discount:</span>
+                      <span>Special Discount:</span>
                       <span>- Rs. {discountVal.toLocaleString()}</span>
                     </div>
                   )}
@@ -1043,33 +1183,30 @@ export const Billing: React.FC = () => {
                     <span className="text-emerald-600 font-bold">Rs. {totalPaidSoFar.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white pt-1">
-                    <span>Net Balance Due:</span>
-                    <span className={netDueBalance > 0 ? 'text-rose-600 dark:text-rose-400 text-base' : 'text-emerald-600 dark:text-emerald-400 text-base'}>
+                    <span>Remaining Balance Due:</span>
+                    <span className={netDueBalance > 0 ? 'text-rose-600 dark:text-rose-400 text-base font-black' : 'text-emerald-600 dark:text-emerald-400 text-base font-black'}>
                       Rs. {netDueBalance.toLocaleString()} {netDueBalance <= 0 ? '(PAID IN FULL)' : ''}
                     </span>
                   </div>
 
-                  {netDueBalance > 0 && (
+                  {netDueBalance > 0 ? (
                     <div className="pt-2 border-t border-brand-500/20">
                       <Button
                         type="button"
-                        onClick={() => {
-                          const openInv = activePatientInvoices.find(inv => Number(inv.paidAmount || 0) < Number(inv.grandTotal || inv.totalAmount || 0));
-                          if (openInv) {
-                            handlePayClick(openInv);
-                          } else {
-                            setCustomPatientId(String(selectedPatientId));
-                            setCustomDiscount(discountVal);
-                            setCustomTaxRate(0);
-                            setInvoiceLines([
-                              { itemName: 'Medical & Clinical Services Settlement', itemCategory: 'General', unitPrice: netDueBalance, quantity: 1 }
-                            ]);
-                            setIsCreateOpen(true);
-                          }
-                        }}
-                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-md shadow-emerald-600/20 font-sans transition-all"
+                        onClick={() => handlePayAndPrint(selectedPatientId, discountVal)}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-md shadow-emerald-600/20 font-sans transition-all tracking-wide uppercase"
                       >
-                        <CreditCard className="h-4 w-4" /> Collect & Settle Payment (Rs. {netDueBalance.toLocaleString()})
+                        <CreditCard className="h-4 w-4" /> Pay Rs. {netDueBalance.toLocaleString()} & Print Slip
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-brand-500/20">
+                      <Button
+                        type="button"
+                        onClick={() => handlePrintThermalReceipt()}
+                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs font-sans transition-all"
+                      >
+                        <Printer className="h-4 w-4" /> Print Thermal Slip (Paid)
                       </Button>
                     </div>
                   )}
@@ -1157,10 +1294,11 @@ export const Billing: React.FC = () => {
               return filteredAccounts.map((acc) => {
                 const pIdStr = String(acc.patientId);
                 const cardDiscount = Number(cardDiscounts[pIdStr] || 0);
-                const effectiveRemaining = Math.max(0, Math.round((acc.totalInvoiced - cardDiscount - acc.totalPaid) * 100) / 100);
-                const isPaid = effectiveRemaining === 0 && acc.totalInvoiced > 0;
-                const isPartial = effectiveRemaining > 0 && acc.totalPaid > 0;
-                const masterInvId = acc.invoiceIds[0] || '10';
+                const breakdown = getPatientBillingBreakdown(acc.patientId, cardDiscount);
+                const effectiveRemaining = breakdown.remainingBalance;
+                const isPaid = effectiveRemaining === 0 && breakdown.grossTotal > 0;
+                const isPartial = effectiveRemaining > 0 && breakdown.totalPaid > 0;
+                const masterInvId = acc.invoiceIds[0] || breakdown.masterInvoice?.id || '10';
 
                 return (
                   <Card key={acc.patientId} className="p-4 border border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-dark-950/40 hover:border-brand-500/40 space-y-3 transition-all rounded-xl shadow-sm">
@@ -1190,12 +1328,19 @@ export const Billing: React.FC = () => {
                       </Badge>
                     </div>
 
-                    {/* Financial Summary: Total Amount, Discount, Paid Amount, Remaining Amount */}
+                    {/* Financial Summary: Total Amount, Initial Fee, Discount, Paid Amount, Remaining Amount */}
                     <div className="p-3 bg-white dark:bg-dark-900 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs space-y-2">
                       <div className="flex justify-between items-center text-slate-900 dark:text-white font-extrabold text-xs">
                         <span className="text-slate-500 font-sans text-xs">Total Amount:</span>
-                        <span>Rs. {acc.totalInvoiced.toLocaleString()}</span>
+                        <span>Rs. {breakdown.grossTotal.toLocaleString()}</span>
                       </div>
+
+                      {breakdown.initialConsultFee > 0 && (
+                        <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
+                          <span className="text-slate-500 font-sans text-xs">Initial Fee (Token):</span>
+                          <span>- Rs. {breakdown.initialConsultFee.toLocaleString()} [PAID]</span>
+                        </div>
+                      )}
 
                       {/* Discount Option */}
                       <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
@@ -1205,7 +1350,7 @@ export const Billing: React.FC = () => {
                           <input
                             type="number"
                             min="0"
-                            max={acc.totalInvoiced}
+                            max={breakdown.grossTotal}
                             placeholder="0"
                             value={cardDiscounts[pIdStr] !== undefined && cardDiscounts[pIdStr] !== 0 ? cardDiscounts[pIdStr] : ''}
                             onChange={(e) => {
@@ -1219,7 +1364,7 @@ export const Billing: React.FC = () => {
 
                       <div className="flex justify-between items-center text-emerald-600 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
                         <span className="text-slate-500 font-sans text-xs">Paid Amount:</span>
-                        <span>Rs. {acc.totalPaid.toLocaleString()}</span>
+                        <span>Rs. {breakdown.totalPaid.toLocaleString()}</span>
                       </div>
 
                       <div className="flex justify-between items-center border-t-2 border-slate-200 dark:border-slate-800 pt-2 font-black">
@@ -1230,36 +1375,19 @@ export const Billing: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Niche "Pay" Button & Actions */}
+                    {/* Niche "Pay & Print Slip" Button & Actions */}
                     <div className="space-y-2 pt-1">
                       {effectiveRemaining > 0 ? (
                         <Button
-                          onClick={() => {
-                            setSelectedPatientId(pIdStr);
-                            setReceptionistDiscount(cardDiscount);
-                            const openInv = invoices.find(inv => String(inv.patientId) === pIdStr);
-                            if (openInv) {
-                              setSelectedInvoice(openInv);
-                              setPayAmount(effectiveRemaining);
-                              setIsPayOpen(true);
-                            } else {
-                              setCustomPatientId(pIdStr);
-                              setCustomDiscount(cardDiscount);
-                              setInvoiceLines([{ itemName: 'Patient Bill Settlement', itemCategory: 'General', unitPrice: effectiveRemaining, quantity: 1 }]);
-                              setIsCreateOpen(true);
-                            }
-                          }}
+                          onClick={() => handlePayAndPrint(acc.patientId, cardDiscount)}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all uppercase tracking-wide"
                         >
-                          <CreditCard className="h-4 w-4" /> Pay Rs. {effectiveRemaining.toLocaleString()}
+                          <CreditCard className="h-4 w-4" /> Pay Rs. {effectiveRemaining.toLocaleString()} & Print Slip
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => {
-                            setSelectedPatientId(pIdStr);
-                            handlePrintThermalReceipt(acc);
-                          }}
-                          className="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
+                          onClick={() => handlePrintThermalReceipt(acc)}
+                          className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
                         >
                           <Printer className="h-3.5 w-3.5" /> Print Thermal Slip (Paid)
                         </Button>
@@ -1269,24 +1397,21 @@ export const Billing: React.FC = () => {
                         <button
                           onClick={() => {
                             setSelectedPatientId(pIdStr);
-                            window.scrollTo({ top: 400, behavior: 'smooth' });
+                            setReceptionistDiscount(cardDiscount);
+                            window.scrollTo({ top: 380, behavior: 'smooth' });
                           }}
                           className="flex-1 py-1.5 px-3 bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-slate-300 hover:bg-brand-600 hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-1"
                         >
                           <Eye className="h-3.5 w-3.5" /> View Breakdown
                         </button>
 
-                        {effectiveRemaining > 0 && (
-                          <button
-                            onClick={() => {
-                              alert(`Remaining Amount is Rs. ${effectiveRemaining.toLocaleString()}.\n\nPehle 'Pay' karein, uske baad thermal print niklega!`);
-                            }}
-                            title="Payment required before receipt print"
-                            className="py-1.5 px-2.5 bg-slate-100 dark:bg-dark-800 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-not-allowed"
-                          >
-                            <Printer className="h-3 w-3" /> Slip (Pay First)
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handlePrintThermalReceipt(acc)}
+                          title="Print 80mm POS Thermal Receipt"
+                          className="py-1.5 px-3 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 rounded-lg border border-brand-200 dark:border-brand-800 text-xs font-bold transition-all flex items-center gap-1"
+                        >
+                          <Printer className="h-3.5 w-3.5" /> Slip
+                        </button>
                       </div>
                     </div>
                   </Card>

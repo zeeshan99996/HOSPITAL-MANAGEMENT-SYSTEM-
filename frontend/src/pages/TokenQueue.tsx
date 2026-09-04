@@ -26,6 +26,7 @@ export const TokenQueue: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [tokenType, setTokenType] = useState<'opd' | 'lab' | 'billing'>('opd');
+  const [consultFee, setConsultFee] = useState<number | ''>(1500);
   const [tokenDetail, setTokenDetail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -209,16 +210,19 @@ export const TokenQueue: React.FC = () => {
     if (!selectedPatientId) return;
     setSubmitting(true);
     try {
+      const numericFee = consultFee === '' ? 0 : Math.max(0, Number(consultFee));
       const newTokenRes = await apiClient.post('/tokens', {
         type: tokenType,
         patientId: Number(selectedPatientId),
         doctorId: selectedDoctorId ? Number(selectedDoctorId) : null,
-        detail: tokenDetail
+        fee: numericFee,
+        detail: tokenDetail || 'Regular OPD Visit'
       });
       
       setSelectedPatientId('');
       setSelectedDoctorId('');
       setTokenDetail('');
+      setConsultFee(1500);
       fetchQueue();
 
       if (newTokenRes) {
@@ -401,6 +405,22 @@ export const TokenQueue: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Initial Consultation Fee (Rs.) *</label>
+            <div className="relative">
+              <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">Rs.</span>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                placeholder="1500"
+                value={consultFee}
+                onChange={e => setConsultFee(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-mono font-bold"
+              />
+            </div>
           </div>
 
           <Button type="submit" disabled={submitting} className="w-full flex items-center justify-center gap-1.5 text-xs shadow-sm">
