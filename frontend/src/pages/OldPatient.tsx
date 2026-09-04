@@ -185,12 +185,12 @@ export const OldPatient: React.FC = () => {
       setSelectedDoctorId(String(matchedDoc.id));
       setSelectedDoctor(matchedDoc);
       setSelectedDepartmentId(String(matchedDoc.departmentId || '1'));
-      const fee = Number(matchedDoc.consultationFee) || 1500;
+      const fee = Number(matchedDoc.consultationFee) || 500;
       setChargedFee(isWithin ? 0 : fee);
     } else {
       setSelectedDoctorId('');
       setSelectedDoctor(null);
-      setChargedFee(isWithin ? 0 : 1500);
+      setChargedFee(isWithin ? 0 : 500);
     }
   };
 
@@ -233,7 +233,7 @@ export const OldPatient: React.FC = () => {
     setSelectedDoctor(docObj);
 
     if (docObj) {
-      const regFee = Number(docObj.consultationFee) || 1500;
+      const regFee = Number(docObj.consultationFee) || 500;
       if (isWithin5Days) {
         setChargedFee(0);
       } else {
@@ -700,7 +700,7 @@ export const OldPatient: React.FC = () => {
                             if (d) {
                               setSelectedDoctor(d);
                               setSelectedDepartmentId(String(d.departmentId || '1'));
-                              setChargedFee(isWithin5Days ? 0 : (Number(d.consultationFee) || 1500));
+                              setChargedFee(isWithin5Days ? 0 : (Number(d.consultationFee) || 500));
                             }
                           }}
                           className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
@@ -826,7 +826,7 @@ export const OldPatient: React.FC = () => {
                           if (d) {
                             setSelectedDoctor(d);
                             setSelectedDepartmentId(String(d.departmentId || '1'));
-                            setChargedFee(isWithin5Days ? 0 : (Number(d.consultationFee) || 1500));
+                            setChargedFee(isWithin5Days ? 0 : (Number(d.consultationFee) || 500));
                           }
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-white"
@@ -834,7 +834,7 @@ export const OldPatient: React.FC = () => {
                         <option value="">-- Select Doctor --</option>
                         {doctors.map(d => (
                           <option key={d.id} value={d.id}>
-                            {d.user?.name || d.name || `Dr. #${d.id}`} - Rs. {d.consultationFee || 1500}
+                            {d.user?.name || d.name || `Dr. #${d.id}`} - Rs. {d.consultationFee || 500}
                           </option>
                         ))}
                       </select>

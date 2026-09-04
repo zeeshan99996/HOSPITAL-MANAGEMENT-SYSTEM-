@@ -276,6 +276,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     // Validate Doctor ID
     let validDocId: number | null = null;
     let doctorName = 'General OPD';
+    let activeDoctor: any = null;
 
     if (doctorId) {
       const numDocId = Number(doctorId);
@@ -300,6 +301,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
 
       if (docObj) {
         validDocId = docObj.id;
+        activeDoctor = docObj;
         const dName = docObj.staffMember?.name || docObj.user?.name || `Doctor #${docObj.id}`;
         doctorName = dName.startsWith('Dr') ? dName : `Dr. ${dName}`;
       }
@@ -315,6 +317,7 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
       });
       if (fallbackDoc) {
         validDocId = fallbackDoc.id;
+        activeDoctor = fallbackDoc;
         const dName = fallbackDoc.staffMember?.name || fallbackDoc.user?.name || `Doctor #${fallbackDoc.id}`;
         doctorName = dName.startsWith('Dr') ? dName : `Dr. ${dName}`;
       }
@@ -353,7 +356,9 @@ router.post('/tokens', authenticateToken, requireRoles(['admin', 'receptionist']
     }, { transaction });
 
     // Ensure single Master Invoice exists for this patient's MR Number and record consultation fee
-    const numericFee = fee !== undefined ? Math.max(0, Number(fee) || 0) : 1500;
+    const numericFee = fee !== undefined 
+      ? Math.max(0, Number(fee) || 0) 
+      : (activeDoctor?.consultationFee ? Number(activeDoctor.consultationFee) : 500);
     try {
       const invoice = await getOrCreateMasterPatientInvoice(validPatientId, transaction);
 

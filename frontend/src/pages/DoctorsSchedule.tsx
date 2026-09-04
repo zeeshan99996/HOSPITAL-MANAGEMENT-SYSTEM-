@@ -26,7 +26,7 @@ export const DoctorsSchedule: React.FC = () => {
   const [password, setPassword] = useState('Doctor123');
   const [departmentId, setDepartmentId] = useState('');
   const [specialization, setSpecialization] = useState('General Practitioner');
-  const [consultationFee, setConsultationFee] = useState('1500');
+  const [consultationFee, setConsultationFee] = useState('500');
   const [biography, setBiography] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
 
@@ -65,7 +65,7 @@ export const DoctorsSchedule: React.FC = () => {
         role: 'doctor',
         departmentId: Number(departmentId) || 1,
         specialization,
-        consultationFee: Number(consultationFee) || 1500,
+        consultationFee: Number(consultationFee) || 500,
         biography
       });
       setIsAddOpen(false);
@@ -77,7 +77,7 @@ export const DoctorsSchedule: React.FC = () => {
       setPhone('');
       setDepartmentId('');
       setSpecialization('General Practitioner');
-      setConsultationFee('1500');
+      setConsultationFee('500');
       setBiography('');
       alert('New doctor profile added successfully.');
     } catch (err: any) {
@@ -91,7 +91,7 @@ export const DoctorsSchedule: React.FC = () => {
     setEmail(docObj.user?.email || '');
     setPhone(docObj.user?.phone || '');
     setSpecialization(docObj.specialization || 'General Practitioner');
-    setConsultationFee(docObj.consultationFee ? String(docObj.consultationFee) : '1500');
+    setConsultationFee(docObj.consultationFee ? String(docObj.consultationFee) : '500');
     setBiography(docObj.biography || '');
     setStatus(docObj.status || docObj.leaveStatus || 'active');
     setIsEditOpen(true);
@@ -225,7 +225,7 @@ export const DoctorsSchedule: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-slate-400" /> Consultation Fee:</span>
-                    <strong className="text-brand-600 dark:text-brand-400">Rs. {rawDoc?.consultationFee || 1500}</strong>
+                    <strong className="text-brand-600 dark:text-brand-400">Rs. {rawDoc?.consultationFee || 500}</strong>
                   </div>
                 </div>
 
@@ -279,7 +279,7 @@ export const DoctorsSchedule: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Specialization / Qualification" required placeholder="e.g. Consultant Cardiologist (MBBS, FCPS)" value={specialization} onChange={e => setSpecialization(e.target.value)} />
-            <Input label="Consultation Fee (Rs.)" required type="number" placeholder="1500" value={consultationFee} onChange={e => setConsultationFee(e.target.value)} />
+            <Input label="Consultation Fee (Rs.)" required type="number" placeholder="500" value={consultationFee} onChange={e => setConsultationFee(e.target.value)} />
           </div>
 
           <div>
@@ -366,7 +366,7 @@ export const DoctorsSchedule: React.FC = () => {
                 <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-slate-400" /> {selectedDoctor.user?.email || 'N/A'}</div>
                 <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-slate-400" /> {selectedDoctor.user?.phone || 'N/A'}</div>
                 <div className="flex items-center gap-2"><DoorOpen className="h-4 w-4 text-slate-400" /> Room: {selectedDoctor.roomNumber || 'OPD Desk'}</div>
-                <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-slate-400" /> Fee: Rs. {selectedDoctor.consultationFee || 1500}</div>
+                <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-slate-400" /> Fee: Rs. {selectedDoctor.consultationFee || 500}</div>
               </div>
             </div>
 

@@ -23,7 +23,7 @@ export const PatientRegistration: React.FC = () => {
     address: '',
     area: '',
     paymentMethod: 'Initial Payment',
-    paymentAmount: '1500',
+    paymentAmount: '500',
     emergencyContactName: '',
     emergencyContactPhone: '',
     insuranceProvider: '',
@@ -69,7 +69,7 @@ export const PatientRegistration: React.FC = () => {
       setDoctors(docList);
       if (docList.length > 0) {
         setSelectedDoctorId(String(docList[0].id));
-        const initialFee = docList[0].consultationFee ? String(docList[0].consultationFee) : '1500';
+        const initialFee = docList[0].consultationFee ? String(docList[0].consultationFee) : '500';
         setFormData(prev => ({ ...prev, paymentAmount: initialFee }));
       }
 
@@ -85,7 +85,7 @@ export const PatientRegistration: React.FC = () => {
     setSelectedDoctorId(docIdStr);
     const docObj = doctors.find(d => String(d.id) === docIdStr);
     if (docObj) {
-      const fee = docObj.consultationFee ? String(docObj.consultationFee) : '1500';
+      const fee = docObj.consultationFee ? String(docObj.consultationFee) : '500';
       setFormData(prev => ({ ...prev, paymentAmount: fee }));
     }
   };
@@ -137,7 +137,7 @@ export const PatientRegistration: React.FC = () => {
       address: '',
       area: '',
       paymentMethod: 'Initial Payment',
-      paymentAmount: '1500',
+      paymentAmount: '500',
       emergencyContactName: '',
       emergencyContactPhone: '',
       insuranceProvider: '',
@@ -238,7 +238,7 @@ export const PatientRegistration: React.FC = () => {
             type: 'opd',
             patientId: savedPatient.id,
             doctorId: Number(selectedDoctorId),
-            fee: Number(formData.paymentAmount) || 1500,
+            fee: Number(formData.paymentAmount) || 500,
             detail: 'New Patient Registration Visit'
           });
           if (tokenRes && tokenRes.tokenNumber) {
@@ -271,7 +271,7 @@ export const PatientRegistration: React.FC = () => {
         address: '',
         area: '',
         paymentMethod: 'Initial Payment',
-        paymentAmount: '1500',
+        paymentAmount: '500',
         emergencyContactName: '',
         emergencyContactPhone: '',
         insuranceProvider: '',
@@ -396,7 +396,7 @@ export const PatientRegistration: React.FC = () => {
           <div class="info-row"><span class="info-label">Patient Name:</span> <span>${target.name}</span></div>
           <div class="info-row"><span class="info-label">Age / Gender:</span> <span>${target.age || 'N/A'} Yrs / ${(target.gender || 'male').toUpperCase()}</span></div>
           <div class="info-row"><span class="info-label">Phone:</span> <span>${target.phone}</span></div>
-          <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. ${target.paymentAmount || '1500'}</span></div>
+          <div class="info-row"><span class="info-label">Amount Paid:</span> <span>Rs. ${target.paymentAmount || '500'}</span></div>
           <div class="info-row"><span class="info-label">Date & Time:</span> <span>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
 
           <div class="divider"></div>
@@ -614,7 +614,7 @@ export const PatientRegistration: React.FC = () => {
             <Input
               label="Amount (Rs.)"
               type="number"
-              placeholder="e.g. 1500"
+              placeholder="e.g. 500"
               value={formData.paymentAmount}
               onChange={e => handleInputChange('paymentAmount', e.target.value)}
             />

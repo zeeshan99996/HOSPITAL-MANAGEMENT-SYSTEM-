@@ -216,8 +216,14 @@ export const Billing: React.FC = () => {
 
     activeInvs.forEach(inv => {
       const invIsPaid = inv.status === 'paid' || Number(inv.paidAmount || 0) >= Number(inv.grandTotal || inv.totalAmount || 0);
-      if (inv.items && Array.isArray(inv.items) && inv.items.length > 0) {
-        inv.items.forEach((item: any) => {
+      const invItems = (inv.items && Array.isArray(inv.items) && inv.items.length > 0)
+        ? inv.items
+        : ((inv.invoice_items && Array.isArray(inv.invoice_items) && inv.invoice_items.length > 0)
+            ? inv.invoice_items
+            : (inv.InvoiceItems && Array.isArray(inv.InvoiceItems) && inv.InvoiceItems.length > 0 ? inv.InvoiceItems : []));
+
+      if (invItems && invItems.length > 0) {
+        invItems.forEach((item: any) => {
           const qty = Math.max(1, Number(item.quantity) || 1);
           const uPrice = Number(item.unitPrice) || 0;
           const itemTotal = Number(item.totalPrice) > 0 ? Number(item.totalPrice) : (uPrice * qty);
@@ -256,21 +262,37 @@ export const Billing: React.FC = () => {
       } else {
         const amt = Number(inv.grandTotal || inv.totalAmount || 0);
         if (amt > 0) {
-          items.push({
-            title: `Pharmacy & Medical Charges`,
-            category: 'Pharmacy Medicine',
-            amount: amt,
-            qty: 1,
-            status: invIsPaid ? 'PAID' : 'UNPAID',
-            detail: `Invoice #${inv.id}`
-          });
+          if (!hasConsultationItem) {
+            // This itemless invoice represents the initial doctor consultation fee
+            hasConsultationItem = true;
+            initialConsultFee += amt;
+            items.push({
+              title: 'Doctor OPD Consultation & Registration Fee',
+              category: 'Initial Consultation Fee',
+              amount: amt,
+              qty: 1,
+              status: invIsPaid ? 'PAID' : 'UNPAID',
+              detail: `Invoice #${inv.id}`
+            });
+          } else {
+            items.push({
+              title: 'Clinical & Hospital Services',
+              category: 'General',
+              amount: amt,
+              qty: 1,
+              status: invIsPaid ? 'PAID' : 'UNPAID',
+              detail: `Invoice #${inv.id}`
+            });
+          }
         }
       }
     });
 
     // 1. Initial Doctor OPD Consultation Fee (Ensure listed if not in invoice items)
     if (!hasConsultationItem) {
-      const consultFee = pToken?.fee !== undefined ? Number(pToken.fee) : 1500;
+      const consultFee = pToken?.fee !== undefined 
+        ? Number(pToken.fee) 
+        : (patientObj?.doctor?.consultationFee ? Number(patientObj.doctor.consultationFee) : 500);
       initialConsultFee = consultFee;
       items.unshift({
         title: consultFee === 0 

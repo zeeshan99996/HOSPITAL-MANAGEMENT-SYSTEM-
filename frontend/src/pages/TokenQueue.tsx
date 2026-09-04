@@ -26,7 +26,7 @@ export const TokenQueue: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [tokenType, setTokenType] = useState<'opd' | 'lab' | 'billing'>('opd');
-  const [consultFee, setConsultFee] = useState<number | ''>(1500);
+  const [consultFee, setConsultFee] = useState<number | ''>(500);
   const [tokenDetail, setTokenDetail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -222,7 +222,7 @@ export const TokenQueue: React.FC = () => {
       setSelectedPatientId('');
       setSelectedDoctorId('');
       setTokenDetail('');
-      setConsultFee(1500);
+      setConsultFee(500);
       fetchQueue();
 
       if (newTokenRes) {
@@ -232,6 +232,20 @@ export const TokenQueue: React.FC = () => {
       setErrorMsg(err.message || 'Error generating token.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDoctorSelection = (docId: string) => {
+    setSelectedDoctorId(docId);
+    if (docId) {
+      const doc = doctors.find(d => String(d.id) === String(docId));
+      if (doc && doc.consultationFee !== undefined && doc.consultationFee !== null) {
+        setConsultFee(Number(doc.consultationFee));
+      } else {
+        setConsultFee(500);
+      }
+    } else {
+      setConsultFee(500);
     }
   };
 
@@ -395,7 +409,7 @@ export const TokenQueue: React.FC = () => {
             <select
               required
               value={selectedDoctorId}
-              onChange={e => setSelectedDoctorId(e.target.value)}
+              onChange={e => handleDoctorSelection(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-medium"
             >
               <option value="">-- Choose Doctor --</option>
@@ -415,7 +429,7 @@ export const TokenQueue: React.FC = () => {
                 type="number"
                 min="0"
                 step="50"
-                placeholder="1500"
+                placeholder="500"
                 value={consultFee}
                 onChange={e => setConsultFee(e.target.value === '' ? '' : Number(e.target.value))}
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 dark:border-slate-800 text-xs bg-white dark:bg-dark-900 text-slate-900 dark:text-slate-100 font-mono font-bold"
