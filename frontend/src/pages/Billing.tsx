@@ -592,11 +592,16 @@ export const Billing: React.FC = () => {
         <div class="summary-section">
           <div class="sum-row"><span>Gross Total:</span> <span>Rs. ${mathToPrint.grossSubtotal.toLocaleString()}</span></div>
           ${mathToPrint.discountVal > 0 ? `<div class="sum-row"><span>Special Discount:</span> <span>- Rs. ${mathToPrint.discountVal.toLocaleString()}</span></div>` : ''}
-          <div class="sum-row total"><span>Net Payable:</span> <span>Rs. ${mathToPrint.netPayableTotal.toLocaleString()}</span></div>
+          <div class="sum-row total"><span>Net Total Bill:</span> <span>Rs. ${mathToPrint.netPayableTotal.toLocaleString()}</span></div>
           <div class="sum-row" style="color: #111827; font-weight: 700;"><span>Total Paid:</span> <span>Rs. ${mathToPrint.totalPaidSoFar.toLocaleString()}</span></div>
           <div class="sum-row due" style="color: #111827;">
-            <span>Net Balance Due:</span>
-            <span>Rs. ${mathToPrint.netDueBalance.toLocaleString()} ${mathToPrint.netDueBalance <= 0 ? '(PAID IN FULL)' : ''}</span>
+            <span>${mathToPrint.totalPaidSoFar > mathToPrint.netPayableTotal ? 'Refund / Return:' : 'Net Balance Due:'}</span>
+            <span>
+              ${mathToPrint.totalPaidSoFar > mathToPrint.netPayableTotal
+                ? `Rs. ${(mathToPrint.totalPaidSoFar - mathToPrint.netPayableTotal).toLocaleString()} (REFUND)`
+                : `Rs. ${mathToPrint.netDueBalance.toLocaleString()} ${mathToPrint.netDueBalance <= 0 ? '(PAID IN FULL)' : ''}`
+              }
+            </span>
           </div>
         </div>
 
@@ -1187,26 +1192,27 @@ export const Billing: React.FC = () => {
                     <span>Total Gross Amount:</span>
                     <span>Rs. {grossSubtotal.toLocaleString()}</span>
                   </div>
-                  {initialConsultFeePaid > 0 && (
-                    <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
-                      <span>Initial Fee (Paid at Token Desk):</span>
-                      <span>- Rs. {initialConsultFeePaid.toLocaleString()}</span>
-                    </div>
-                  )}
                   {discountVal > 0 && (
                     <div className="flex justify-between items-center text-rose-500 font-bold">
                       <span>Special Discount:</span>
                       <span>- Rs. {discountVal.toLocaleString()}</span>
                     </div>
                   )}
+                  <div className="flex justify-between items-center text-slate-900 dark:text-white font-extrabold border-t border-brand-500/20 pt-1.5 text-xs">
+                    <span>Net Total Bill (After Discount):</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-black">Rs. {netPayableTotal.toLocaleString()}</span>
+                  </div>
                   <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 font-semibold border-t border-brand-500/20 pt-1.5">
                     <span>Total Paid So Far:</span>
                     <span className="text-emerald-600 font-bold">Rs. {totalPaidSoFar.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white pt-1">
-                    <span>Remaining Balance Due:</span>
+                  <div className="flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white pt-1 border-t border-brand-500/20">
+                    <span>{totalPaidSoFar > netPayableTotal ? 'Refund / Return to Patient:' : 'Remaining Balance Due:'}</span>
                     <span className={netDueBalance > 0 ? 'text-rose-600 dark:text-rose-400 text-base font-black' : 'text-emerald-600 dark:text-emerald-400 text-base font-black'}>
-                      Rs. {netDueBalance.toLocaleString()} {netDueBalance <= 0 ? '(PAID IN FULL)' : ''}
+                      {totalPaidSoFar > netPayableTotal
+                        ? `Rs. ${(totalPaidSoFar - netPayableTotal).toLocaleString()} (REFUND)`
+                        : `Rs. ${netDueBalance.toLocaleString()} ${netDueBalance <= 0 ? '(PAID IN FULL)' : ''}`
+                      }
                     </span>
                   </div>
 
@@ -1349,19 +1355,12 @@ export const Billing: React.FC = () => {
                       </Badge>
                     </div>
 
-                    {/* Financial Summary: Total Amount, Initial Fee, Discount, Paid Amount, Remaining Amount */}
+                    {/* Financial Summary: Total Amount, Discount, Net Bill, Paid Amount, Remaining Amount */}
                     <div className="p-3 bg-white dark:bg-dark-900 rounded-xl border border-slate-200/80 dark:border-slate-800 font-mono text-xs space-y-2">
                       <div className="flex justify-between items-center text-slate-900 dark:text-white font-extrabold text-xs">
                         <span className="text-slate-500 font-sans text-xs">Total Amount:</span>
                         <span>Rs. {breakdown.grossTotal.toLocaleString()}</span>
                       </div>
-
-                      {breakdown.initialConsultFee > 0 && (
-                        <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
-                          <span className="text-slate-500 font-sans text-xs">Initial Fee (Token):</span>
-                          <span>- Rs. {breakdown.initialConsultFee.toLocaleString()} [PAID]</span>
-                        </div>
-                      )}
 
                       {/* Discount Option */}
                       <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-1.5">
@@ -1383,15 +1382,25 @@ export const Billing: React.FC = () => {
                         </div>
                       </div>
 
+                      <div className="flex justify-between items-center font-extrabold border-t border-slate-100 dark:border-slate-850 pt-1.5 text-slate-900 dark:text-white">
+                        <span className="text-slate-500 font-sans text-xs">Net Total Bill:</span>
+                        <span className="text-brand-600 dark:text-brand-400 font-black">Rs. {breakdown.netPayableTotal.toLocaleString()}</span>
+                      </div>
+
                       <div className="flex justify-between items-center text-emerald-600 font-bold border-t border-slate-100 dark:border-slate-850 pt-1.5">
                         <span className="text-slate-500 font-sans text-xs">Paid Amount:</span>
                         <span>Rs. {breakdown.totalPaid.toLocaleString()}</span>
                       </div>
 
                       <div className="flex justify-between items-center border-t-2 border-slate-200 dark:border-slate-800 pt-2 font-black">
-                        <span className="text-slate-900 dark:text-white font-sans text-xs uppercase tracking-wider">Remaining Amount:</span>
+                        <span className="text-slate-900 dark:text-white font-sans text-xs uppercase tracking-wider">
+                          {breakdown.totalPaid > breakdown.netPayableTotal ? 'Refund to Patient:' : 'Remaining Amount:'}
+                        </span>
                         <span className={effectiveRemaining > 0 ? "text-rose-600 text-sm font-black" : "text-emerald-600 text-sm font-black"}>
-                          Rs. {effectiveRemaining.toLocaleString()} {isPaid ? '(CLEARED)' : ''}
+                          {breakdown.totalPaid > breakdown.netPayableTotal
+                            ? `Rs. ${(breakdown.totalPaid - breakdown.netPayableTotal).toLocaleString()} (REFUND)`
+                            : `Rs. ${effectiveRemaining.toLocaleString()} ${isPaid ? '(CLEARED)' : ''}`
+                          }
                         </span>
                       </div>
                     </div>
