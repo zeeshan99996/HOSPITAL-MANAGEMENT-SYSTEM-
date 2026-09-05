@@ -40,6 +40,11 @@ export const Billing: React.FC = () => {
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid' | 'voided'>('all');
   const [ledgerGrouping, setLedgerGrouping] = useState<'by_patient' | 'by_invoice'>('by_patient');
   const [cardDiscounts, setCardDiscounts] = useState<Record<string, number>>({});
+  const [excludedItemKeys, setExcludedItemKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setExcludedItemKeys(new Set());
+  }, [selectedPatientId]);
 
   // Printable Bill Receipt Modal
   const [isPrintReceiptOpen, setIsPrintReceiptOpen] = useState(false);
@@ -190,6 +195,29 @@ export const Billing: React.FC = () => {
   const selectedPatientObj = selectedPatientId ? (currentTabPatients.find(p => String(p.id) === String(selectedPatientId)) || patients.find(p => String(p.id) === String(selectedPatientId))) : undefined;
   const selectedPatientAdmission = admissions.find(adm => String(adm.patientId) === String(selectedPatientId) && adm.status === 'admitted');
 
+  // Remove an unwanted or accidental line item from the active bill
+  const handleRemoveLineItem = async (item: any) => {
+    if (!item.id) return;
+    if (!window.confirm(`Are you sure you want to remove "${item.title}" from this bill?`)) return;
+
+    setExcludedItemKeys(prev => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+
+    if (item.labRequestId) {
+      try {
+        await apiClient.put(`/lab/requests/${item.labRequestId}/result`, {
+          resultDetails: 'Cancelled / Removed by Receptionist'
+        });
+        setLabRequests(prev => prev.filter(r => r.id !== item.labRequestId));
+      } catch (e) {
+        console.error('Failed to cancel lab request:', e);
+      }
+    }
+  };
+
   // ==========================================
   // COMPREHENSIVE PATIENT BREAKDOWN ENGINE
   // ==========================================
@@ -197,17 +225,42 @@ export const Billing: React.FC = () => {
     const pIdStr = String(pId);
     const patientObj = patients.find(p => String(p.id) === pIdStr);
     const activeInvs = invoices.filter(inv => String(inv.patientId) === pIdStr && !inv.isVoided && inv.status !== 'voided');
-    const pLabs = labRequests.filter(req => String(req.patientId) === pIdStr);
     const pAdmission = admissions.find(adm => String(adm.patientId) === pIdStr && adm.status === 'admitted');
     const pToken = tokens.find(t => String(t.patientId) === pIdStr);
 
+    // Filter lab requests:
+    // 1. Exclude cancelled tests or tests marked cancelled
+    // 2. IPD admitted patients: tests from admission date onwards
+    // 3. OPD patients: ONLY tests ordered TODAY for current visit (never pull historical tests from prior days)
+    const pLabs = labRequests.filter(req => {
+      if (String(req.patientId) !== pIdStr) return false;
+      if (req.status === 'cancelled') return false;
+      if (req.resultDetails && req.resultDetails.toLowerCase().includes('cancel')) return false;
+
+      if (pAdmission) {
+        if (pAdmission.admissionDate) {
+          const admDateStr = new Date(pAdmission.admissionDate).toISOString().split('T')[0];
+          const reqDateStr = req.createdAt ? req.createdAt.split('T')[0] : '';
+          return reqDateStr >= admDateStr;
+        }
+        return true;
+      }
+
+      // OPD visit: strictly today's tests
+      const reqDateStr = req.createdAt ? req.createdAt.split('T')[0] : '';
+      return reqDateStr === localTodayStr;
+    });
+
     const items: Array<{ 
+      id?: string;
       title: string; 
       category: 'Initial Consultation Fee' | 'Pharmacy Medicine' | 'Ultrasound' | 'Diagnostic Lab' | 'Ward Bed Charge' | 'General'; 
       amount: number; 
       qty: number; 
       status: 'PAID' | 'UNPAID';
-      detail?: string 
+      detail?: string;
+      canRemove?: boolean;
+      labRequestId?: number;
     }> = [];
 
     let hasConsultationItem = false;
@@ -223,7 +276,7 @@ export const Billing: React.FC = () => {
             : (inv.InvoiceItems && Array.isArray(inv.InvoiceItems) && inv.InvoiceItems.length > 0 ? inv.InvoiceItems : []));
 
       if (invItems && invItems.length > 0) {
-        invItems.forEach((item: any) => {
+        invItems.forEach((item: any, itemIdx: number) => {
           const qty = Math.max(1, Number(item.quantity) || 1);
           const uPrice = Number(item.unitPrice) || 0;
           const itemTotal = Number(item.totalPrice) > 0 ? Number(item.totalPrice) : (uPrice * qty);
@@ -250,39 +303,51 @@ export const Billing: React.FC = () => {
             cat = 'Ward Bed Charge';
           }
 
+          const invItemKey = `inv_${inv.id}_${item.id || itemIdx}`;
+          if (excludedItemKeys.has(invItemKey)) return;
+
           items.push({
+            id: invItemKey,
             title: item.itemName || 'Medical Charge',
             category: cat,
             amount: itemTotal,
             qty: qty,
             status: itemStatus,
-            detail: `Invoice #${inv.id}`
+            detail: `Invoice #${inv.id}`,
+            canRemove: false
           });
         });
       } else {
         const amt = Number(inv.grandTotal || inv.totalAmount || 0);
         if (amt > 0) {
-          if (!hasConsultationItem) {
-            // This itemless invoice represents the initial doctor consultation fee
-            hasConsultationItem = true;
-            initialConsultFee += amt;
-            items.push({
-              title: 'Doctor OPD Consultation & Registration Fee',
-              category: 'Initial Consultation Fee',
-              amount: amt,
-              qty: 1,
-              status: invIsPaid ? 'PAID' : 'UNPAID',
-              detail: `Invoice #${inv.id}`
-            });
-          } else {
-            items.push({
-              title: 'Clinical & Hospital Services',
-              category: 'General',
-              amount: amt,
-              qty: 1,
-              status: invIsPaid ? 'PAID' : 'UNPAID',
-              detail: `Invoice #${inv.id}`
-            });
+          const invItemKey = `inv_main_${inv.id}`;
+          if (!excludedItemKeys.has(invItemKey)) {
+            if (!hasConsultationItem) {
+              // This itemless invoice represents the initial doctor consultation fee
+              hasConsultationItem = true;
+              initialConsultFee += amt;
+              items.push({
+                id: invItemKey,
+                title: 'Doctor OPD Consultation & Registration Fee',
+                category: 'Initial Consultation Fee',
+                amount: amt,
+                qty: 1,
+                status: invIsPaid ? 'PAID' : 'UNPAID',
+                detail: `Invoice #${inv.id}`,
+                canRemove: false
+              });
+            } else {
+              items.push({
+                id: invItemKey,
+                title: 'Clinical & Hospital Services',
+                category: 'General',
+                amount: amt,
+                qty: 1,
+                status: invIsPaid ? 'PAID' : 'UNPAID',
+                detail: `Invoice #${inv.id}`,
+                canRemove: false
+              });
+            }
           }
         }
       }
@@ -295,6 +360,7 @@ export const Billing: React.FC = () => {
         : (patientObj?.doctor?.consultationFee ? Number(patientObj.doctor.consultationFee) : 500);
       initialConsultFee = consultFee;
       items.unshift({
+        id: `consult_${pToken?.id || 'opd'}`,
         title: consultFee === 0 
           ? 'Doctor OPD Consultation (Followup Re-visit - FREE)' 
           : 'Doctor OPD Consultation & Registration Fee',
@@ -302,25 +368,36 @@ export const Billing: React.FC = () => {
         amount: consultFee,
         qty: 1,
         status: 'PAID',
-        detail: pToken?.detail || (pToken?.tokenNumber ? `Token #${pToken.tokenNumber}` : 'OPD Token Desk')
+        detail: pToken?.detail || (pToken?.tokenNumber ? `Token #${pToken.tokenNumber}` : 'OPD Token Desk'),
+        canRemove: false
       });
     }
 
     // 2. Diagnostics / Ultrasound tests not yet in invoice items
     pLabs.forEach(req => {
-      const reqName = (req.testName || '').toLowerCase();
+      const reqName = (req.testName || '').trim().toLowerCase();
+      if (!reqName) return;
+
+      const itemKey = `lab_${req.id || reqName}`;
+      if (excludedItemKeys.has(itemKey)) return;
+
       const alreadyIn = Array.from(handledLabTitles).some(t => t.includes(reqName) || reqName.includes(t));
       if (!alreadyIn) {
-        const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === req.testName.toLowerCase());
-        const isUS = req.testName.toLowerCase().includes('ultrasound') || (req.category && req.category.toLowerCase().includes('ultrasound'));
+        handledLabTitles.add(reqName); // Ensure deduplication so tests never duplicate!
+
+        const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === reqName);
+        const isUS = reqName.includes('ultrasound') || (req.category && req.category.toLowerCase().includes('ultrasound'));
         const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : (isUS ? 1500 : 500);
         items.push({
+          id: itemKey,
           title: `${req.testName} (${isUS ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
           category: isUS ? 'Ultrasound' : 'Diagnostic Lab',
           amount: testRate,
           qty: 1,
           status: req.status === 'completed' ? 'PAID' : 'UNPAID',
-          detail: `Ordered by Dr. ${req.doctor?.user?.name || 'Physician'}`
+          detail: `Ordered by Dr. ${req.doctor?.user?.name || 'Physician'}`,
+          canRemove: true,
+          labRequestId: req.id
         });
       }
     });
@@ -331,12 +408,14 @@ export const Billing: React.FC = () => {
       const days = Math.max(1, Math.ceil((Date.now() - new Date(pAdmission.admissionDate).getTime()) / (1000 * 60 * 60 * 24)));
       const isBedPaid = Number(pAdmission.advancePaid || 0) >= bedRate * days;
       items.push({
+        id: `bed_${pAdmission.id}`,
         title: `Inpatient Bed Stay (${pAdmission.bed?.bedNumber || 'IPD Ward'} - ${days} Days)`,
         category: 'Ward Bed Charge',
         amount: bedRate * days,
         qty: days,
         status: isBedPaid ? 'PAID' : 'UNPAID',
-        detail: `Admitted on ${new Date(pAdmission.admissionDate).toLocaleDateString()}`
+        detail: `Admitted on ${new Date(pAdmission.admissionDate).toLocaleDateString()}`,
+        canRemove: false
       });
     }
 
@@ -1118,11 +1197,12 @@ export const Billing: React.FC = () => {
                         <th className="px-4 py-3 text-center">Qty</th>
                         <th className="px-4 py-3 text-right">Amount (Rs.)</th>
                         <th className="px-4 py-3 text-center">Status</th>
+                        <th className="px-4 py-3 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
                       {computedItems.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-dark-950/40">
+                        <tr key={item.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-dark-950/40">
                           <td className="px-4 py-3 font-bold text-slate-850 dark:text-slate-100">
                             {item.title}
                             {item.detail && <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{item.detail}</span>}
@@ -1156,6 +1236,21 @@ export const Billing: React.FC = () => {
                             }`}>
                               {item.status}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {item.canRemove ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLineItem(item)}
+                                title="Remove item from bill"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-600 rounded-lg transition-all border border-rose-200 dark:border-rose-900 shadow-xs cursor-pointer"
+                              >
+                                <Trash className="h-3 w-3" />
+                                <span>Remove</span>
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-mono">—</span>
+                            )}
                           </td>
                         </tr>
                       ))}
