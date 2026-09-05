@@ -181,7 +181,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         '/admissions',
         '/laboratory',
         '/pharmacy',
-        '/billing'
+        '/billing',
+        '/expenses'
       ];
       return allowedPaths.includes(item.path);
     }
