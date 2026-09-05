@@ -601,14 +601,14 @@ export const recordDoctorConsultation = async (req: Request, res: Response) => {
           } as any);
           createdLabRequests++;
 
-          // Auto-bill test to patient's master invoice
-          if (testRate > 0) {
+          // Auto-bill test to patient's master invoice (Ultrasound tests ONLY; pathology lab tests are not part of clinic bill)
+          if (isUltrasound && testRate > 0) {
             try {
               const invoice = await getOrCreateMasterPatientInvoice(Number(patientId));
               await InvoiceItem.create({
                 invoiceId: invoice.id,
-                itemName: `${testTitle} (${isUltrasound ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
-                itemCategory: isUltrasound ? 'Ultrasound' : 'Diagnostics',
+                itemName: `${testTitle} (Ultrasound Diagnostic)`,
+                itemCategory: 'Ultrasound',
                 unitPrice: testRate,
                 quantity: 1,
                 totalPrice: testRate,

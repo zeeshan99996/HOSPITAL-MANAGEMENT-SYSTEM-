@@ -712,39 +712,41 @@ export const createLabRequest = async (req: Request, res: Response) => {
       sampleStatus: 'collected', // default state when ordered
     }, { transaction });
 
-    // Auto-bill test to patient's single Master Invoice
-    const testCatalog = await LaboratoryTest.findOne({ where: { name: testName }, transaction });
-    let rate = testCatalog ? Number(testCatalog.rate) : 0.00;
+    // Auto-bill test to patient's single Master Invoice (ONLY Ultrasound tests; standard lab tests are not part of clinic bill)
     const isUltrasound = testName.toLowerCase().includes('ultrasound') || (category && category.toLowerCase().includes('ultrasound'));
-    if (rate <= 0) {
-      rate = isUltrasound ? 1500.00 : 500.00;
-    }
+    if (isUltrasound) {
+      const testCatalog = await LaboratoryTest.findOne({ where: { name: testName }, transaction });
+      let rate = testCatalog ? Number(testCatalog.rate) : 0.00;
+      if (rate <= 0) {
+        rate = 1500.00;
+      }
 
-    if (rate > 0) {
-      const invoice = await getOrCreateMasterPatientInvoice(patientId, transaction);
+      if (rate > 0) {
+        const invoice = await getOrCreateMasterPatientInvoice(patientId, transaction);
 
-      await InvoiceItem.create({
-        invoiceId: invoice.id,
-        itemName: `${testName} (${isUltrasound ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
-        itemCategory: isUltrasound ? 'Ultrasound' : 'Diagnostics',
-        unitPrice: rate,
-        quantity: 1,
-        totalPrice: rate,
-      }, { transaction });
+        await InvoiceItem.create({
+          invoiceId: invoice.id,
+          itemName: `${testName} (Ultrasound Diagnostic)`,
+          itemCategory: 'Ultrasound',
+          unitPrice: rate,
+          quantity: 1,
+          totalPrice: rate,
+        }, { transaction });
 
-      // Recalculate invoice totals cleanly without arbitrary tax
-      const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
-      const newTotal = Math.round(allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0) * 100) / 100;
-      const disc = Number(invoice.discount || 0);
-      const newGrandTotal = Math.round(Math.max(0, newTotal - disc) * 100) / 100;
-      const curPaid = Number(invoice.paidAmount || 0);
-      const curStatus = curPaid >= newGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
+        // Recalculate invoice totals cleanly without arbitrary tax
+        const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
+        const newTotal = Math.round(allItems.reduce((acc, item) => acc + Number(item.totalPrice), 0) * 100) / 100;
+        const disc = Number(invoice.discount || 0);
+        const newGrandTotal = Math.round(Math.max(0, newTotal - disc) * 100) / 100;
+        const curPaid = Number(invoice.paidAmount || 0);
+        const curStatus = curPaid >= newGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
 
-      await invoice.update({
-        totalAmount: newTotal,
-        grandTotal: newGrandTotal,
-        status: curStatus
-      }, { transaction });
+        await invoice.update({
+          totalAmount: newTotal,
+          grandTotal: newGrandTotal,
+          status: curStatus
+        }, { transaction });
+      }
     }
 
     await transaction.commit();

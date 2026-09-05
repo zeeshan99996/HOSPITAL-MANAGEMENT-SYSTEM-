@@ -295,8 +295,8 @@ export const Billing: React.FC = () => {
             cat = 'Ultrasound';
             handledLabTitles.add(nameLower);
           } else if (catLower.includes('diagnostic') || catLower.includes('lab') || catLower.includes('pathology')) {
-            cat = 'Diagnostic Lab';
-            handledLabTitles.add(nameLower);
+            // Laboratory tests should NOT show in the clinic bill - only ultrasound tests should show
+            return;
           } else if (catLower.includes('pharmacy') || nameLower.includes('dispense')) {
             cat = 'Pharmacy Medicine';
           } else if (catLower.includes('bed') || catLower.includes('ward')) {
@@ -373,10 +373,14 @@ export const Billing: React.FC = () => {
       });
     }
 
-    // 2. Diagnostics / Ultrasound tests not yet in invoice items
+    // 2. Ultrasound tests not yet in invoice items (ONLY Ultrasound tests; standard lab tests are excluded)
     pLabs.forEach(req => {
       const reqName = (req.testName || '').trim().toLowerCase();
       if (!reqName) return;
+
+      // Only Ultrasound tests should show in the bill - standard lab tests are excluded
+      const isUS = reqName.includes('ultrasound') || (req.category && req.category.toLowerCase().includes('ultrasound'));
+      if (!isUS) return;
 
       const itemKey = `lab_${req.id || reqName}`;
       if (excludedItemKeys.has(itemKey)) return;
@@ -386,12 +390,11 @@ export const Billing: React.FC = () => {
         handledLabTitles.add(reqName); // Ensure deduplication so tests never duplicate!
 
         const matchCatalog = labCatalog.find(t => t.name.toLowerCase() === reqName);
-        const isUS = reqName.includes('ultrasound') || (req.category && req.category.toLowerCase().includes('ultrasound'));
-        const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : (isUS ? 1500 : 500);
+        const testRate = matchCatalog ? Number(matchCatalog.rate || 0) : 1500;
         items.push({
           id: itemKey,
-          title: `${req.testName} (${isUS ? 'Ultrasound Diagnostic' : 'Lab Diagnostic'})`,
-          category: isUS ? 'Ultrasound' : 'Diagnostic Lab',
+          title: `${req.testName} (Ultrasound Diagnostic)`,
+          category: 'Ultrasound',
           amount: testRate,
           qty: 1,
           status: req.status === 'completed' ? 'PAID' : 'UNPAID',
@@ -1020,7 +1023,7 @@ export const Billing: React.FC = () => {
               <Receipt className="h-7 w-7 text-brand-400" /> Billing & Accounting Center
             </h1>
             <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-              Complete billing breakdown of Initial Fee, Pharmacy Medicines, Lab Tests, and IPD Bed Stay.
+              Complete billing breakdown of Initial Fee, Pharmacy Medicines, Ultrasound Diagnostics, and IPD Bed Stay.
             </p>
           </div>
 
@@ -1085,7 +1088,7 @@ export const Billing: React.FC = () => {
                 Select {activeTab === 'opd_patient' ? 'OPD' : 'Admitted IPD'} Patient for Complete Fee Statement
               </h3>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                Displays Initial Fee + Pharmacy Medicines + Lab Tests (Ultrasound/LFT/CBC) + Bed Stay.
+                Displays Initial Fee + Pharmacy Medicines + Ultrasound Diagnostics + Bed Stay.
               </p>
             </div>
             <Badge type="info" className="px-3 py-1 font-bold">
