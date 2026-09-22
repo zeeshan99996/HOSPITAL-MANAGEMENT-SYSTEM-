@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Op } from 'sequelize';
-import { authenticateToken, requireRoles } from '../middleware/auth';
+import { authenticateToken, requireRoles, requirePermission } from '../middleware/auth';
 import { rateLimiter } from '../middleware/rateLimiter';
 import {
   validateLogin,
@@ -18,7 +18,7 @@ import {
   validateSystemUser,
   validateUserCredentials,
 } from '../middleware/validate';
-import { login, registerPatient, getProfile } from '../controllers/authController';
+import { login, registerPatient, getProfile, logout } from '../controllers/authController';
 import { aiChat } from '../controllers/aiController';
 import sequelize from '../config/db';
 import { TokenQueue, Doctor, Department, Patient, User, StaffMember, Area, PaymentOption, Invoice, InvoiceItem, SystemUser, Setting } from '../models';
@@ -134,6 +134,7 @@ router.get('/notifications', authenticateToken, getRealtimeNotifications);
 // ==========================================
 router.post('/auth/register', registerPatient);
 router.post('/auth/login', validateLogin, login);
+router.post('/auth/logout', logout);
 router.get('/auth/profile', authenticateToken, getProfile);
 router.post('/ai/chat', authenticateToken, rateLimiter(20, 60000), aiChat);
 

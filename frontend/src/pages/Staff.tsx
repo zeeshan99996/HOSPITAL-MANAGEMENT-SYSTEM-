@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
-import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X } from 'lucide-react';
+import { UsersRound, Plus, ShieldCheck, Mail, Phone, Briefcase, CreditCard, MapPin, DollarSign, UserCheck, AlertCircle, Trash2, Edit3, Settings, Check, X, Eye, EyeOff, Lock } from 'lucide-react';
 import { formatCNIC, formatPhone } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 
 interface DesignationItem {
   title: string;
@@ -28,10 +29,50 @@ const DEFAULT_DESIGNATION_ITEMS: DesignationItem[] = [
 ];
 
 export const Staff: React.FC = () => {
+  const { user } = useAuth();
   const [staff, setStaff] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // Masking state & audit trail triggers
+  const [revealedCNIC, setRevealedCNIC] = useState<{ [id: number]: boolean }>({});
+  const [revealedSalary, setRevealedSalary] = useState<{ [id: number]: boolean }>({});
+
+  const handleToggleReveal = async (staffId: number, field: 'CNIC' | 'Salary') => {
+    if (user?.role !== 'admin') return;
+    if (field === 'CNIC') {
+      const isCurrentlyRevealed = !!revealedCNIC[staffId];
+      if (!isCurrentlyRevealed) {
+        try {
+          await apiClient.post('/activity-logs', {
+            action: 'UNMASK_SENSITIVE_DATA',
+            details: `Admin ${user.name} (${user.email}) unmasked CNIC for Staff Member #${staffId}`
+          });
+        } catch (e) {}
+      }
+      setRevealedCNIC(prev => ({ ...prev, [staffId]: !prev[staffId] }));
+    } else {
+      const isCurrentlyRevealed = !!revealedSalary[staffId];
+      if (!isCurrentlyRevealed) {
+        try {
+          await apiClient.post('/activity-logs', {
+            action: 'UNMASK_SENSITIVE_DATA',
+            details: `Admin ${user.name} (${user.email}) unmasked Salary for Staff Member #${staffId}`
+          });
+        } catch (e) {}
+      }
+      setRevealedSalary(prev => ({ ...prev, [staffId]: !prev[staffId] }));
+    }
+  };
+
+  const getMaskedCNIC = (cnicStr: string) => {
+    if (!cnicStr) return 'N/A';
+    if (cnicStr.length >= 15) {
+      return cnicStr.substring(0, 6) + '*******' + cnicStr.substring(13);
+    }
+    return '***** - ******* - *';
+  };
 
   // Form State for Admin-only Staff Registration
   const [name, setName] = useState('');
@@ -302,7 +343,20 @@ export const Staff: React.FC = () => {
                     <div className="font-bold text-slate-900 dark:text-slate-100">{s.designation || 'Staff Employee'}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">{s.cnic || 'N/A'}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        {user?.role === 'admin' && revealedCNIC[s.id] ? (s.cnic || 'N/A') : getMaskedCNIC(s.cnic)}
+                      </div>
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={() => handleToggleReveal(s.id, 'CNIC')}
+                          title={revealedCNIC[s.id] ? "Hide CNIC" : "Reveal CNIC (Audit Logged)"}
+                          className="p-1 rounded text-slate-400 hover:text-brand-600 transition-colors"
+                        >
+                          {revealedCNIC[s.id] ? <EyeOff className="h-3.5 w-3.5 text-brand-600" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                    </div>
                     <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                       <Phone className="h-3 w-3" /> {s.phone || 'N/A'}
                     </div>
@@ -314,8 +368,19 @@ export const Staff: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                      Rs. {Number(s.salary || 0).toLocaleString()}
+                    <div className="flex items-center gap-1.5">
+                      <div className="font-bold text-emerald-600 dark:text-emerald-400 text-xs font-mono">
+                        {user?.role === 'admin' && revealedSalary[s.id] ? `Rs. ${Number(s.salary || 0).toLocaleString()}` : 'Rs. *****'}
+                      </div>
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={() => handleToggleReveal(s.id, 'Salary')}
+                          title={revealedSalary[s.id] ? "Hide Salary" : "Reveal Salary (Audit Logged)"}
+                          className="p-1 rounded text-slate-400 hover:text-emerald-600 transition-colors"
+                        >
+                          {revealedSalary[s.id] ? <EyeOff className="h-3.5 w-3.5 text-emerald-600" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
                     </div>
                     <div className="text-[10px] text-slate-400">Monthly Base</div>
                   </td>

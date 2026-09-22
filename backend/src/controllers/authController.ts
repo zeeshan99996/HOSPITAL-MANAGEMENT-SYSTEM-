@@ -104,6 +104,14 @@ export const login = async (req: Request, res: Response) => {
       console.error('[AuditLog Error]:', lErr);
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('hms_token', token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 Hours
+    });
+
     return res.status(200).json({
       message: 'Authentication successful.',
       token,
@@ -119,6 +127,16 @@ export const login = async (req: Request, res: Response) => {
     console.error('[Login Controller Error]:', error);
     return res.status(500).json({ message: 'Authentication process failed.', error: error?.message || 'Server error' });
   }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('hms_token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+  });
+  return res.status(200).json({ message: 'Logged out successfully.' });
 };
 
 export const getProfile = async (req: AuthenticatedRequest, res: Response) => {

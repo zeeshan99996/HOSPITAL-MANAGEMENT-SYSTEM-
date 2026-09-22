@@ -13,13 +13,45 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+export const PERMISSION_MATRIX: Record<string, string[]> = {
+  admin: ['*'],
+  doctor: [
+    'patients:read', 'patients:write',
+    'prescriptions:create', 'prescriptions:read',
+    'lab:request', 'vitals:read'
+  ],
+  nurse: [
+    'patients:read', 'vitals:write',
+    'admissions:read', 'admissions:update'
+  ],
+  receptionist: [
+    'patients:read', 'patients:create',
+    'appointments:manage', 'tokens:manage'
+  ],
+  accountant: [
+    'billing:read', 'billing:create',
+    'expenses:manage', 'payroll:read'
+  ],
+  pharmacist: [
+    'medicines:read', 'medicines:update_stock',
+    'sales:record'
+  ],
+  lab_technician: [
+    'lab:read', 'lab:update'
+  ],
+  patient: [
+    'profile:read'
+  ]
+};
+
 export const authenticateToken = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
+  // Support both HttpOnly cookie and Bearer header
+  const token = req.cookies?.hms_token || (authHeader && authHeader.split(' ')[1]);
 
   if (!token) {
     return res.status(401).json({ message: 'Authentication token missing.' });
@@ -47,7 +79,7 @@ export const authenticateToken = async (
     }
 
     if (!user || user.status === 'inactive') {
-      return res.status(403).json({ message: 'User account is inactive, suspended, or not registered in MySQL database.' });
+      return res.status(403).json({ message: 'User account is inactive, suspended, or not registered in database.' });
     }
 
     req.user = {
@@ -76,6 +108,25 @@ export const requireRoles = (roles: string[]) => {
 
     return res.status(403).json({
       message: `Access denied. Requires one of the following roles: ${roles.join(', ')}`,
+    });
+  };
+};
+
+export const requirePermission = (permission: string) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated.' });
+    }
+
+    const userRole = (req.user.role || '').toLowerCase();
+    const permissions = PERMISSION_MATRIX[userRole] || [];
+
+    if (permissions.includes('*') || permissions.includes(permission) || userRole === 'admin') {
+      return next();
+    }
+
+    return res.status(403).json({
+      message: `Access denied. Action requires '${permission}' permission.`,
     });
   };
 };

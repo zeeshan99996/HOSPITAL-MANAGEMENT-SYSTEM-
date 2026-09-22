@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -51,6 +52,7 @@ function getApp(): express.Application {
   });
 
   // Body parsers
+  instance.use(cookieParser());
   instance.use(express.json());
   instance.use(express.urlencoded({ extended: true }));
 

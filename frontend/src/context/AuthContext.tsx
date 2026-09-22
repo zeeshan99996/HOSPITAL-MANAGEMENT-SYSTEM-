@@ -116,7 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     throw new Error('Self-service password reset is disabled. Please contact your Clinic Administrator.');
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await apiClient.post('/auth/logout', {});
+    } catch (e) {}
     localStorage.removeItem('hms_token');
     localStorage.removeItem('supabase_token');
     localStorage.removeItem('hms_user');
@@ -137,4 +140,22 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+export const PERMISSION_MATRIX: Record<string, string[]> = {
+  admin: ['*'],
+  doctor: ['patients:read', 'patients:write', 'prescriptions:create', 'prescriptions:read', 'lab:request', 'vitals:read'],
+  nurse: ['patients:read', 'vitals:write', 'admissions:read', 'admissions:update'],
+  receptionist: ['patients:read', 'patients:create', 'appointments:manage', 'tokens:manage'],
+  accountant: ['billing:read', 'billing:create', 'expenses:manage', 'payroll:read'],
+  pharmacist: ['medicines:read', 'medicines:update_stock', 'sales:record'],
+  lab_technician: ['lab:read', 'lab:update'],
+  patient: ['profile:read']
+};
+
+export const hasPermission = (userRole: string | undefined, permission: string): boolean => {
+  if (!userRole) return false;
+  const role = userRole.toLowerCase();
+  const permissions = PERMISSION_MATRIX[role] || [];
+  return permissions.includes('*') || permissions.includes(permission) || role === 'admin';
 };

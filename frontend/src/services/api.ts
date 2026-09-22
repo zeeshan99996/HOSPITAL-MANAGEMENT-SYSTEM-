@@ -41,6 +41,7 @@ export const apiClient = {
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'GET',
       headers,
+      credentials: 'include',
     });
     return handleResponse(res);
   },
@@ -51,6 +52,7 @@ export const apiClient = {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      credentials: 'include',
     });
     return handleResponse(res);
   },
@@ -61,6 +63,7 @@ export const apiClient = {
       method: 'PUT',
       headers,
       body: JSON.stringify(body),
+      credentials: 'include',
     });
     return handleResponse(res);
   },
@@ -70,6 +73,7 @@ export const apiClient = {
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: 'DELETE',
       headers,
+      credentials: 'include',
     });
     return handleResponse(res);
   },
