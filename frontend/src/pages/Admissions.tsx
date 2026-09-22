@@ -445,6 +445,14 @@ export const Admissions: React.FC = () => {
   const handleDischargeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAdmission) return;
+
+    const admTime = new Date(selectedAdmission.admissionDate || selectedAdmission.createdAt).getTime();
+    const disTime = dischargeDate ? new Date(dischargeDate).getTime() : Date.now();
+    if (disTime < admTime) {
+      alert('Invalid Discharge Date: Discharge date/time cannot be earlier than Admission date/time (' + new Date(admTime).toLocaleString() + ').');
+      return;
+    }
+
     setDischargeSubmitting(true);
 
     try {
@@ -640,9 +648,9 @@ export const Admissions: React.FC = () => {
     return matchesCategory && matchesStay && matchesSearch;
   });
 
-  const availableBeds = beds.filter(b => b.status === 'available');
-  const occupiedBeds = beds.filter(b => b.status === 'occupied');
-  const activeAdmittedPatients = admissions.filter(a => a.status === 'admitted');
+  const availableBeds = beds.filter(b => b.status === 'available' || b.status === 'Available' || !b.status);
+  const occupiedBeds = beds.filter(b => b.status === 'occupied' || b.status === 'Occupied');
+  const activeAdmittedPatients = admissions.filter(a => a.status === 'admitted' || a.status === 'Admitted' || !a.status);
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">

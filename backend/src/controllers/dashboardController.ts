@@ -27,6 +27,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const doctorsList = await Doctor.findAll({
       include: [
         { model: User, attributes: ['name', 'email'] },
+        { model: StaffMember, as: 'staffMember', attributes: ['name', 'designation'] },
         { model: Department, attributes: ['name'] }
       ]
     });
@@ -65,9 +66,12 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           opdStatus = 'busy';
         }
 
+        const rawDocName = (doc as any).staffMember?.name || doc.user?.name || (doc as any).name || '';
+        const cleanDocName = rawDocName ? (rawDocName.startsWith('Dr') ? rawDocName : `Dr. ${rawDocName}`) : (doc.specialization ? `Dr. ${doc.specialization}` : 'Dr. Talha');
+
         return {
           doctorId: doc.id,
-          doctorName: doc.user?.name ? (doc.user.name.startsWith('Dr.') ? doc.user.name : `Dr. ${doc.user.name}`) : `Dr. Physician #${doc.id}`,
+          doctorName: cleanDocName,
           specialization: doc.specialization || (doc as any).department?.name || 'General OPD',
           roomNumber: (doc as any).roomNumber || `Room 10${doc.id}`,
           currentToken: currentTokenStr,
@@ -147,17 +151,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       // 2. Identify the exact Doctor profile for the logged-in doctor
       let docObj: any = null;
 
-      // Match by userId
       if (loggedInUserId) {
         docObj = allDoctors.find(d => d.userId === loggedInUserId || d.user?.id === loggedInUserId);
       }
 
-      // Match by email
       if (!docObj && loggedInEmail) {
         docObj = allDoctors.find(d => (d.user?.email || '').toLowerCase() === loggedInEmail.toLowerCase());
       }
 
-      // Match by name
       if (!docObj && cleanLoggedInName) {
         docObj = allDoctors.find(d => {
           const uName = (d.user?.name || '').toLowerCase().replace(/^dr\.?\s*/i, '').trim();
@@ -167,7 +168,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         });
       }
 
-      // Match by staffId / default doctor
       if (!docObj) {
         docObj = allDoctors.find(d => d.id === 10 || d.staffId === 1) || allDoctors[0];
       }
@@ -189,7 +189,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         include: [{ model: Patient, attributes: ['id', 'name', 'mrNumber', 'phone', 'gender', 'age', 'bloodGroup', 'address', 'area'] }]
       });
 
-      // Deduplicate tokens by unique patient ID, prioritizing active status
       const uniqueTokensMap = new Map<number, any>();
       const statusWeight: Record<string, number> = { completed: 4, processing: 3, waiting: 2, transferred: 2, recalled: 2 };
 
@@ -235,7 +234,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     }
 
     if (userRole === 'receptionist') {
-      // Return filtered stats without revenue/financial metrics or low-stock thresholds
       return res.status(200).json({
         stats: {
           totalPatients,
@@ -244,13 +242,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           activeAdmissions,
           pendingCheckups,
           totalDoctors: doctorsList.length,
-          totalRevenue: null, // Hidden
-          pendingBills: null, // Hidden
+          totalRevenue: null,
+          pendingBills: null,
+          pendingRevenue: null,
           pendingLabs: 0,
-          lowStockMeds: null, // Hidden
+          lowStockMeds: null,
         },
         charts: {
-          monthlyRevenue: [], // Hidden
+          monthlyRevenue: [],
           departmentStats,
         },
         liveDoctorsQueue,
@@ -265,7 +264,17 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     });
     const totalRevenue = paidInvoices.reduce((acc, inv) => acc + Number(inv.grandTotal), 0);
 
-    const pendingBills = await Invoice.count({ where: { status: 'unpaid' } });
+    const pendingInvoices = await Invoice.findAll({
+      where: { status: { [Op.in]: ['unpaid', 'partially_paid'] } },
+      attributes: ['totalAmount', 'paidAmount', 'grandTotal', 'status']
+    });
+    const pendingBills = pendingInvoices.length;
+    const pendingRevenue = pendingInvoices.reduce((acc, inv) => {
+      const gTotal = Number(inv.grandTotal || inv.totalAmount || 0);
+      const pAmt = Number(inv.paidAmount || 0);
+      return acc + Math.max(0, gTotal - pAmt);
+    }, 0);
+
     const pendingLabs = await LabRequest.count({ where: { status: 'pending' } });
     const lowStockMeds = await Medicine.count({ where: { stockLevel: { [Op.lt]: 20 } } });
 
@@ -302,6 +311,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         totalDoctors: doctorsList.length,
         totalRevenue,
         pendingBills,
+        pendingRevenue,
         pendingLabs,
         lowStockMeds,
       },

@@ -16,7 +16,8 @@ import {
   ActivityLog,
   PatientVisit,
   PatientFeedback,
-  Department
+  Department,
+  StaffMember
 } from '../models';
 import { Op } from 'sequelize';
 import sequelize from '../config/db';
@@ -806,17 +807,159 @@ export const createPatientVisit = async (req: Request, res: Response) => {
 
 export const getPatientVisits = async (req: Request, res: Response) => {
   const { id } = req.params;
+  const pId = Number(id);
+
   try {
-    const visits = await PatientVisit.findAll({
-      where: { patientId: Number(id) },
+    // 1. Fetch manual Intake PatientVisit records
+    const manualVisits = await PatientVisit.findAll({
+      where: { patientId: pId },
       include: [
-        { model: Doctor, include: [{ model: User, attributes: ['name'] }] },
+        {
+          model: Doctor,
+          include: [
+            { model: User, attributes: ['name'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['name'] }
+          ]
+        },
         { model: Department }
       ],
       order: [['createdAt', 'DESC']]
     });
 
-    return res.status(200).json(visits);
+    // 2. Fetch OPD Token Queue visits
+    const tokenVisits = await TokenQueue.findAll({
+      where: { patientId: pId },
+      include: [
+        {
+          model: Doctor,
+          include: [
+            { model: User, attributes: ['name'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['name'] }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // 3. Fetch Appointments
+    const apptVisits = await Appointment.findAll({
+      where: { patientId: pId },
+      include: [
+        {
+          model: Doctor,
+          include: [
+            { model: User, attributes: ['name'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['name'] }
+          ]
+        },
+        {
+          model: Prescription,
+          include: [PrescriptionItem]
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // 4. Fetch Admissions
+    const admVisits = await Admission.findAll({
+      where: { patientId: pId },
+      include: [
+        { model: Bed },
+        {
+          model: Doctor,
+          include: [
+            { model: User, attributes: ['name'] },
+            { model: StaffMember, as: 'staffMember', attributes: ['name'] }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Format clean doctor name helper
+    const formatDocObj = (d: any) => {
+      if (!d) return { id: 1, name: 'Dr. Talha' };
+      const rawName = d.staffMember?.name || d.user?.name || d.name || (d.specialization ? `Doctor (${d.specialization})` : '');
+      const cleanName = rawName ? (rawName.startsWith('Dr') ? rawName : `Dr. ${rawName}`) : `Dr. Physician #${d.id}`;
+      return {
+        ...(d.toJSON ? d.toJSON() : d),
+        name: cleanName,
+        user: { name: cleanName }
+      };
+    };
+
+    const aggregatedList: any[] = [];
+
+    // Push manual visits
+    manualVisits.forEach((v: any) => {
+      const vObj = v.toJSON ? v.toJSON() : v;
+      aggregatedList.push({
+        ...vObj,
+        visitDate: vObj.visitDate || vObj.createdAt,
+        doctor: formatDocObj(vObj.Doctor || vObj.doctor),
+      });
+    });
+
+    // Push OPD token visits
+    tokenVisits.forEach((t: any) => {
+      const tObj = t.toJSON ? t.toJSON() : t;
+      aggregatedList.push({
+        id: `token-${tObj.id}`,
+        patientId: pId,
+        doctorId: tObj.doctorId,
+        doctor: formatDocObj(tObj.Doctor || tObj.doctor),
+        visitDate: tObj.createdAt,
+        visitType: 'OPD Token Consultation',
+        reasonForVisit: `OPD Queue Token #${tObj.tokenNumber}`,
+        diagnosisSummary: tObj.status === 'completed' ? 'OPD Consultation Completed' : `Token Status: ${tObj.status}`,
+        notes: `OPD Token #${tObj.tokenNumber} issued. Status: ${tObj.status}`,
+        status: tObj.status,
+        createdAt: tObj.createdAt
+      });
+    });
+
+    // Push Appointments
+    apptVisits.forEach((a: any) => {
+      const aObj = a.toJSON ? a.toJSON() : a;
+      const rx = aObj.Prescription || aObj.prescription;
+      aggregatedList.push({
+        id: `appt-${aObj.id}`,
+        patientId: pId,
+        doctorId: aObj.doctorId,
+        doctor: formatDocObj(aObj.Doctor || aObj.doctor),
+        visitDate: aObj.appointmentDate || aObj.createdAt,
+        visitType: 'Doctor Consultation & Rx',
+        reasonForVisit: aObj.symptoms || aObj.type || 'Consultation',
+        diagnosisSummary: rx?.diagnosis || 'Consultation Completed',
+        notes: aObj.notes || rx?.notes || null,
+        prescription: rx || null,
+        createdAt: aObj.createdAt
+      });
+    });
+
+    // Push Admissions
+    admVisits.forEach((adm: any) => {
+      const admObj = adm.toJSON ? adm.toJSON() : adm;
+      aggregatedList.push({
+        id: `adm-${admObj.id}`,
+        patientId: pId,
+        doctorId: admObj.doctorId,
+        doctor: formatDocObj(admObj.Doctor || admObj.doctor),
+        visitDate: admObj.admissionDate || admObj.createdAt,
+        visitType: `IPD Admission (${admObj.admissionCategory || 'Medical'})`,
+        reasonForVisit: `Ward Bed ${admObj.bed?.bedNumber || admObj.bedId || ''} (${admObj.stayType || 'Short'} Stay)`,
+        diagnosisSummary: admObj.condition || 'Admitted Inpatient',
+        notes: admObj.notes || admObj.dischargeSummary || null,
+        dischargeDate: admObj.dischargeDate || null,
+        status: admObj.status,
+        createdAt: admObj.createdAt
+      });
+    });
+
+    // Sort all aggregated visits by date descending
+    aggregatedList.sort((a, b) => new Date(b.visitDate || b.createdAt).getTime() - new Date(a.visitDate || a.createdAt).getTime());
+
+    return res.status(200).json(aggregatedList);
   } catch (error: any) {
     return res.status(500).json({ message: 'Error retrieving patient visits.', error: error.message });
   }

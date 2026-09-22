@@ -479,6 +479,12 @@ export const dischargePatient = async (req: Request, res: Response) => {
 
     const actualDischargeDate = dischargeDate ? new Date(dischargeDate) : new Date();
     const admDate = new Date(admission.admissionDate || (admission as any).createdAt);
+
+    if (actualDischargeDate.getTime() < admDate.getTime()) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Discharge date/time cannot be earlier than admission date/time.' });
+    }
+
     const diffMs = actualDischargeDate.getTime() - admDate.getTime();
     const stayDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 

@@ -678,7 +678,9 @@ export const Dashboard: React.FC = () => {
         {!isReceptionist && (
           <div className="flex items-center gap-3 p-3 bg-rose-500/10 rounded-xl border border-rose-500/25">
             <Inbox className="h-5 w-5 text-rose-500" />
-            <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">{safeStats.pendingBills || 0} Pending Unpaid Bills</span>
+            <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
+              {safeStats.pendingBills || 0} Pending Unpaid Bills {safeStats.pendingRevenue ? `(Rs. ${Number(safeStats.pendingRevenue).toLocaleString()} Outstanding Due)` : ''}
+            </span>
           </div>
         )}
       </div>

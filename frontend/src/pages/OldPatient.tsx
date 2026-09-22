@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
 import { getCachedClinicSettings } from '../utils/clinicSettings';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
+import { formatDate } from '../utils/formatters';
 import {
   Search, UserCheck, Calendar, Phone, MapPin, Printer, Ticket,
   CheckCircle, Stethoscope, AlertCircle, Clock, Receipt, BedDouble,
@@ -548,24 +549,29 @@ export const OldPatient: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-850 font-medium">
                   {patients.map(p => {
                     let lastVisitStr = 'N/A';
-                    let lastDocStr = 'N/A';
+                    let lastDocStr = 'General OPD';
 
                     if (p.token_queues && p.token_queues.length > 0) {
                       const sortedTokens = [...p.token_queues].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                      lastVisitStr = new Date(sortedTokens[0].createdAt).toLocaleDateString();
-                      if (sortedTokens[0].doctor?.user?.name) {
-                        lastDocStr = sortedTokens[0].doctor.user.name;
-                      } else if (sortedTokens[0].doctor?.name) {
-                        lastDocStr = sortedTokens[0].doctor.name;
-                      }
+                      lastVisitStr = formatDate(sortedTokens[0].createdAt);
+                      const doc = sortedTokens[0].doctor || sortedTokens[0].Doctor;
+                      const rawD = doc?.staffMember?.name || doc?.user?.name || doc?.name || (doc?.specialization ? `Doctor (${doc.specialization})` : '');
+                      lastDocStr = rawD ? (rawD.startsWith('Dr') ? rawD : `Dr. ${rawD}`) : 'Dr. Talha';
                     } else if (p.appointments && p.appointments.length > 0) {
                       const sortedAppts = [...p.appointments].sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
-                      lastVisitStr = new Date(sortedAppts[0].appointmentDate).toLocaleDateString();
-                      if (sortedAppts[0].doctor?.user?.name) {
-                        lastDocStr = sortedAppts[0].doctor.user.name;
-                      }
+                      lastVisitStr = formatDate(sortedAppts[0].appointmentDate);
+                      const doc = sortedAppts[0].doctor || sortedAppts[0].Doctor;
+                      const rawD = doc?.staffMember?.name || doc?.user?.name || doc?.name || (doc?.specialization ? `Doctor (${doc.specialization})` : '');
+                      lastDocStr = rawD ? (rawD.startsWith('Dr') ? rawD : `Dr. ${rawD}`) : 'Dr. Talha';
+                    } else if (p.admissions && p.admissions.length > 0) {
+                      const sortedAdms = [...p.admissions].sort((a, b) => new Date(b.admissionDate || b.createdAt).getTime() - new Date(a.admissionDate || a.createdAt).getTime());
+                      lastVisitStr = formatDate(sortedAdms[0].admissionDate || sortedAdms[0].createdAt);
+                      const doc = sortedAdms[0].doctor || sortedAdms[0].Doctor;
+                      const rawD = doc?.staffMember?.name || doc?.user?.name || doc?.name || (doc?.specialization ? `Doctor (${doc.specialization})` : '');
+                      lastDocStr = rawD ? (rawD.startsWith('Dr') ? rawD : `Dr. ${rawD}`) : 'Dr. Talha';
                     } else if (p.createdAt) {
-                      lastVisitStr = new Date(p.createdAt).toLocaleDateString();
+                      lastVisitStr = formatDate(p.createdAt);
+                      lastDocStr = 'General OPD';
                     }
 
                     const isSelected = selectedPatient?.id === p.id;
