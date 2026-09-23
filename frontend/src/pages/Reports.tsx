@@ -109,8 +109,46 @@ export const Reports: React.FC = () => {
   }, []);
 
   // Dates Formatting Helpers (Strict Local Date Reset)
+  const getLocalDateStr = (dateInput: any): string => {
+    if (!dateInput) return '';
+    if (typeof dateInput === 'string') {
+      const trimmed = dateInput.trim();
+      const match = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (match) {
+        const y = match[1];
+        const m = match[2].padStart(2, '0');
+        const d = match[3].padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    }
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const getLocalYearMonthStr = (dateInput: any): string => {
+    if (!dateInput) return '';
+    if (typeof dateInput === 'string') {
+      const trimmed = dateInput.trim();
+      const match = trimmed.match(/^(\d{4})-(\d{1,2})/);
+      if (match) {
+        const y = match[1];
+        const m = match[2].padStart(2, '0');
+        return `${y}-${m}`;
+      }
+    }
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  };
+
   const localNow = new Date();
-  const todayStr = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+  const todayStr = getLocalDateStr(localNow);
   
   const selectedDailyDateStr = `${selectedDailyYear}-${String(selectedDailyMonth).padStart(2, '0')}-${String(selectedDailyDay).padStart(2, '0')}`;
   const selectedDailyLabel = `${selectedDailyMonth}/${selectedDailyDay}/${selectedDailyYear}`;
@@ -122,52 +160,56 @@ export const Reports: React.FC = () => {
   // ----------------------------------------------------
   // DAILY (SELECTED DAY, MONTH & YEAR) CALCULATIONS
   // ----------------------------------------------------
-  const todayTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(selectedDailyDateStr)).map(t => Number(t.patientId)));
+  const todayTokenPatientIds = new Set(
+    tokens.filter(t => getLocalDateStr(t.createdAt) === selectedDailyDateStr).map(t => Number(t.patientId))
+  );
   const todayPatientsList = patients.filter(p => {
-    const isToday = p.createdAt && p.createdAt.startsWith(selectedDailyDateStr);
+    const isToday = getLocalDateStr(p.createdAt) === selectedDailyDateStr;
     return isToday || todayTokenPatientIds.has(Number(p.id));
   });
   const todayOpdCount = todayPatientsList.length;
 
-  const todayAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(selectedDailyDateStr));
+  const todayAdmissionsList = admissions.filter(a => getLocalDateStr(a.admissionDate || a.createdAt) === selectedDailyDateStr);
   const todayIpdCount = todayAdmissionsList.length;
 
-  const todayInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(selectedDailyDateStr));
-  const todayInvoicePaid = todayInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
+  const todayInvoices = invoices.filter(inv => !inv.isVoided && inv.status !== 'voided' && getLocalDateStr(inv.createdAt || inv.updatedAt) === selectedDailyDateStr);
+  const todayInvoicePaid = todayInvoices.reduce((acc, inv) => acc + Math.max(0, Number(inv.paidAmount || 0) - Number(inv.refundAmount || 0)), 0);
   const todayRegistrationPaid = todayPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
   const todayRevenue = todayInvoicePaid + todayRegistrationPaid;
 
-  const todayExpensesList = expenses.filter(e => e.expenseDate === selectedDailyDateStr);
+  const todayExpensesList = expenses.filter(e => getLocalDateStr(e.expenseDate || e.createdAt) === selectedDailyDateStr);
   const todayExpensesTotal = todayExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
   const todayUnpaidDue = todayInvoices.reduce((acc, inv) => {
-    const due = Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0);
+    const due = Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0);
     return acc + Math.max(0, due);
   }, 0);
 
   // ----------------------------------------------------
   // MONTHLY (SELECTED MONTH & YEAR) CALCULATIONS
   // ----------------------------------------------------
-  const monthTokenPatientIds = new Set(tokens.filter(t => t.createdAt && t.createdAt.startsWith(targetMonthStr)).map(t => Number(t.patientId)));
+  const monthTokenPatientIds = new Set(
+    tokens.filter(t => getLocalYearMonthStr(t.createdAt) === targetMonthStr).map(t => Number(t.patientId))
+  );
   const monthPatientsList = patients.filter(p => {
-    const isMonth = p.createdAt && p.createdAt.startsWith(targetMonthStr);
+    const isMonth = getLocalYearMonthStr(p.createdAt) === targetMonthStr;
     return isMonth || monthTokenPatientIds.has(Number(p.id));
   });
   const monthOpdCount = monthPatientsList.length;
 
-  const monthAdmissionsList = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(targetMonthStr));
+  const monthAdmissionsList = admissions.filter(a => getLocalYearMonthStr(a.admissionDate || a.createdAt) === targetMonthStr);
   const monthIpdCount = monthAdmissionsList.length;
 
-  const monthInvoices = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(targetMonthStr));
-  const monthInvoicePaid = monthInvoices.reduce((acc, inv) => acc + Number(inv.paidAmount || 0), 0);
+  const monthInvoices = invoices.filter(inv => !inv.isVoided && inv.status !== 'voided' && getLocalYearMonthStr(inv.createdAt || inv.updatedAt) === targetMonthStr);
+  const monthInvoicePaid = monthInvoices.reduce((acc, inv) => acc + Math.max(0, Number(inv.paidAmount || 0) - Number(inv.refundAmount || 0)), 0);
   const monthRegistrationPaid = monthPatientsList.reduce((acc, p) => acc + Number(p.paymentAmount || 0), 0);
   const monthRevenue = monthInvoicePaid + monthRegistrationPaid;
 
-  const monthExpensesList = expenses.filter(e => e.expenseDate && e.expenseDate.startsWith(targetMonthStr));
+  const monthExpensesList = expenses.filter(e => getLocalYearMonthStr(e.expenseDate || e.createdAt) === targetMonthStr);
   const monthExpensesTotal = monthExpensesList.reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
   const monthUnpaidDue = monthInvoices.reduce((acc, inv) => {
-    const due = Number(inv.grandTotal || 0) - Number(inv.paidAmount || 0);
+    const due = Number(inv.grandTotal || inv.totalAmount || 0) - Number(inv.paidAmount || 0);
     return acc + Math.max(0, due);
   }, 0);
 
@@ -193,13 +235,13 @@ export const Reports: React.FC = () => {
   const last7DaysData = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateStr(d);
     const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-    const dayOpd = patients.filter(p => p.createdAt && p.createdAt.startsWith(dateStr)).length;
-    const dayIpd = admissions.filter(a => a.admissionDate && a.admissionDate.startsWith(dateStr)).length;
-    const dayRev = invoices.filter(inv => inv.createdAt && inv.createdAt.startsWith(dateStr)).reduce((a, b) => a + Number(b.paidAmount || 0), 0);
-    const dayExp = expenses.filter(e => e.expenseDate === dateStr).reduce((a, b) => a + Number(b.amount || 0), 0);
+    const dayOpd = patients.filter(p => getLocalDateStr(p.createdAt) === dateStr).length;
+    const dayIpd = admissions.filter(a => getLocalDateStr(a.admissionDate || a.createdAt) === dateStr).length;
+    const dayRev = invoices.filter(inv => !inv.isVoided && inv.status !== 'voided' && getLocalDateStr(inv.createdAt || inv.updatedAt) === dateStr).reduce((a, b) => a + Math.max(0, Number(b.paidAmount || 0) - Number(b.refundAmount || 0)), 0);
+    const dayExp = expenses.filter(e => getLocalDateStr(e.expenseDate || e.createdAt) === dateStr).reduce((a, b) => a + Number(b.amount || 0), 0);
 
     return {
       day: dayLabel,
@@ -726,7 +768,7 @@ export const Reports: React.FC = () => {
               <BarChart data={financialComparisonData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 'bold' }} />
-                <YAxis tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `Rs. ${Number(v).toLocaleString()}`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
                   formatter={(value: any) => [`Rs. ${Number(value).toLocaleString()}`, '']}
@@ -767,7 +809,7 @@ export const Reports: React.FC = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                 <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `Rs. ${Number(v).toLocaleString()}`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '10px', fontSize: '11px', color: '#fff' }}
                 />

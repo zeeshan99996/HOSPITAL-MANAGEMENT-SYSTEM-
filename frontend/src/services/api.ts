@@ -22,7 +22,11 @@ const handleResponse = async (response: Response) => {
       const data = await response.json();
       errorMessage = data.message || data.error || errorMessage;
     } catch (e) {
-      // Ignored
+      if (response.status === 500) {
+        errorMessage = 'Backend server error (500). Please check backend logs or service status.';
+      } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+        errorMessage = 'Backend service is offline or unreachable (502/503/504). Please ensure the backend server is running.';
+      }
     }
     if (response.status === 401 && window.location.pathname !== '/' && !window.location.pathname.includes('login')) {
       localStorage.removeItem('hms_token');

@@ -139,13 +139,7 @@ export const Billing: React.FC = () => {
   const localTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const todayTokenPatientIds = new Set(tokens.map((t: any) => Number(t.patientId)));
 
-  const opdPatientsList = patients.filter(p => {
-    if (admittedPatientIds.has(Number(p.id))) return false;
-    const pDateStr = p.createdAt ? p.createdAt.split('T')[0] : '';
-    const isTodayCreated = pDateStr === localTodayStr;
-    const hasTodayToken = todayTokenPatientIds.has(Number(p.id));
-    return isTodayCreated || hasTodayToken;
-  });
+  const opdPatientsList = patients.filter(p => !admittedPatientIds.has(Number(p.id)));
 
   const admitPatientsList = patients.filter(p => admittedPatientIds.has(Number(p.id)));
   const currentTabPatients = activeTab === 'opd_patient'
@@ -170,10 +164,11 @@ export const Billing: React.FC = () => {
       return;
     }
 
-    const exactMatch = currentTabPatients.find(p => {
+    const exactMatch = patients.find(p => {
       const mr = (p.mrNumber || '').toLowerCase();
       const seqOnly = mr.replace(/[^0-9]/g, '');
-      return mr === q || (seqOnly.length > 0 && seqOnly.endsWith(q));
+      const phone = (p.phone || '').toLowerCase();
+      return mr === q || (seqOnly.length > 0 && seqOnly.endsWith(q)) || phone === q;
     });
 
     if (exactMatch) {
@@ -181,10 +176,11 @@ export const Billing: React.FC = () => {
       return;
     }
 
-    const matches = currentTabPatients.filter(p => {
+    const matches = patients.filter(p => {
       const mr = (p.mrNumber || '').toLowerCase();
       const name = (p.name || '').toLowerCase();
-      return mr.includes(q) || name.includes(q);
+      const phone = (p.phone || '').toLowerCase();
+      return mr.includes(q) || name.includes(q) || phone.includes(q);
     });
 
     if (matches.length === 1) {
@@ -890,6 +886,8 @@ export const Billing: React.FC = () => {
         patientId: Number(customPatientId),
         discount: Number(customDiscount),
         tax: Number(customTaxRate),
+        isCustom: true,
+        createNew: true,
         items: validLines.map(l => ({
           itemName: l.itemName,
           itemCategory: l.itemCategory,

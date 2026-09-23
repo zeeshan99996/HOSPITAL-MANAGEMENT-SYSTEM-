@@ -28,20 +28,29 @@ interface SystemAccount {
   role: string;
 }
 
+const DEFAULT_STAFF_ACCOUNTS: SystemAccount[] = [
+  { id: 2, name: 'System Admin', email: 'admin@gmail.com', role: 'admin' },
+  { id: 5, name: 'Dr. Talha', email: 'drtalha@gmail.com', role: 'doctor' },
+  { id: 3, name: 'Front Desk Receptionist', email: 'receptionist@gmail.com', role: 'receptionist' },
+  { id: 4, name: 'Pharmacy Dispensary', email: 'pharmacist@gmail.com', role: 'pharmacist' },
+  { id: 8, name: 'Finance & Accountant', email: 'accountant@gmail.com', role: 'accountant' },
+  { id: 9, name: 'Clinical Nurse', email: 'nurse@gmail.com', role: 'nurse' },
+];
+
 export const Login: React.FC = () => {
   const { login } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Dynamic registered system users
-  const [systemUsers, setSystemUsers] = useState<SystemAccount[]>([]);
+  // Dynamic registered system users with fallback
+  const [systemUsers, setSystemUsers] = useState<SystemAccount[]>(DEFAULT_STAFF_ACCOUNTS);
   const [fetchingUsers, setFetchingUsers] = useState(true);
 
   // Login form fields & selection
-  const [selectedUser, setSelectedUser] = useState<SystemAccount | null>(null);
+  const [selectedUser, setSelectedUser] = useState<SystemAccount | null>(DEFAULT_STAFF_ACCOUNTS[0]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCustomEmail, setIsCustomEmail] = useState(false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(DEFAULT_STAFF_ACCOUNTS[0].email);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -68,14 +77,9 @@ export const Login: React.FC = () => {
           setSelectedUser(data[0]);
           setEmail(data[0].email);
           setIsCustomEmail(false);
-        } else {
-          setIsCustomEmail(true);
-          setEmail('');
         }
       } catch (err) {
-        console.warn('Error loading registered users:', err);
-        setIsCustomEmail(true);
-        setEmail('');
+        console.warn('Using default system users fallback due to fetch issue:', err);
       } finally {
         setFetchingUsers(false);
       }
@@ -290,7 +294,7 @@ export const Login: React.FC = () => {
                           )}
                         </div>
                         <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate block mt-0.5">
-                          {selectedUser?.email || 'Loading registered staff...'}
+                          {selectedUser?.email || (fetchingUsers ? 'Loading registered staff...' : 'Select staff account')}
                         </span>
                       </div>
                     </div>

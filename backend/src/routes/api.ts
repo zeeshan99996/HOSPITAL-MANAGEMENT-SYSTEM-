@@ -148,7 +148,7 @@ router.get('/auth/system-users', async (_req, res) => {
     });
 
     const users = await User.findAll({
-      where: { status: 'active' },
+      where: { status: 'active', role: { [Op.ne]: 'patient' } },
       attributes: ['id', 'name', 'email', 'role'],
       order: [['id', 'ASC']]
     });
@@ -156,7 +156,7 @@ router.get('/auth/system-users', async (_req, res) => {
     const userMap = new Map();
     [...systemUsers, ...users].forEach((u: any) => {
       const emailLower = (u.email || '').trim().toLowerCase();
-      if (emailLower && !userMap.has(emailLower)) {
+      if (emailLower && !userMap.has(emailLower) && u.role !== 'patient') {
         userMap.set(emailLower, {
           id: u.id,
           name: u.name,

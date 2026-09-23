@@ -1,60 +1,52 @@
 import sequelize from '../config/db';
-import { User, Doctor, Department } from '../models';
+import { SystemUser, User, Doctor, StaffMember } from '../models';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
-async function testLogin() {
+async function testAuth() {
+  console.log('--- TESTING DB & SYSTEM USERS ---');
   try {
     await sequelize.authenticate();
-    console.log('[DB Test] Connection OK.');
+    console.log('✅ DB Connected');
 
-    try {
-      await sequelize.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "roleId" INTEGER;`);
-      console.log('✅ Added "roleId" column to "users" table.');
-    } catch (mErr) {}
+    console.log('\n--- SYSTEM USERS ---');
+    const systemUsers = await SystemUser.findAll();
+    console.log(`Found ${systemUsers.length} system users:`);
+    systemUsers.forEach((u: any) => {
+      console.log(`- ID: ${u.id}, Email: ${u.email}, Role: ${u.role}, Status: ${u.status}, HasPassword: ${!!u.password}`);
+    });
 
-    const normEmail = 'admin@gmail.com';
-    const password = 'Password123';
+    console.log('\n--- USERS ---');
+    const users = await User.findAll();
+    console.log(`Found ${users.length} users:`);
+    users.forEach((u: any) => {
+      console.log(`- ID: ${u.id}, Email: ${u.email}, Role: ${u.role}, Status: ${u.status}, HasPassword: ${!!u.password}`);
+    });
 
-    let user = await User.findOne({ where: { email: normEmail } });
-    console.log('[DB Test] Found user:', user ? user.toJSON() : 'Not found');
-
-    if (!user) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      user = await User.create({
-        name: 'Admin User',
-        email: normEmail,
-        password: hashedPassword,
-        role: 'admin',
-        phone: '0300-1234567',
-        status: 'active'
-      });
-      console.log('[DB Test] Created user:', user.toJSON());
-    }
-
-    let isMatch = false;
-    if (user.password === password) {
-      isMatch = true;
-    }
-    if (!isMatch && user.password) {
-      if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$')) {
-        isMatch = await bcrypt.compare(password, user.password);
+    // Test password verification for first user
+    if (systemUsers.length > 0) {
+      const u = systemUsers[0];
+      console.log(`\n--- TESTING PASSWORD FOR ${u.email} ---`);
+      console.log('Stored Password Hash/Value:', u.password);
+      // Let's test standard passwords
+      const testPasswords = ['Admin@123', 'admin123', 'password', '123456', 'Doctor@123', '12345678'];
+      for (const pwd of testPasswords) {
+        let isMatch = false;
+        if (u.password.startsWith('$2a$') || u.password.startsWith('$2b$') || u.password.startsWith('$2y$')) {
+          isMatch = await bcrypt.compare(pwd, u.password);
+        } else if (u.password === pwd) {
+          isMatch = true;
+        }
+        if (isMatch) {
+          console.log(`✅ MATCH FOUND for password: "${pwd}"`);
+        }
       }
     }
 
-    console.log('[DB Test] Password match:', isMatch);
-
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, profileId: null },
-      process.env.JWT_SECRET || 'drtalhaclinic_jwt_secret_token_key_for_hms_application_2026',
-      { expiresIn: '1d' }
-    );
-    console.log('[DB Test] Generated Token successfully!');
-  } catch (err: any) {
-    console.error('❌ [TEST LOGIN ERROR STACK]:', err);
-  } finally {
     process.exit(0);
+  } catch (err: any) {
+    console.error('❌ Auth Test Error:', err);
+    process.exit(1);
   }
 }
 
-testLogin();
+testAuth();

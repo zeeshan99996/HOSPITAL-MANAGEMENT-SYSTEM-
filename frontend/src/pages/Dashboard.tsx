@@ -703,7 +703,7 @@ export const Dashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:hidden" />
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" className="hidden dark:block" />
                   <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} />
-                  <YAxis stroke="#94a3b8" fontSize={11} />
+                  <YAxis stroke="#94a3b8" fontSize={11} domain={[0, (dataMax: number) => Math.max(1000, Math.ceil(dataMax * 1.15))]} allowDataOverflow={false} tickFormatter={(val) => `Rs. ${Number(val).toLocaleString()}`} />
                   <Tooltip />
                   <Area type="monotone" dataKey="revenue" stroke="#0ea0ea" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
                 </AreaChart>

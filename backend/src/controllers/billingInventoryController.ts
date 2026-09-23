@@ -50,7 +50,7 @@ export const getOrCreateMasterPatientInvoice = async (patientId: number, transac
 };
 
 export const createInvoice = async (req: Request, res: Response) => {
-  const { patientId, discount, items, admissionId } = req.body; // items: [{itemName, itemCategory, unitPrice, quantity}]
+  const { patientId, discount, tax, taxRate, items, admissionId, createNew, isCustom } = req.body;
   const transaction = await sequelize.transaction();
 
   try {
@@ -77,37 +77,91 @@ export const createInvoice = async (req: Request, res: Response) => {
 
     total = Math.round(total * 100) / 100;
     const discAmt = Math.min(Math.max(0, Number(discount) || 0), total);
+    const inputTax = tax !== undefined ? Number(tax) : (taxRate !== undefined ? Number(taxRate) : 0);
 
-    // Get or reuse existing Master Invoice for this Patient
-    const invoice = await getOrCreateMasterPatientInvoice(patientId, transaction);
+    let invoice: any;
 
-    const itemsToSave = itemRecords.map((item: any) => ({
-      ...item,
-      invoiceId: invoice.id,
-    }));
-    await InvoiceItem.bulkCreate(itemsToSave, { transaction });
+    if (createNew || isCustom) {
+      // Create a NEW standalone invoice for custom/explicit invoice creation
+      const netSubtotal = Math.max(0, total - discAmt);
+      let calculatedTax = 0;
+      if (inputTax > 0) {
+        if (inputTax <= 100) {
+          calculatedTax = Math.round((netSubtotal * (inputTax / 100)) * 100) / 100;
+        } else {
+          calculatedTax = Math.round(inputTax * 100) / 100;
+        }
+      }
+      const computedGrandTotal = Math.round(Math.max(0, netSubtotal + calculatedTax) * 100) / 100;
 
-    // Recalculate totals from all items in this master invoice
-    const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
-    const computedTotal = Math.round(allItems.reduce((sum, it) => sum + Number(it.totalPrice || 0), 0) * 100) / 100;
-    const combinedDiscount = Math.round((Number(invoice.discount || 0) + discAmt) * 100) / 100;
-    const computedGrandTotal = Math.round(Math.max(0, computedTotal - combinedDiscount) * 100) / 100;
-    const curPaid = Number(invoice.paidAmount || 0);
-    const curStatus = curPaid >= computedGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
+      invoice = await Invoice.create({
+        patientId,
+        totalAmount: total,
+        discount: discAmt,
+        tax: calculatedTax,
+        grandTotal: computedGrandTotal,
+        paidAmount: 0.00,
+        status: 'unpaid',
+        insuranceClaimed: false,
+        paymentMethod: 'pending',
+      }, { transaction });
 
-    await invoice.update({
-      totalAmount: computedTotal,
-      discount: combinedDiscount,
-      grandTotal: computedGrandTotal,
-      status: curStatus,
-    }, { transaction });
+      const itemsToSave = itemRecords.map((item: any) => ({
+        ...item,
+        invoiceId: invoice.id,
+      }));
+      await InvoiceItem.bulkCreate(itemsToSave, { transaction });
 
-    await ActivityLog.create({
-      userId: (req as any).user?.id || null,
-      action: 'INVOICE_UPDATED',
-      details: `Updated Master Invoice #${invoice.id} for Patient #${patientId} with Total: Rs. ${computedGrandTotal} (Discount: Rs. ${combinedDiscount})`,
-      ipAddress: req.ip
-    }, { transaction });
+      await ActivityLog.create({
+        userId: (req as any).user?.id || null,
+        action: 'INVOICE_CREATED',
+        details: `Created Custom Standalone Invoice #${invoice.id} for Patient #${patientId} Total: Rs. ${computedGrandTotal} (Tax: Rs. ${calculatedTax}, Disc: Rs. ${discAmt})`,
+        ipAddress: req.ip
+      }, { transaction });
+
+    } else {
+      // Append / Master Invoice behavior for ongoing OPD/IPD bill aggregation
+      invoice = await getOrCreateMasterPatientInvoice(patientId, transaction);
+
+      const itemsToSave = itemRecords.map((item: any) => ({
+        ...item,
+        invoiceId: invoice.id,
+      }));
+      await InvoiceItem.bulkCreate(itemsToSave, { transaction });
+
+      const allItems = await InvoiceItem.findAll({ where: { invoiceId: invoice.id }, transaction });
+      const computedTotal = Math.round(allItems.reduce((sum, it) => sum + Number(it.totalPrice || 0), 0) * 100) / 100;
+      const combinedDiscount = Math.round((Number(invoice.discount || 0) + discAmt) * 100) / 100;
+      const netSubtotal = Math.max(0, computedTotal - combinedDiscount);
+      
+      let calculatedTax = Number(invoice.tax || 0);
+      if (inputTax > 0) {
+        if (inputTax <= 100) {
+          calculatedTax = Math.round((netSubtotal * (inputTax / 100)) * 100) / 100;
+        } else {
+          calculatedTax = Math.round(inputTax * 100) / 100;
+        }
+      }
+
+      const computedGrandTotal = Math.round(Math.max(0, netSubtotal + calculatedTax) * 100) / 100;
+      const curPaid = Number(invoice.paidAmount || 0);
+      const curStatus = curPaid >= computedGrandTotal ? 'paid' : (curPaid > 0 ? 'partially_paid' : 'unpaid');
+
+      await invoice.update({
+        totalAmount: computedTotal,
+        discount: combinedDiscount,
+        tax: calculatedTax,
+        grandTotal: computedGrandTotal,
+        status: curStatus,
+      }, { transaction });
+
+      await ActivityLog.create({
+        userId: (req as any).user?.id || null,
+        action: 'INVOICE_UPDATED',
+        details: `Updated Master Invoice #${invoice.id} for Patient #${patientId} Total: Rs. ${computedGrandTotal} (Tax: Rs. ${calculatedTax}, Disc: Rs. ${combinedDiscount})`,
+        ipAddress: req.ip
+      }, { transaction });
+    }
 
     await transaction.commit();
     return res.status(201).json({ message: 'Invoice generated successfully.', invoice });
