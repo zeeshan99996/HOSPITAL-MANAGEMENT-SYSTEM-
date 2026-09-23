@@ -506,11 +506,11 @@ export const Reports: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button onClick={handleExportCSV} variant="secondary" className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center shadow-sm">
+        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
+          <Button onClick={handleExportCSV} variant="secondary" className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center shadow-sm whitespace-nowrap">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
-          <Button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center shadow-sm">
+          <Button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center gap-1.5 justify-center shadow-sm whitespace-nowrap">
             <Printer className="h-4 w-4" /> Export / Print Report
           </Button>
         </div>

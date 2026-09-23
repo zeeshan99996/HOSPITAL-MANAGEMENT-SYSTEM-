@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Drawer, Badge } from '../components/UI';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 import {
   BedDouble, Plus, ClipboardList, Search, UserMinus, Pill, Stethoscope,
   Scissors, Clock, HeartPulse, Thermometer, Printer, Receipt, FileText,
@@ -10,6 +12,7 @@ import {
 
 export const Admissions: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [beds, setBeds] = useState<any[]>([]);
   const [admissions, setAdmissions] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
@@ -500,6 +503,7 @@ export const Admissions: React.FC = () => {
       return;
     }
 
+    const clinic = getCachedClinicSettings();
     const adm = selectedAdmission;
     const patientName = adm.patient?.name || 'Patient';
     const mrn = adm.patient?.mrNumber || 'MR-N/A';
@@ -551,7 +555,7 @@ export const Admissions: React.FC = () => {
       <body>
         <div class="header">
           <div class="clinic-name">DR. TALHA CLINIC</div>
-          <div class="clinic-sub">12-B, Main Boulevard, Gulberg III, Lahore • Tel: (042) 35889900 • Emergency: 0311-6353044</div>
+          <div class="clinic-sub">${clinic.clinicAddress} • Tel: ${clinic.clinicPhone} • Emergency: ${clinic.clinicMobile}</div>
           <div class="title-badge">INPATIENT DISCHARGE SUMMARY & FINAL BILL</div>
         </div>
 
@@ -1691,7 +1695,7 @@ export const Admissions: React.FC = () => {
               type="button"
               onClick={() => {
                 setIsDischargeSuccessOpen(false);
-                window.location.href = '/billing';
+                navigate('/billing');
               }}
               className="flex items-center justify-center gap-1.5 text-xs"
             >

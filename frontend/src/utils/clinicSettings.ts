@@ -10,8 +10,8 @@ export interface ClinicSettings {
 
 export const DEFAULT_CLINIC_SETTINGS: ClinicSettings = {
   clinicName: 'DR. TALHA CLINIC',
-  clinicAddress: '12-B, Main Boulevard, Gulberg III, Lahore',
-  clinicPhone: '(042) 35889900',
+  clinicAddress: 'Nishtar Road, Near Nishtar Hospital, Multan',
+  clinicPhone: '(061) 4588900',
   clinicMobile: '0311-6353044',
   receiptFooter: 'THANK YOU FOR VISITING DR. TALHA CLINIC\nPLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD'
 };

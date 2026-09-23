@@ -78,17 +78,34 @@ export const TokenQueue: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchQueue();
-    fetchDropdowns();
-  }, []);
+    let isMounted = true;
+    let fetching = false;
 
-  // Live Auto-Refresh Polling
-  useEffect(() => {
-    if (!autoRefresh) return;
+    const safeFetchQueue = async () => {
+      if (fetching) return;
+      fetching = true;
+      try {
+        await fetchQueue();
+      } finally {
+        fetching = false;
+      }
+    };
+
+    safeFetchQueue();
+    fetchDropdowns();
+
+    if (!autoRefresh) return () => { isMounted = false; };
+
     const interval = setInterval(() => {
-      fetchQueue();
-    }, 8000);
-    return () => clearInterval(interval);
+      if (isMounted && !document.hidden) {
+        safeFetchQueue();
+      }
+    }, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [autoRefresh]);
 
   const handlePrintTokenSlip = (tokenObj: any) => {

@@ -716,16 +716,16 @@ router.get('/settings/clinic', async (_req, res) => {
     });
     return res.status(200).json({
       clinicName: map['clinic_name'] || 'DR. TALHA CLINIC',
-      clinicAddress: map['clinic_address'] || '12-B, Main Boulevard, Gulberg III, Lahore',
-      clinicPhone: map['clinic_phone'] || '(042) 35889900',
+      clinicAddress: map['clinic_address'] || 'Nishtar Road, Near Nishtar Hospital, Multan',
+      clinicPhone: map['clinic_phone'] || '(061) 4588900',
       clinicMobile: map['clinic_mobile'] || '0311-6353044',
       receiptFooter: map['receipt_footer'] || 'THANK YOU FOR VISITING DR. TALHA CLINIC\nPLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD'
     });
   } catch (err: any) {
     return res.status(200).json({
       clinicName: 'DR. TALHA CLINIC',
-      clinicAddress: '12-B, Main Boulevard, Gulberg III, Lahore',
-      clinicPhone: '(042) 35889900',
+      clinicAddress: 'Nishtar Road, Near Nishtar Hospital, Multan',
+      clinicPhone: '(061) 4588900',
       clinicMobile: '0311-6353044',
       receiptFooter: 'THANK YOU FOR VISITING DR. TALHA CLINIC\nPLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD'
     });
@@ -738,8 +738,8 @@ router.put('/settings/clinic', authenticateToken, requireRoles(['admin', 'recept
     
     const items = [
       { key: 'clinic_name', value: clinicName || 'DR. TALHA CLINIC', description: 'Clinic Header Name' },
-      { key: 'clinic_address', value: clinicAddress || '12-B, Main Boulevard, Gulberg III, Lahore', description: 'Clinic Address' },
-      { key: 'clinic_phone', value: clinicPhone || '(042) 35889900', description: 'Clinic Telephone' },
+      { key: 'clinic_address', value: clinicAddress || 'Nishtar Road, Near Nishtar Hospital, Multan', description: 'Clinic Address' },
+      { key: 'clinic_phone', value: clinicPhone || '(061) 4588900', description: 'Clinic Telephone' },
       { key: 'clinic_mobile', value: clinicMobile || '0311-6353044', description: 'Clinic Mobile / WhatsApp' },
       { key: 'receipt_footer', value: receiptFooter || 'THANK YOU FOR VISITING DR. TALHA CLINIC\nPLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD', description: 'Receipt Footer' }
     ];
@@ -756,8 +756,8 @@ router.put('/settings/clinic', authenticateToken, requireRoles(['admin', 'recept
     return res.status(200).json({
       message: 'Clinic printing parameters updated successfully',
       clinicName: clinicName || 'DR. TALHA CLINIC',
-      clinicAddress: clinicAddress || '12-B, Main Boulevard, Gulberg III, Lahore',
-      clinicPhone: clinicPhone || '(042) 35889900',
+      clinicAddress: clinicAddress || 'Nishtar Road, Near Nishtar Hospital, Multan',
+      clinicPhone: clinicPhone || '(061) 4588900',
       clinicMobile: clinicMobile || '0311-6353044',
       receiptFooter: receiptFooter || 'THANK YOU FOR VISITING DR. TALHA CLINIC\nPLEASE RETAIN THIS RECEIPT SLIP FOR YOUR RECORD'
     });

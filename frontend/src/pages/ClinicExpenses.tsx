@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, Modal, Badge } from '../components/UI';
+import { getCachedClinicSettings } from '../utils/clinicSettings';
 import {
   Coffee, Plus, Trash2, DollarSign, Calendar, Filter,
   FileText, Search, Printer, Check, Sparkles, TrendingUp, AlertCircle,
@@ -306,6 +307,7 @@ export const ClinicExpenses: React.FC = () => {
       return;
     }
 
+    const clinic = getCachedClinicSettings();
     const sName = pay.staffMember?.name || pay.user?.name || pay.staffName || 'Staff Member';
     const sDesig = pay.staffMember?.designation || pay.designation || 'Staff';
     const basic = Number(pay.basicSalary || 0);
@@ -340,7 +342,7 @@ export const ClinicExpenses: React.FC = () => {
       <body>
         <div class="header">
           <div class="title">DR. TALHA CLINIC</div>
-          <div class="sub">12-B, Main Boulevard, Gulberg III, Lahore • Tel: (042) 35889900</div>
+          <div class="sub">${clinic.clinicAddress} • Tel: ${clinic.clinicPhone}</div>
           <div class="badge">OFFICIAL STAFF SALARY PAYMENT SLIP</div>
         </div>
 

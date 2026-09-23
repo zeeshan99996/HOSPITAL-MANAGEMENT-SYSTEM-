@@ -224,7 +224,7 @@ export const ClinicalTemplates: React.FC = () => {
             className="flex items-center gap-1.5 text-xs font-black bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/25"
           >
             <Plus className="h-4 w-4" />
-            <span>+ Add New Tag</span>
+            <span>Add New Tag</span>
           </Button>
         </div>
       </div>

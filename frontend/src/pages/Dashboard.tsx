@@ -718,7 +718,7 @@ export const Dashboard: React.FC = () => {
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <button
-                  onClick={() => window.location.href = '/patient-registration'}
+                  onClick={() => navigate('/patient-registration')}
                   className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
                 >
                   <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-500 group-hover:scale-110 transition-transform rounded-xl">
@@ -728,7 +728,7 @@ export const Dashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => window.location.href = '/old-patient'}
+                  onClick={() => navigate('/old-patient')}
                   className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
                 >
                   <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-500 group-hover:scale-110 transition-transform rounded-xl">
@@ -738,7 +738,7 @@ export const Dashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => window.location.href = '/laboratory'}
+                  onClick={() => navigate('/laboratory')}
                   className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-indigo-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
                 >
                   <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 group-hover:scale-110 transition-transform rounded-xl">
@@ -748,7 +748,7 @@ export const Dashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => window.location.href = '/admissions'}
+                  onClick={() => navigate('/admissions')}
                   className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
                 >
                   <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 group-hover:scale-110 transition-transform rounded-xl">
@@ -758,7 +758,7 @@ export const Dashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => window.location.href = '/billing'}
+                  onClick={() => navigate('/billing')}
                   className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-slate-200 dark:border-slate-850 hover:bg-brand-50/20 dark:hover:bg-dark-950/25 transition-all text-center gap-2 group"
                 >
                   <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-500 group-hover:scale-110 transition-transform rounded-xl">

@@ -64,7 +64,13 @@ export const Pharmacy: React.FC = () => {
     try {
       // 1. Fetch Medicines Stock
       const medList = await apiClient.get('/medicines').catch(() => []);
-      setMedicines(Array.isArray(medList) ? medList : []);
+      const sanitizedList = (Array.isArray(medList) ? medList : []).map((m: any) => {
+        if (m.name && /paractml|paract|parac/i.test(m.name)) {
+          return { ...m, name: 'Paracetamol 500mg' };
+        }
+        return m;
+      });
+      setMedicines(sanitizedList);
 
       // 2. Fetch Patients & Admissions safely
       const [patientsRes, tokensRes, admissionsRes] = await Promise.all([
@@ -1102,7 +1108,7 @@ export const Pharmacy: React.FC = () => {
       {/* MODAL: ADD NEW MEDICINE TO STORE */}
       <Modal isOpen={isAddMedOpen} onClose={() => setIsAddMedOpen(false)} title="Add New Stock Medicine / Injection">
         <form onSubmit={handleAddMedicineSubmit} className="space-y-4">
-          <Input label="Medicine / Injection Name *" required value={medName} onChange={e => setMedName(e.target.value)} placeholder="e.g. Paracetamol 500mg or Inj Ceftriaxone" />
+          <Input label="Medicine / Injection Name *" required value={medName} onChange={e => setMedName(e.target.value)} list="standard-drugs-list" placeholder="e.g. Paracetamol 500mg or Inj Ceftriaxone" />
           
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1138,7 +1144,7 @@ export const Pharmacy: React.FC = () => {
       {/* MODAL: EDIT MEDICINE IN STORE */}
       <Modal isOpen={isEditMedOpen} onClose={() => setIsEditMedOpen(false)} title={`Edit Medicine: ${selectedMed?.name}`}>
         <form onSubmit={handleEditMedicineSubmit} className="space-y-4">
-          <Input label="Medicine / Injection Name *" required value={editName} onChange={e => setEditName(e.target.value)} />
+          <Input label="Medicine / Injection Name *" required value={editName} onChange={e => setEditName(e.target.value)} list="standard-drugs-list" />
           
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1170,6 +1176,26 @@ export const Pharmacy: React.FC = () => {
           </Button>
         </form>
       </Modal>
+
+      {/* STANDARD DRUGS AUTOCOMPLETE DATALIST */}
+      <datalist id="standard-drugs-list">
+        <option value="Paracetamol 500mg" />
+        <option value="Panadol Extra (Paracetamol + Caffeine)" />
+        <option value="Amoxicillin 500mg" />
+        <option value="Augmentin 625mg (Co-Amoxiclav)" />
+        <option value="Ibuprofen 400mg (Brufen)" />
+        <option value="Omeprazole 20mg (Risek)" />
+        <option value="Ciprofloxacin 500mg" />
+        <option value="Metformin 500mg (Glucophage)" />
+        <option value="Azithromycin 500mg (Azomax)" />
+        <option value="Disprin 300mg (Aspirin)" />
+        <option value="Mefenamic Acid 250mg (Ponstan)" />
+        <option value="Flagyl 400mg (Metronidazole)" />
+        <option value="Gravinate 50mg" />
+        <option value="Inj Ceftriaxone 1g" />
+        <option value="Surbex Z" />
+        <option value="Ringer Lactate 1000ml" />
+      </datalist>
     </div>
   );
 };

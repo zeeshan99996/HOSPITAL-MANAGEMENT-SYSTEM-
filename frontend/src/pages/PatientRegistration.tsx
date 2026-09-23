@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Input, Button, Modal, Badge } from '../components/UI';
 import {
   Printer, Save, Calendar, UserPlus, CreditCard, MapPin,
@@ -10,6 +11,7 @@ import { getCachedClinicSettings } from '../utils/clinicSettings';
 import { formatCNIC, formatPhone } from '../utils/formatters';
 
 export const PatientRegistration: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     guardianName: '',
@@ -281,7 +283,7 @@ export const PatientRegistration: React.FC = () => {
       setBypassDuplicate(false);
 
       if (andBook) {
-        window.location.href = `/appointments?prefillName=${encodeURIComponent(savedPatient.name)}&prefillPhone=${encodeURIComponent(savedPatient.phone)}&prefillId=${savedPatient.id}`;
+        navigate(`/appointments?prefillName=${encodeURIComponent(savedPatient.name)}&prefillPhone=${encodeURIComponent(savedPatient.phone)}&prefillId=${savedPatient.id}`);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error occurred while saving patient.');
