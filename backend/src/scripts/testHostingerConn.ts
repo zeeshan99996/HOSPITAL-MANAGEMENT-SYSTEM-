@@ -8,7 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 async function testConnection() {
-  const host = (process.env.DB_HOST || '195.35.59.4').trim();
+  const host = (process.env.DB_HOST || '46.17.175.230').trim();
   const port = parseInt(process.env.DB_PORT || '3306');
   const database = (process.env.DB_NAME || 'u526981273_drtalha_db').trim();
   const user = (process.env.DB_USER || 'u526981273_drtalha_db').trim();

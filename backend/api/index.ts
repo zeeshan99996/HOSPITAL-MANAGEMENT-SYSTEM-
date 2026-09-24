@@ -45,10 +45,9 @@ function getApp(): express.Application {
   instance.use(async (req, res, next) => {
     if (!isDbInitialized) {
       try {
-        console.log('[Vercel Serverless] Initializing DB Connection & Seeding...');
+        console.log('[Vercel Serverless] Initializing DB Connection...');
         await import('../src/models');
         const sequelize = (await import('../src/config/db')).default;
-        const { seedDatabase } = await import('../src/seeders/initialSeed');
         await sequelize.authenticate();
         await sequelize.sync({ force: false });
 
@@ -118,8 +117,6 @@ function getApp(): express.Application {
             console.warn('[Staff Migration Warning]:', e);
           }
         }
-
-        await seedDatabase();
         isDbInitialized = true;
         console.log('[Serverless DB Init] Complete.');
       } catch (err: any) {

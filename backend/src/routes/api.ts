@@ -189,18 +189,18 @@ const handleDbHealthRoute = async (_req: any, res: any) => {
     return res.status(200).json({
       status: 'CONNECTED',
       dialect,
-      host: dialect === 'sqlite' ? 'local' : (process.env.DB_HOST || '195.35.59.4'),
-      database: dialect === 'sqlite' ? 'local_sqlite' : (process.env.DB_NAME || 'u526981273_BfYkc'),
-      user: dialect === 'sqlite' ? 'local' : (process.env.DB_USER || 'u526981273_8gj7P'),
+      host: dialect === 'sqlite' ? 'local' : (process.env.DB_HOST || '46.17.175.230'),
+      database: dialect === 'sqlite' ? 'local_sqlite' : (process.env.DB_NAME || 'u526981273_drtalha_db'),
+      user: dialect === 'sqlite' ? 'local' : (process.env.DB_USER || 'u526981273_drtalha_db'),
       tableCount: tables ? tables.length : 0,
       message: `Successfully connected to ${dialect.toUpperCase()} Database!`
     });
   } catch (err: any) {
     return res.status(200).json({
       status: 'DISCONNECTED',
-      host: process.env.DB_HOST || '195.35.59.4',
-      database: process.env.DB_NAME || 'u526981273_BfYkc',
-      user: process.env.DB_USER || 'u526981273_8gj7P',
+      host: process.env.DB_HOST || '46.17.175.230',
+      database: process.env.DB_NAME || 'u526981273_drtalha_db',
+      user: process.env.DB_USER || 'u526981273_drtalha_db',
       error: err.message,
       message: 'Failed to connect to Hostinger MySQL Database. Please verify DB_USER and DB_PASSWORD.'
     });

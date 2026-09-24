@@ -1,7 +1,13 @@
 import express from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+
+let cookieParser: any;
+try {
+  cookieParser = require('cookie-parser');
+} catch (e) {
+  console.warn('[cookie-parser load notice]:', e);
+}
 
 // Load environment variables
 dotenv.config();
@@ -52,7 +58,9 @@ function getApp(): express.Application {
   });
 
   // Body parsers
-  instance.use(cookieParser());
+  if (typeof cookieParser === 'function') {
+    instance.use(cookieParser());
+  }
   instance.use(express.json());
   instance.use(express.urlencoded({ extended: true }));
 
@@ -82,7 +90,7 @@ function getApp(): express.Application {
       return res.status(200).json({
         status: 'CONNECTED',
         dialect,
-        host: dialect === 'sqlite' ? 'local' : (process.env.DB_HOST || '195.35.59.4'),
+        host: dialect === 'sqlite' ? 'local' : (process.env.DB_HOST || '46.17.175.230'),
         database: dialect === 'sqlite' ? 'local_sqlite' : (process.env.DB_NAME || 'u526981273_drtalha_db'),
         user: dialect === 'sqlite' ? 'local' : (process.env.DB_USER || 'u526981273_drtalha_db'),
         tableCount: tables ? tables.length : 0,
@@ -91,7 +99,7 @@ function getApp(): express.Application {
     } catch (err: any) {
       return res.status(200).json({
         status: 'DISCONNECTED',
-        host: process.env.DB_HOST || '195.35.59.4',
+        host: process.env.DB_HOST || '46.17.175.230',
         database: process.env.DB_NAME || 'u526981273_drtalha_db',
         user: process.env.DB_USER || 'u526981273_drtalha_db',
         error: err.message,
