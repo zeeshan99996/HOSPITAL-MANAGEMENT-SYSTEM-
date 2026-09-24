@@ -20,29 +20,8 @@ let sequelize: Sequelize;
 if (globalRef.sequelizeInstance) {
   sequelize = globalRef.sequelizeInstance;
 } else {
-  if (hasDatabaseUrl) {
-    const pg = require('pg');
-    const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
-    console.log('[Database] Initializing Sequelize with PostgreSQL URL');
-    sequelize = new Sequelize(databaseUrl, {
-      dialect: 'postgres',
-      dialectModule: pg,
-      logging: false,
-      dialectOptions: {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false
-        }
-      },
-      pool: {
-        max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000
-      }
-    });
-  } else if (hasMysqlConfig || dbDialect === 'mysql') {
-    const host = (process.env.DB_HOST || '195.35.59.4').trim();
+  if (hasMysqlConfig || dbDialect === 'mysql') {
+    const host = (process.env.DB_HOST || '46.17.175.230').trim();
     const port = parseInt(process.env.DB_PORT || '3306');
     const database = (process.env.DB_NAME || 'u526981273_drtalha_db').trim();
     const user = (process.env.DB_USER || 'u526981273_drtalha_db').trim();
